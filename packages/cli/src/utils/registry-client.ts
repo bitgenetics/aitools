@@ -1,3 +1,17 @@
+﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 import https from 'node:https';
 import http from 'node:http';
 import type { ToolManifest } from '@ai-tools/core';
@@ -18,11 +32,18 @@ export interface PublishResult {
   integrity: string;
 }
 
+export interface DownloadResult {
+  data: Buffer;
+  /** Server-reported integrity hash (X-Integrity header). May be absent for older registries. */
+  integrity?: string;
+}
+
 export interface RegistryClient {
   config: RegistryConfig;
   getManifest(name: string, version?: string): Promise<ToolManifest>;
+  listVersions(name: string): Promise<string[]>;
   search(query: string): Promise<SearchResult[]>;
-  download(name: string, version: string): Promise<Buffer>;
+  download(name: string, version: string): Promise<DownloadResult>;
   publish(manifest: ToolManifest, files: Record<string, string>): Promise<PublishResult>;
 }
 
@@ -78,23 +99,52 @@ export function createRegistryClient(config: RegistryConfig): RegistryClient {
     config,
     async getManifest(name: string, version = 'latest'): Promise<ToolManifest> {
       const encoded = encodeURIComponent(name);
-      return getJSON<ToolManifest>(`/tools/${encoded}/${version}`);
+      return getJSON<ToolManifest>(`/api/tools/${encoded}/${version}`);
+    },
+    async listVersions(name: string): Promise<string[]> {
+      const encoded = encodeURIComponent(name);
+      const result = await getJSON<{ name: string; versions: string[] }>(`/api/tools/${encoded}/versions`);
+      return result.versions;
     },
     async search(query: string): Promise<SearchResult[]> {
       const q = encodeURIComponent(query);
-      const results = await getJSON<SearchResult[]>(`/search?q=${q}`);
+      const results = await getJSON<SearchResult[]>(`/api/search?q=${q}`);
       return results.map((r) => ({ ...r, registry: config.url }));
     },
-    async download(name: string, version: string): Promise<Buffer> {
+    async download(name: string, version: string): Promise<DownloadResult> {
       const encoded = encodeURIComponent(name);
-      return request(`${base}/tools/${encoded}/${version}/tarball`);
+      const url = `${base}/api/tools/${encoded}/${version}/tarball`;
+      return new Promise((resolve, reject) => {
+        const parsed = new URL(url);
+        const lib = parsed.protocol === 'https:' ? https : http;
+        const headers = buildHeaders();
+
+        lib.get(url, { headers }, (res) => {
+          if (res.statusCode === 401 || res.statusCode === 403) {
+            reject(new Error(`Registry ${config.name}: authentication required (${res.statusCode})`));
+            return;
+          }
+          if (res.statusCode && res.statusCode >= 400) {
+            reject(new Error(`Registry ${config.name}: HTTP ${res.statusCode} for ${url}`));
+            return;
+          }
+          const chunks: Buffer[] = [];
+          res.on('data', (chunk: Buffer) => chunks.push(chunk));
+          res.on('end', () => {
+            const data = Buffer.concat(chunks);
+            const integrity = res.headers['x-integrity'] as string | undefined;
+            resolve({ data, integrity });
+          });
+          res.on('error', reject);
+        }).on('error', reject);
+      });
     },
     async publish(manifest: ToolManifest, files: Record<string, string>): Promise<PublishResult> {
       const body = JSON.stringify({ manifest, files });
       const headers = buildHeaders();
       headers['Content-Length'] = Buffer.byteLength(body).toString();
       return new Promise((resolve, reject) => {
-        const parsed = new URL(`${base}/tools`);
+        const parsed = new URL(`${base}/api/tools`);
         const lib = parsed.protocol === 'https:' ? https : http;
         const req = lib.request(
           { hostname: parsed.hostname, port: parsed.port, path: parsed.pathname, method: 'POST', headers },
@@ -103,7 +153,13 @@ export function createRegistryClient(config: RegistryConfig): RegistryClient {
             res.on('data', (c: Buffer) => chunks.push(c));
             res.on('end', () => {
               const text = Buffer.concat(chunks).toString('utf8');
-              const json: unknown = JSON.parse(text);
+              let json: unknown;
+              try {
+                json = JSON.parse(text);
+              } catch {
+                reject(new Error(`Registry ${config.name}: unexpected non-JSON response (HTTP ${res.statusCode}): ${text.slice(0, 200)}`));
+                return;
+              }
               if (res.statusCode === 201) {
                 resolve(json as PublishResult);
               } else {

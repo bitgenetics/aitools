@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "CLI tool for managing ai-tools packages",
   "bin": {
-    "ai-tools": "./dist/cli.js"
+    "aitools": "./dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -13,6 +13,11 @@
     "clean": "rimraf dist tsconfig.tsbuildinfo",
     "test": "jest"
   },
+  "author": {
+    "name": "Michael Benjamin",
+    "email": "turbofoxwave@gmail.com"
+  },
+  "license": "AGPL-3.0-or-later",
   "dependencies": {
     "@ai-tools/core": "*",
     "commander": "^12.1.0",

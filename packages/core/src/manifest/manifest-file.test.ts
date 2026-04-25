@@ -1,3 +1,17 @@
+﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -71,6 +85,20 @@ describe('upsertToolDependency', () => {
     const base: AiToolsManifest = { tools: { 'my-skill': '^1.0.0' } };
     const updated = upsertToolDependency(base, 'my-skill', '^2.0.0');
     expect(updated.tools?.['my-skill']).toBe('^2.0.0');
+  });
+
+  it('removes the tool from devTools when promoting it to tools', () => {
+    const base: AiToolsManifest = { devTools: { 'my-skill': '^1.0.0' } };
+    const updated = upsertToolDependency(base, 'my-skill', '^1.0.0', false);
+    expect(updated.tools?.['my-skill']).toBe('^1.0.0');
+    expect(updated.devTools?.['my-skill']).toBeUndefined();
+  });
+
+  it('removes the tool from tools when demoting it to devTools', () => {
+    const base: AiToolsManifest = { tools: { 'my-skill': '^1.0.0' } };
+    const updated = upsertToolDependency(base, 'my-skill', '^1.0.0', true);
+    expect(updated.devTools?.['my-skill']).toBe('^1.0.0');
+    expect(updated.tools?.['my-skill']).toBeUndefined();
   });
 
   it('does not mutate the original manifest', () => {

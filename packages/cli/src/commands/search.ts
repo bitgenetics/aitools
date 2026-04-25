@@ -1,3 +1,17 @@
+﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 import { Command } from 'commander';
 import ora from 'ora';
 import chalk from 'chalk';
@@ -16,10 +30,13 @@ export function createSearchCommand(): Command {
     .description('Search the registry for ai-tool packages')
     .argument('<query>', 'Search terms')
     .option('--json', 'Output raw JSON')
-    .action(async (query: string, options: { json?: boolean }) => {
+    .option('--registry <url>', 'Search a specific registry URL (overrides config)')
+    .action(async (query: string, options: { json?: boolean; registry?: string }) => {
       const cwd = process.cwd();
       const configManager = new ConfigManager(cwd);
-      const registries = configManager.getRegistries();
+      const registries = options.registry
+        ? [{ name: options.registry, url: options.registry }]
+        : configManager.getRegistries();
 
       if (registries.length === 0) {
         console.error(chalk.red('No registries configured. Add one with: ai-tools registry add <url>'));

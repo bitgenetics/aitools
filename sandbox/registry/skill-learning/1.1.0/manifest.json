@@ -1,0 +1,120 @@
+{
+  "name": "skill-learning",
+  "version": "1.1.0",
+  "description": "A skill tool",
+  "category": "skill",
+  "files": [
+    {
+      "src": ".agents/skills/learnings/SKILL.md",
+      "dest": ".agents/skills/learnings/SKILL.md"
+    },
+    {
+      "src": ".agents/skills/learnings/assets/entry-template.md",
+      "dest": ".agents/skills/learnings/assets/entry-template.md"
+    },
+    {
+      "src": ".agents/skills/learnings/learning-log.md",
+      "dest": ".agents/skills/learnings/learning-log.md"
+    },
+    {
+      "src": ".github/prompts/eval-S01-ambiguous-invocation.prompt.md",
+      "dest": ".github/prompts/eval-S01-ambiguous-invocation.prompt.md"
+    },
+    {
+      "src": ".github/prompts/eval-S02-list-with-entries.prompt.md",
+      "dest": ".github/prompts/eval-S02-list-with-entries.prompt.md"
+    },
+    {
+      "src": ".github/prompts/eval-S03-list-empty.prompt.md",
+      "dest": ".github/prompts/eval-S03-list-empty.prompt.md"
+    },
+    {
+      "src": ".github/prompts/eval-S04-update-single.prompt.md",
+      "dest": ".github/prompts/eval-S04-update-single.prompt.md"
+    },
+    {
+      "src": ".github/prompts/eval-S05-update-no-qualifying.prompt.md",
+      "dest": ".github/prompts/eval-S05-update-no-qualifying.prompt.md"
+    },
+    {
+      "src": ".github/prompts/eval-S06-update-two-learnings.prompt.md",
+      "dest": ".github/prompts/eval-S06-update-two-learnings.prompt.md"
+    },
+    {
+      "src": ".github/prompts/eval-S07-apply-routing.prompt.md",
+      "dest": ".github/prompts/eval-S07-apply-routing.prompt.md"
+    },
+    {
+      "src": ".github/prompts/eval-S08-apply-cleanup.prompt.md",
+      "dest": ".github/prompts/eval-S08-apply-cleanup.prompt.md"
+    },
+    {
+      "src": "evals/_template/scenario.md",
+      "dest": "evals/_template/scenario.md"
+    },
+    {
+      "src": "evals/learnings/fixtures/S02-learning-log.md",
+      "dest": "evals/learnings/fixtures/S02-learning-log.md"
+    },
+    {
+      "src": "evals/learnings/fixtures/S03-learning-log.md",
+      "dest": "evals/learnings/fixtures/S03-learning-log.md"
+    },
+    {
+      "src": "evals/learnings/fixtures/S06-learning-log.md",
+      "dest": "evals/learnings/fixtures/S06-learning-log.md"
+    },
+    {
+      "src": "evals/learnings/fixtures/S07-learning-log.md",
+      "dest": "evals/learnings/fixtures/S07-learning-log.md"
+    },
+    {
+      "src": "evals/learnings/fixtures/S08-learning-log.md",
+      "dest": "evals/learnings/fixtures/S08-learning-log.md"
+    },
+    {
+      "src": "evals/learnings/fixtures/copilot-instructions.md",
+      "dest": "evals/learnings/fixtures/copilot-instructions.md"
+    },
+    {
+      "src": "evals/learnings/results.md",
+      "dest": "evals/learnings/results.md"
+    },
+    {
+      "src": "evals/learnings/scenarios/S01-ambiguous-invocation.md",
+      "dest": "evals/learnings/scenarios/S01-ambiguous-invocation.md"
+    },
+    {
+      "src": "evals/learnings/scenarios/S02-list-with-entries.md",
+      "dest": "evals/learnings/scenarios/S02-list-with-entries.md"
+    },
+    {
+      "src": "evals/learnings/scenarios/S03-list-empty.md",
+      "dest": "evals/learnings/scenarios/S03-list-empty.md"
+    },
+    {
+      "src": "evals/learnings/scenarios/S04-update-single.md",
+      "dest": "evals/learnings/scenarios/S04-update-single.md"
+    },
+    {
+      "src": "evals/learnings/scenarios/S05-update-no-qualifying.md",
+      "dest": "evals/learnings/scenarios/S05-update-no-qualifying.md"
+    },
+    {
+      "src": "evals/learnings/scenarios/S06-update-existing-log.md",
+      "dest": "evals/learnings/scenarios/S06-update-existing-log.md"
+    },
+    {
+      "src": "evals/learnings/scenarios/S07-apply-routing.md",
+      "dest": "evals/learnings/scenarios/S07-apply-routing.md"
+    },
+    {
+      "src": "evals/learnings/scenarios/S08-apply-cleanup.md",
+      "dest": "evals/learnings/scenarios/S08-apply-cleanup.md"
+    },
+    {
+      "src": "evals/models.md",
+      "dest": "evals/models.md"
+    }
+  ]
+}

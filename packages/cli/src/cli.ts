@@ -1,3 +1,17 @@
+﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { createInstallCommand } from './commands/install.js';
@@ -10,15 +24,18 @@ import { createRegistryCommand } from './commands/registry.js';
 import { createPublishCommand } from './commands/publish.js';
 import { createManifestCommand } from './commands/manifest.js';
 import { createConfigCommand } from './commands/config.js';
+import { createCompatCommand } from './commands/compat.js';
+import { createDevInitCommand } from './commands/dev-init.js';
 
 const program = new Command();
 
 program
-  .name('ai-tools')
+  .name('aitools')
   .description('Package manager for ai-tools: skills, subagents, prompts, and MCP tools')
   .version('0.1.0');
 
 program.addCommand(createInitCommand());
+program.addCommand(createDevInitCommand());
 program.addCommand(createInstallCommand());
 program.addCommand(createUninstallCommand());
 program.addCommand(createUpdateCommand());
@@ -29,8 +46,10 @@ program.addCommand(createRegistryCommand());
 program.addCommand(createPublishCommand());
 program.addCommand(createManifestCommand());
 program.addCommand(createConfigCommand());
+program.addCommand(createCompatCommand());
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   console.error((err as Error).message);
   process.exit(1);
 });
+

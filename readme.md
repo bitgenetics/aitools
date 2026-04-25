@@ -10,10 +10,10 @@ Think `npm` but for the AI tooling ecosystem. Tools can be scoped to a project (
 
 - **Install / uninstall / update** AI tools by name and version
 - **Project-scope and user-scope** installs with sensible default paths per category
-- **Smart search** — describe what you need in plain language; an AI agent finds the best match
+- **Extended search** — search by name, description, keywords, and tags across all configured registries
 - **Publish tools** — package and upload skills, agents, and prompts to any registry
-- **Cascading config** — `ai-tools.config.json` merges from home directory down to project directory, like `.npmrc`
-- **Lock file** — `ai-tools-lock.json` pins exact versions for reproducible installs
+- **Cascading config** — `aitools.config.json` merges from home directory down to project directory, like `.npmrc`
+- **Lock file** — `aitools-lock.json` pins exact versions for reproducible installs
 - **Self-hosted registry** — run your own private registry and chain it with public ones
 - **Registry chaining** — multiple registries resolved by priority; proxy search merges results
 
@@ -34,36 +34,193 @@ npm install -g @ai-tools/cli
 
 ---
 
-## Quick Start
+## Quick Starts
+
+### 1. Using ai-tools in your project
 
 ```bash
+# Tell ai-tools which IDE you use (once, global)
+aitools config set platform vscode --global   # vscode | claude | cursor | windsurf
+
 # Initialise a project (creates ai-tools.json)
-ai-tools init
+aitools init
 
 # Search for tools
-ai-tools search copilot
+aitools search copilot
 
-# Smart search — describe what you need
-ai-tools find "I need something that reviews pull requests automatically"
+# Extended search — searches name, description, keywords, and tags
+aitools find "pull request review"
 
 # Install a tool (project scope by default)
-ai-tools install @scope/my-skill
+aitools install @scope/my-skill
 
 # Install a specific version
-ai-tools install @scope/my-skill@1.2.0
+aitools install @scope/my-skill@1.2.0
 
 # Install to user scope (available in all projects)
-ai-tools install @scope/my-agent --scope user
+aitools install @scope/my-agent --scope user
 
 # List installed tools
-ai-tools list
+aitools list
 
 # Update all tools
-ai-tools update
+aitools update
 
 # Remove a tool
-ai-tools uninstall @scope/my-skill
+aitools uninstall @scope/my-skill
 ```
+
+---
+
+### 2. Hosting a local network registry
+
+Run a private registry on your LAN — no Docker, no database. Tools are stored on the local filesystem.
+
+```bash
+npm install -g @ai-tools/server
+
+# bash
+AI_TOOLS_DATA_DIR=./data \
+AI_TOOLS_ADMIN_TOKEN=change-me \
+AI_TOOLS_PUBLISHER_TOKENS='{"your-token":{"userId":"you","orgs":["my-org"]}}' \
+node $(npm root -g)/@ai-tools/server/dist/index.js
+
+# PowerShell
+$env:AI_TOOLS_DATA_DIR = ".\data"
+$env:AI_TOOLS_ADMIN_TOKEN = "change-me"
+$env:AI_TOOLS_PUBLISHER_TOKENS = '{"your-token":{"userId":"you","orgs":["my-org"]}}'
+node (Join-Path (npm root -g) "@ai-tools/server/dist/index.js")
+```
+
+Point any client machine at it:
+
+```bash
+aitools registry add http://<server-ip>:4873 --name team --token your-token --global
+```
+
+See the [Self-Hosted Registry](#self-hosted-registry) section below for all configuration options and environment variables.
+
+---
+
+### 3. Developing for ai-tools
+
+For hacking on the ai-tools codebase itself:
+
+```bash
+git clone https://github.com/your-org/ai-tools && cd ai-tools
+npm install
+npm run build       # core → cli → server in dependency order
+npm test            # all packages
+```
+
+Spin up a local registry backed by the built server:
+
+```bash
+# bash
+AI_TOOLS_DATA_DIR=/tmp/ai-tools-dev PORT=4873 HOST=127.0.0.1 \
+  node packages/server/dist/index.js
+
+# PowerShell
+$env:AI_TOOLS_DATA_DIR = "$env:TEMP\ai-tools-dev"
+$env:PORT = "4873"; $env:HOST = "127.0.0.1"
+node packages/server/dist/index.js
+```
+
+#### Running with debugger support (no build required)
+
+The server can be started directly from TypeScript source using `tsx` — no build step needed. This is the recommended approach during active development.
+
+```bash
+# bash — run from TypeScript source with file-watching
+AI_TOOLS_DATA_DIR=/tmp/ai-tools-dev PORT=4873 HOST=127.0.0.1 \
+  npm run dev -w @ai-tools/server
+
+# PowerShell
+$env:AI_TOOLS_DATA_DIR = "$env:TEMP\ai-tools-dev"
+$env:PORT = "4873"; $env:HOST = "127.0.0.1"
+npm run dev -w @ai-tools/server
+```
+
+To attach a debugger (e.g. VS Code **Attach to Node Process**), use the `debug:watch` script — it exposes the inspector on port `9229` and restarts on file changes:
+
+```bash
+# bash
+AI_TOOLS_DATA_DIR=/tmp/ai-tools-dev PORT=4873 HOST=127.0.0.1 \
+  npm run debug:watch -w @ai-tools/server
+
+# PowerShell
+$env:AI_TOOLS_DATA_DIR = "$env:TEMP\ai-tools-dev"
+$env:PORT = "4873"; $env:HOST = "127.0.0.1"
+npm run debug:watch -w @ai-tools/server
+```
+
+Then in VS Code open the **Run and Debug** panel and choose **Attach to Node Process** (port `9229`). Set breakpoints in any file under `packages/server/src/`.
+
+Use the locally built CLI against it (no global install needed):
+
+```bash
+# bash — add a shell alias
+alias ai-tools="node $PWD/packages/cli/dist/cli.js"
+
+# PowerShell — add a function
+function aitools { node "$PWD/packages/cli/dist/cli.js" @args }
+```
+
+Use `aitools dev-init` to install the bundled `create-ai-tool` skill without needing a registry running at all — useful when you just want the AI authoring instructions locally:
+
+```bash
+aitools dev-init
+```
+
+---
+
+### 4. Private enterprise registry
+
+Full setup with user accounts, a database, and multi-registry chaining for supply-chain control.
+
+#### Server setup (Docker + Postgres)
+
+```bash
+# Grab the repo (or just docker-compose.yml + .env.example)
+git clone https://github.com/your-org/ai-tools && cd ai-tools
+
+cp .env.example .env   # set POSTGRES_PASSWORD, AI_TOOLS_ADMIN_TOKEN, etc.
+docker compose up -d
+```
+
+The server starts at `http://localhost:4873`. Register the first user:
+
+```bash
+curl -s -X POST http://localhost:4873/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"strong-pass"}' | jq .token
+```
+
+See [`docs/deployment.md`](docs/deployment.md) for Kubernetes, systemd, and nginx reverse proxy recipes.
+
+#### Multi-registry chaining
+
+The recommended enterprise pattern is **two registries with priority-based chaining**:
+
+| Registry | Purpose | Who publishes | Access |
+|----------|---------|---------------|--------|
+| **Internal** (priority 1) | Your team's own skills, agents, and prompts | Your developers | Private, token-gated |
+| **Curated** (priority 2) | Vetted 3rd-party tools that passed review | Review board / ops | Private, read-only for consumers |
+
+The CLI queries registries in priority order. Internal tools shadow anything with the same name in the curated registry. Install and search merge results from both.
+
+```bash
+# Developer workstation setup (run once)
+aitools registry add http://internal.corp:4873 --name internal --token $MY_TOKEN --priority 1 --global
+aitools registry add http://curated.corp:4873 --name curated --token $READ_TOKEN --priority 2 --global
+```
+
+**Workflow:**
+1. Teams publish internal tools directly to the internal registry via `aitools publish`.
+2. Third-party tools are reviewed (security, quality, compatibility) then published to the curated registry by an authorized reviewer.
+3. Developers consume from both transparently — `aitools install some-tool` resolves from internal first, then curated.
+
+This gives you supply-chain control: nothing reaches developer machines without being either authored internally or vetted through your review process.
 
 ---
 
@@ -71,35 +228,58 @@ ai-tools uninstall @scope/my-skill
 
 | Command | Description |
 |---|---|
-| `ai-tools init` | Create `ai-tools.json` in the current directory |
-| `ai-tools install <name[@version]>` | Install a tool |
-| `ai-tools uninstall <name>` | Remove a tool and its files |
-| `ai-tools update [name]` | Update one or all installed tools |
-| `ai-tools search <query>` | Search the registry by keyword |
-| `ai-tools find <description>` | Smart search using natural language |
-| `ai-tools list` | List tools recorded in the lock file |
-| `ai-tools registry list` | Show configured registries |
-| `ai-tools registry add <url>` | Add a registry to the project config |
-| `ai-tools registry add <url> --global` | Add a registry to the user config |
-| `ai-tools registry remove <name>` | Remove a registry |
-| `ai-tools config list` | Show all config files and their values |
-| `ai-tools config get <key>` | Get an effective config value |
-| `ai-tools config set <key> <value>` | Set a config value in the project config |
-| `ai-tools config set <key> <value> --global` | Set a config value in the user config |
-| `ai-tools config unset <key>` | Remove a config key |
-| `ai-tools config edit` | Open the project config in your editor |
-| `ai-tools config edit --global` | Open the user config in your editor |
-| `ai-tools manifest init` | Create an `ai-tools.manifest.json` for publishing |
-| `ai-tools manifest bump <patch\|minor\|major\|x.y.z>` | Bump the manifest version |
-| `ai-tools publish` | Publish the tool to a registry |
-| `ai-tools publish --dry-run` | Validate without uploading |
+| `aitools init` | Create `aitools.json` in the current directory |
+| `aitools install <name[@version]>` | Install a tool |
+| `aitools uninstall <name>` | Remove a tool and its files |
+| `aitools update [name]` | Update one or all installed tools |
+| `aitools search <query>` | Search the registry by keyword |
+| `aitools find <description>` | Extended search across name, description, keywords, and tags |
+| `aitools list` | List tools recorded in the lock file |
+| `aitools registry list` | Show configured registries |
+| `aitools registry add <url>` | Add a registry to the project config |
+| `aitools registry add <url> --global` | Add a registry to the user config |
+| `aitools registry remove <name>` | Remove a registry |
+| `aitools config list` | Show all config files and their values |
+| `aitools config get <key>` | Get an effective config value |
+| `aitools config set <key> <value>` | Set a config value in the project config |
+| `aitools config set <key> <value> --global` | Set a config value in the user config |
+| `aitools config unset <key>` | Remove a config key |
+| `aitools config edit` | Open the project config in your editor |
+| `aitools config edit --global` | Open the user config in your editor |
+| `aitools manifest init` | Create an `aitools.manifest.json` for publishing |
+| `aitools manifest validate` | Validate an existing manifest against the schema |
+| `aitools manifest bump <patch\|minor\|major\|x.y.z>` | Bump the manifest version |
+| `aitools publish` | Publish the tool to a registry |
+| `aitools publish --dry-run` | Validate without uploading |
+| `aitools compat` | Audit platform compatibility of a tool package |
 
 ### Install options
 
 | Flag | Default | Description |
 |---|---|---|
 | `--scope <project\|user>` | `project` | Where to install the tool |
-| `--dev` | `false` | Save as a dev dependency in `ai-tools.json` |
+| `--dev` | `false` | Save as a dev dependency in `aitools.json` |
+| `-v, --version <version>` | | Specific version to install (overrides `@version` in name) |
+
+### Update options
+
+| Flag | Default | Description |
+|---|---|---|
+| `-s, --scope <project\|user>` | `project` | Scope of packages to update |
+
+### List options
+
+| Flag | Description |
+|---|---|
+| `--json` | Output raw JSON |
+
+### Publish options
+
+| Flag | Description |
+|---|---|
+| `-r, --registry <url>` | Registry URL (overrides config for this publish) |
+| `--dry-run` | Validate and show what would be published without uploading |
+| `--strict` | Block publish if the skill has frontmatter fields unsupported on any platform |
 
 ### Registry options
 
@@ -118,6 +298,14 @@ ai-tools uninstall @scope/my-skill
 | `defaultScope` | `project`, `user` | Default install scope when `--scope` is omitted |
 | `installPaths.<scope>.<category>` | Any path | Override install directory for a specific category and scope |
 
+### Compat options
+
+| Flag | Description |
+|---|---|
+| `-m, --manifest <path>` | Path to manifest file (default: `./ai-tools.manifest.json`) |
+| `-p, --platform <platform>` | Check a specific platform only |
+| `--fix` | Rewrite the SKILL.md file, stripping frontmatter fields unsupported on the target platform(s) |
+
 ---
 
 ## Publishing Tools
@@ -126,19 +314,19 @@ ai-tools uninstall @scope/my-skill
 
 ```bash
 # 1. Create the publish manifest (once)
-ai-tools manifest init --category skill --description "My skill"
+aitools manifest init --category skill --description "My skill"
 
 # 2. Edit ai-tools.manifest.json and add your files, then publish
-ai-tools publish
+aitools publish
 
 # 3. To release an update, bump the version first
-ai-tools manifest bump patch     # 1.0.0 -> 1.0.1
-ai-tools manifest bump minor     # 1.0.0 -> 1.1.0
-ai-tools manifest bump major     # 1.0.0 -> 2.0.0
-ai-tools manifest bump 2.0.0     # explicit version
+aitools manifest bump patch     # 1.0.0 -> 1.0.1
+aitools manifest bump minor     # 1.0.0 -> 1.1.0
+aitools manifest bump major     # 1.0.0 -> 2.0.0
+aitools manifest bump 2.0.0     # explicit version
 
 # 4. Publish the new version
-ai-tools publish
+aitools publish
 ```
 
 > Each `name@version` combination is immutable once published. The registry returns 409 if you re-publish the same version.
@@ -147,19 +335,19 @@ ai-tools publish
 
 ```bash
 # Save the registry to user config (applies to all projects)
-ai-tools registry add http://localhost:4873 --name my-registry --global
+aitools registry add http://localhost:4873 --name my-registry --global
 
 # Or per-project
-ai-tools registry add http://localhost:4873 --name my-registry
+aitools registry add http://localhost:4873 --name my-registry
 
 # Publish with no flags — registry is picked from config automatically
-ai-tools publish
+aitools publish
 
 # Or override for a single publish
-ai-tools publish --registry http://localhost:4873
+aitools publish --registry http://localhost:4873
 ```
 
-### `ai-tools.manifest.json`
+### `aitools.manifest.json`
 
 ```json
 {
@@ -177,6 +365,16 @@ ai-tools publish --registry http://localhost:4873
 
 `dest` is relative to the category install directory — do not repeat the category name (use `my-skill.md`, not `skills/my-skill.md`).
 
+Each entry may include an optional `platform` field (`vscode`, `claude`, `cursor`, `windsurf`, or `universal`) to restrict a file to a specific IDE. When multiple entries share the same `dest`, the platform-specific entry takes precedence over an unscoped entry for the active platform. Entries for other platforms are skipped.
+
+```json
+"files": [
+  { "src": "SKILL.vscode.md", "dest": "SKILL.md", "platform": "vscode" },
+  { "src": "SKILL.claude.md", "dest": "SKILL.md", "platform": "claude" },
+  { "src": "SKILL.md",        "dest": "SKILL.md" }
+]
+```
+
 **Field reference**
 
 | Field | Required | Description |
@@ -185,18 +383,19 @@ ai-tools publish --registry http://localhost:4873
 | `version` | Yes | Semver string |
 | `description` | Yes | Short description |
 | `category` | Yes | `skill`, `subagent`, `prompt`, or `mcp-tool` |
-| `files` | Yes | Array of `{ src, dest }` file entries |
+| `files` | Yes | Array of `{ src, dest, platform? }` file entries |
 | `keywords` | | Array of strings for search |
 | `author` | | Author name or email |
 | `repository` | | URL to the source repository |
 | `tags` | | Additional search tags |
 | `dependencies` | | Map of tool name to semver range |
+| `private` | | `true` — hides the tool from unauthenticated reads when the registry runs with `REGISTRY_ACCESS=public`. Can also be toggled after publish via `PATCH /tools/:name` (owner org only). |
 
 ---
 
 ## Project Files
 
-### `ai-tools.json` — dependency manifest
+### `aitools.json` — dependency manifest
 
 Tracks which tools your project depends on, similar to `package.json`.
 
@@ -212,7 +411,7 @@ Tracks which tools your project depends on, similar to `package.json`.
 }
 ```
 
-### `ai-tools-lock.json` — lock file
+### `aitools-lock.json` — lock file
 
 Pins exact installed versions. Commit this file.
 
@@ -231,7 +430,7 @@ Pins exact installed versions. Commit this file.
 }
 ```
 
-### `ai-tools.config.json` — configuration
+### `aitools.config.json` — configuration
 
 Config cascades from your home directory (`~/ai-tools.config.json`) down to the project directory. Project values override user values; registry lists are merged with project registries taking priority.
 
@@ -267,15 +466,15 @@ The file supports JSONC (comments allowed):
 Open the config in your editor:
 
 ```bash
-ai-tools config edit           # project config
-ai-tools config edit --global  # user config (~/ai-tools.config.json)
+aitools config edit           # project config
+aitools config edit --global  # user config (~/ai-tools.config.json)
 ```
 
 ---
 
 ## Tool Categories & Install Paths
 
-Set `platform` in `ai-tools.config.json` to adapt installs to your IDE.
+Set `platform` in `aitools.config.json` to adapt installs to your IDE.
 
 > **Note:** When no `platform` is set, ai-tools uses a universal layout. Always set a `platform` value so installed files land where your IDE expects them.
 
@@ -283,28 +482,28 @@ Set `platform` in `ai-tools.config.json` to adapt installs to your IDE.
 
 | Platform | Project scope | User scope |
 |---|---|---|
-| `vscode` | `.github/prompts/skills/` | `~/.vscode/prompts/skills/` |
-| `claude` | `.claude/skills/` | `~/.claude/skills/` |
-| `cursor` | `.cursor/skills/` | `~/.cursor/skills/` |
-| `windsurf` | `.windsurf/skills/` | `~/.windsurf/skills/` |
+| `vscode` | `.agents/skills` | `~/.copilot/skills` |
+| `claude` | `.claude/skills` | `~/.claude/skills` |
+| `cursor` | `.agents/skills` | `~/.agents/skills` |
+| `windsurf` | `.windsurf/skills` | `~/.windsurf/skills` |
 
 ### `subagent`
 
 | Platform | Project scope | User scope |
 |---|---|---|
-| `vscode` | `.github/agents/` | `~/.vscode/agents/` |
-| `claude` | `.claude/agents/` | `~/.claude/agents/` |
-| `cursor` | `.cursor/agents/` | `~/.cursor/agents/` |
-| `windsurf` | `.windsurf/agents/` | `~/.windsurf/agents/` |
+| `vscode` | `.github/agents` | `~/.copilot/agents` |
+| `claude` | `.claude/agents` | `~/.claude/agents` |
+| `cursor` | `.agents/agents` | `~/.agents/agents` |
+| `windsurf` | `.windsurf/agents` | `~/.windsurf/agents` |
 
 ### `prompt`
 
 | Platform | Project scope | User scope |
 |---|---|---|
-| `vscode` | `.github/prompts/` | `~/.vscode/prompts/` |
-| `claude` | `.claude/commands/` | `~/.claude/commands/` |
-| `cursor` | `.cursor/rules/` | `~/.cursor/rules/` |
-| `windsurf` | `.windsurf/rules/` | `~/.windsurf/rules/` |
+| `vscode` | `.agents/prompts` | `~/.copilot/prompts` |
+| `claude` | `.claude/commands` | `~/.claude/commands` |
+| `cursor` | `.agents/prompts` | `~/.agents/prompts` |
+| `windsurf` | `.windsurf/rules` | `~/.windsurf/rules` |
 
 ### `mcp-tool`
 
@@ -315,34 +514,164 @@ MCP tools inject a server entry into the platform's `mcp.json` config file.
 | `vscode` | `.vscode/mcp.json` | `~/.vscode/mcp.json` |
 | `claude` | `.mcp.json` | `~/.claude/mcp.json` |
 | `cursor` | `.cursor/mcp.json` | `~/.cursor/mcp.json` |
-| `windsurf` | `.windsurf/mcp.json` | `~/.windsurf/mcp.json` |
+| `windsurf` | `.windsurf/mcp.json` | `~/.codeium/windsurf/mcp_config.json` |
 
 ---
 
 ## Self-Hosted Registry
 
-Run your own registry with `@ai-tools/server`:
+Run your own registry with `@ai-tools/server`. Three deployment modes are supported — pick the one that fits your situation.
 
 ```bash
 npm install -g @ai-tools/server
-AI_TOOLS_DATA_DIR=./data node dist/index.js
 ```
 
-### Environment variables
+---
+
+### Mode 1 — Local (no database, token auth)
+
+Best for a single team or personal use. No external services required.
+
+```bash
+# bash
+AI_TOOLS_DATA_DIR=./data \
+AUTH_BACKEND=simple \
+AI_TOOLS_ADMIN_TOKEN=secret-admin \
+AI_TOOLS_PUBLISH_TOKEN=secret-publish \
+node dist/index.js
+
+# PowerShell
+$env:AI_TOOLS_DATA_DIR = ".\data"
+$env:AUTH_BACKEND     = "simple"
+$env:AI_TOOLS_ADMIN_TOKEN   = "secret-admin"
+$env:AI_TOOLS_PUBLISH_TOKEN = "secret-publish"
+node dist/index.js
+```
+
+| Variable | Required | Description |
+|---|---|---|
+| `AI_TOOLS_DATA_DIR` | Yes | Directory where tool tarballs and manifests are stored |
+| `AUTH_BACKEND` | | `simple` (default) |
+| `REGISTRY_ACCESS` | | `private` (default) — all reads require auth; `public` — reads are open, tools with `"private": true` are hidden |
+| `AI_TOOLS_PUBLISH_TOKEN` | | Single shared Bearer token for publish (`POST /tools`) |
+| `AI_TOOLS_PUBLISHER_TOKENS` | | Multi-user token map (JSON, see below) — takes precedence over `AI_TOOLS_PUBLISH_TOKEN` |
+| `AI_TOOLS_ADMIN_TOKEN` | | Bearer token for the `/portal/admin` management UI |
+| `PORT` | | Port to listen on (default `4873`) |
+| `HOST` | | Host to bind (default `0.0.0.0`) |
+
+**Multi-user publish tokens** — set `AI_TOOLS_PUBLISHER_TOKENS` to a JSON object where each key is a Bearer token:
+
+```bash
+AI_TOOLS_PUBLISHER_TOKENS='{"token-alice":{"userId":"alice","orgs":["my-org"]},"token-bob":{"userId":"bob","orgs":["my-org"]}}'
+```
+
+When publishing, pass the matching token in the `Authorization` header and optionally `X-AI-Tools-Org` to select an org.
+
+---
+
+### Mode 2 — Dev / team (filesystem + Postgres user auth)
+
+Adds user registration, login, and per-user API tokens stored in a Postgres database. Storage stays on the local filesystem.
+
+```bash
+# bash
+AI_TOOLS_DATA_DIR=./data \
+DATABASE_URL=postgresql://user:pass@localhost:5432/ai_tools \
+AI_TOOLS_ADMIN_TOKEN=secret-admin \
+node dist/index.js
+
+# PowerShell
+$env:AI_TOOLS_DATA_DIR   = ".\data"
+$env:DATABASE_URL         = "postgresql://user:pass@localhost:5432/ai_tools"
+$env:AI_TOOLS_ADMIN_TOKEN = "secret-admin"
+node dist/index.js
+```
+
+| Variable | Required | Description |
+|---|---|---|
+| `AI_TOOLS_DATA_DIR` | Yes | Directory where tool tarballs and manifests are stored |
+| `DATABASE_URL` | Yes | Postgres connection string — triggers `AUTH_BACKEND=database` automatically |
+| `REGISTRY_ACCESS` | | `private` (default) — all reads require auth; `public` — reads are open, tools with `"private": true` are hidden |
+| `AI_TOOLS_ADMIN_TOKEN` | | Bearer token for the `/portal/admin` management UI |
+| `PORT` | | Port to listen on (default `4873`) |
+| `HOST` | | Host to bind (default `0.0.0.0`) |
+
+The server runs schema migrations on startup. Users register via `POST /api/auth/register`, log in via `POST /api/auth/login`, and manage API tokens via `/api/auth/tokens`.
+
+**Docker Compose example:**
+
+Use the bundled `docker-compose.yml` — copy `.env.example` to `.env`, fill in the secrets, then:
+
+```bash
+cp .env.example .env   # edit AI_TOOLS_ADMIN_TOKEN, POSTGRES_PASSWORD, DATABASE_URL
+docker compose up -d
+```
+
+Never commit `.env`. See [`docs/deployment.md`](docs/deployment.md) for Kubernetes and systemd instructions.
+
+---
+
+### Mode 3 — Production (cloud storage + OIDC)
+
+> **Note:** Azure, S3, and OIDC backends are currently stubs. This mode documents the intended configuration for when they are fully implemented.
+
+```bash
+# Azure Blob Storage + OIDC
+STORAGE_BACKEND=azure \
+AUTH_BACKEND=oidc \
+AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=https;..." \
+AZURE_STORAGE_CONTAINER=ai-tools \
+OIDC_ISSUER=https://login.microsoftonline.com/<tenant>/v2.0 \
+OIDC_AUDIENCE=api://ai-tools \
+AI_TOOLS_ADMIN_TOKEN=secret-admin \
+node dist/index.js
+```
+
+```bash
+# AWS S3 + OIDC
+STORAGE_BACKEND=s3 \
+AUTH_BACKEND=oidc \
+AWS_S3_BUCKET=my-ai-tools-bucket \
+AWS_REGION=us-east-1 \
+OIDC_ISSUER=https://accounts.google.com \
+OIDC_AUDIENCE=my-client-id \
+node dist/index.js
+```
+
+| Variable | Required | Description |
+|---|---|---|
+| `STORAGE_BACKEND` | | `filesystem` (default), `azure`, or `s3` |
+| `AUTH_BACKEND` | | `simple` (default), `database`, or `oidc` |
+| `AZURE_STORAGE_CONNECTION_STRING` | azure | Azure Blob Storage connection string |
+| `AZURE_STORAGE_CONTAINER` | azure | Blob container name |
+| `AWS_S3_BUCKET` | s3 | S3 bucket name |
+| `AWS_REGION` | s3 | AWS region |
+| `OIDC_ISSUER` | oidc | OIDC issuer URL |
+| `OIDC_AUDIENCE` | oidc | Expected token audience |
+| `OIDC_ADMIN_ROLE` | | Claim value that grants admin access (optional) |
+| `OIDC_ORG_CLAIM` | | JWT claim name to extract org membership (optional) |
+
+---
+
+### Common environment variables
+
+These apply to all modes:
 
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `4873` | Port to listen on |
 | `HOST` | `0.0.0.0` | Host to bind |
-| `AI_TOOLS_DATA_DIR` | (required) | Directory where tool versions are stored |
+| `REGISTRY_ACCESS` | `private` | `private` — all reads require a valid publisher token. `public` — reads are open; tools marked `"private": true` in their manifest are hidden from unauthenticated callers. |
 | `UPSTREAMS` | | Comma-separated `name=url` upstream registry pairs |
+| `CORS_ORIGINS` | _(deny all)_ | Comma-separated list of allowed CORS origins (e.g. `https://app.example.com`) |
+| `LOG_LEVEL` | `info` | Pino log level: `trace`, `debug`, `info`, `warn`, `error`, `fatal` |
+
+See `.env.example` in the repo root for a full reference with descriptions of every variable.
 
 ### Example with upstreams
 
 ```bash
 AI_TOOLS_DATA_DIR=/var/lib/ai-tools \
-PORT=4873 \
-HOST=0.0.0.0 \
 UPSTREAMS="public=https://registry.ai-tools.dev" \
 node dist/index.js
 ```
@@ -351,7 +680,8 @@ node dist/index.js
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/health` | Health check |
+| `GET` | `/health` | Liveness check — always `200 { status: "ok" }` |
+| `GET` | `/health/ready` | Readiness check — `503` when DB is unreachable |
 | `GET` | `/tools` | List all tools (latest versions) |
 | `GET` | `/search?q=<query>` | Search tools |
 | `GET` | `/tools/:name` | Get latest manifest for a tool |
@@ -359,8 +689,31 @@ node dist/index.js
 | `GET` | `/tools/:name/:version` | Get specific version manifest |
 | `GET` | `/tools/:name/:version/tarball` | Download tool tarball |
 | `POST` | `/tools` | Publish a tool version |
+| `PATCH` | `/tools/:name` | Update tool-level settings (owner org only) |
 | `GET` | `/upstream` | List configured upstream registries |
 | `GET` | `/proxy/search?q=<query>` | Search across all upstreams |
+
+### Per-tool privacy control
+
+Once a tool is published the owning org can toggle its visibility at any time without republishing:
+
+```bash
+# Make a tool private (hidden from unauthenticated callers in public mode)
+curl -X PATCH https://registry.example.com/tools/my-skill \
+  -H "Authorization: Bearer <owner-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"private": true}'
+
+# Restore public visibility
+curl -X PATCH https://registry.example.com/tools/my-skill \
+  -H "Authorization: Bearer <owner-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"private": false}'
+```
+
+**Auth rules:** `401` if unauthenticated, `403` if the caller's org is not the tool owner, `404` if the tool doesn't exist.
+
+**Precedence:** The owner-level flag (set via `PATCH`) overrides the `"private"` field in any individual version's manifest, so one call applies to all versions.
 
 ### Registry chaining
 
@@ -377,10 +730,10 @@ Registries are resolved in priority order; the first match wins for installs, an
 ## Monorepo Structure
 
 ```
-ai-tools/
+aitools/
 ├── packages/
 │   ├── core/        # @ai-tools/core — shared types, schemas, config cascade, lock utilities
-│   ├── cli/         # @ai-tools/cli  — the `ai-tools` CLI
+│   ├── cli/         # @ai-tools/cli  — the `aitools` CLI
 │   └── server/      # @ai-tools/server — self-hosted registry server
 ├── tsconfig.base.json
 └── package.json
@@ -405,6 +758,61 @@ npm test -w @ai-tools/core -- --coverage
 npm test -w @ai-tools/server -- --coverage
 npm test -w @ai-tools/cli -- --coverage
 ```
+
+### Unit / integration tests
+
+`npm test` covers all three packages. Server route handlers are tested via Fastify `inject()` — no real HTTP port needed.
+
+### End-to-end tests
+
+E2e tests live in `packages/e2e/` and run the CLI binary against a live server.
+
+**Option A — Docker**
+
+```bash
+npm run test:e2e          # tear down stale volumes, build images, run tests (jest output only)
+npm run test:e2e:verbose  # same, but shows registry logs too
+npm run test:e2e:down     # remove containers and volumes manually
+```
+
+Requires Docker with the default (Linux) engine. The script tears down any previous volumes before starting, so repeated runs always get a clean registry.
+
+**Option B — local server**
+
+1. Build:
+
+   ```bash
+   npm run build -w @ai-tools/core && npm run build -w @ai-tools/cli
+   ```
+
+2. Start a fresh registry in one terminal:
+
+   ```bash
+   # PowerShell
+   $env:AI_TOOLS_DATA_DIR = "$env:TEMP\ai-tools-e2e-data"
+   $env:PORT = "4873"; $env:HOST = "127.0.0.1"
+   node packages/server/dist/index.js
+
+   # bash
+   AI_TOOLS_DATA_DIR=/tmp/ai-tools-e2e-data PORT=4873 HOST=127.0.0.1 \
+     node packages/server/dist/index.js
+   ```
+
+3. Run the suite in another terminal:
+
+   ```bash
+   # PowerShell
+   $env:REGISTRY_URL = "http://localhost:4873"
+   $env:AI_TOOLS_CLI = "node $PWD/packages/cli/dist/cli.js"
+   npm test -w @ai-tools/e2e
+
+   # bash
+   REGISTRY_URL=http://localhost:4873 \
+   AI_TOOLS_CLI="node $(pwd)/packages/cli/dist/cli.js" \
+   npm test -w @ai-tools/e2e
+   ```
+
+   > Re-running against the same server can cause 409 conflicts. Delete the data directory and restart the server before re-running.
 
 ### Test coverage targets
 

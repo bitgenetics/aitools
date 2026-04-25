@@ -1,3 +1,17 @@
+﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -112,5 +126,103 @@ describe('ConfigCascade.readFile', () => {
     const result = ConfigCascade.readFile(file);
     expect(result?.registries).toHaveLength(1);
     expect(result?.registries?.[0]?.name).toBe('test');
+  });
+});
+
+
+describe('ConfigCascade.load', () => {
+  let tmp: string;
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-cascade-load-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  it('returns a config without project-specific entries when no local config file exists', () => {
+    const result = ConfigCascade.load(tmp);
+    // Result may include user-level home dir config; just verify it's an object
+    expect(typeof result).toBe('object');
+    expect(result).not.toBeNull();
+  });
+
+  it('reads platform from a project-level config file', () => {
+    fs.writeFileSync(
+      path.join(tmp, 'ai-tools.config.json'),
+      JSON.stringify({ platform: 'vscode' }),
+      'utf8',
+    );
+    expect(ConfigCascade.load(tmp).platform).toBe('vscode');
+  });
+
+  it('reads defaultScope from a project-level config file', () => {
+    fs.writeFileSync(
+      path.join(tmp, 'ai-tools.config.json'),
+      JSON.stringify({ defaultScope: 'user' }),
+      'utf8',
+    );
+    expect(ConfigCascade.load(tmp).defaultScope).toBe('user');
+  });
+
+  it('project-level platform overrides a parent-level platform', () => {
+    const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-parent-'));
+    try {
+      const child = fs.mkdtempSync(path.join(parent, 'child-'));
+      fs.writeFileSync(
+        path.join(parent, 'ai-tools.config.json'),
+        JSON.stringify({ platform: 'claude' }),
+        'utf8',
+      );
+      fs.writeFileSync(
+        path.join(child, 'ai-tools.config.json'),
+        JSON.stringify({ platform: 'cursor' }),
+        'utf8',
+      );
+      expect(ConfigCascade.load(child).platform).toBe('cursor');
+    } finally {
+      fs.rmSync(parent, { recursive: true });
+    }
+  });
+
+  it('silently skips a file with an invalid schema', () => {
+    fs.writeFileSync(
+      path.join(tmp, 'ai-tools.config.json'),
+      JSON.stringify({ defaultScope: 'not-a-valid-scope' }),
+      'utf8',
+    );
+    // Invalid config is discarded; load() should not throw
+    expect(() => ConfigCascade.load(tmp)).not.toThrow();
+    // The invalid defaultScope value should not appear in the merged result
+    const result = ConfigCascade.load(tmp);
+    expect(result.defaultScope).not.toBe('not-a-valid-scope');
+  });
+});
+
+describe('ConfigCascade.resolveConfigFiles', () => {
+  it('includes the home directory path', () => {
+    const files = ConfigCascade.resolveConfigFiles('/tmp/some-project');
+    const homeConfig = path.join(os.homedir(), 'ai-tools.config.json');
+    expect(files).toContain(homeConfig);
+  });
+
+  it('includes the cwd itself', () => {
+    const files = ConfigCascade.resolveConfigFiles('/tmp/myproject');
+    expect(files.some((f) => f.endsWith(`myproject${path.sep}ai-tools.config.json`))).toBe(true);
+  });
+
+  it('does not include the home directory config twice when cwd is the home dir', () => {
+    const homeConfig = path.join(os.homedir(), 'ai-tools.config.json');
+    const files = ConfigCascade.resolveConfigFiles(os.homedir());
+    const count = files.filter((f) => f === homeConfig).length;
+    expect(count).toBe(1);
+  });
+
+  it('lists home config before project config (home is lower priority)', () => {
+    const files = ConfigCascade.resolveConfigFiles('/tmp/myproject');
+    const homeIndex = files.findIndex((f) => f === path.join(os.homedir(), 'ai-tools.config.json'));
+    const projIndex = files.findIndex((f) => f.includes('myproject'));
+    expect(homeIndex).toBeLessThan(projIndex);
   });
 });

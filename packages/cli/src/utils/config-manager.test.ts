@@ -1,7 +1,22 @@
+﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ConfigManager } from '../utils/config-manager.js';
+import { ConfigCascade } from '@ai-tools/core';
+import { ConfigManager, detectPlatformFromEnv } from '../utils/config-manager.js';
 
 describe('ConfigManager.getDefaultScope', () => {
   it('returns "project" when no config files are present', () => {
@@ -71,12 +86,17 @@ describe('ConfigManager.resolveInstallPath', () => {
 
 describe('ConfigManager.getRegistries', () => {
   let tmp: string;
+  let resolveConfigSpy: jest.SpyInstance;
 
   beforeEach(() => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-cm-'));
+    // Prevent the cascade from walking up into ancestor dirs (e.g. the real ~/ai-tools.config.json)
+    resolveConfigSpy = jest.spyOn(ConfigCascade, 'resolveConfigFiles')
+      .mockImplementation((cwd: string) => [path.join(cwd, 'ai-tools.config.json')]);
   });
 
   afterEach(() => {
+    resolveConfigSpy.mockRestore();
     fs.rmSync(tmp, { recursive: true });
   });
 
@@ -116,3 +136,110 @@ describe('ConfigManager.getRegistries', () => {
   });
 });
 
+describe('detectPlatformFromEnv', () => {
+  let tmp: string;
+  const savedEnv: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-detect-'));
+    for (const key of ['VSCODE_PID', 'TERM_PROGRAM', 'CURSOR_TRACE_ID']) {
+      savedEnv[key] = process.env[key];
+      delete process.env[key];
+    }
+  });
+
+  afterEach(() => {
+    for (const [key, val] of Object.entries(savedEnv)) {
+      if (val === undefined) delete process.env[key];
+      else process.env[key] = val;
+    }
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  it('returns "vscode" when VSCODE_PID is set', () => {
+    process.env['VSCODE_PID'] = '12345';
+    expect(detectPlatformFromEnv(tmp)).toBe('vscode');
+  });
+
+  it('returns "vscode" when TERM_PROGRAM is "vscode"', () => {
+    process.env['TERM_PROGRAM'] = 'vscode';
+    expect(detectPlatformFromEnv(tmp)).toBe('vscode');
+  });
+
+  it('returns "cursor" when CURSOR_TRACE_ID is set', () => {
+    process.env['CURSOR_TRACE_ID'] = 'some-trace-id';
+    expect(detectPlatformFromEnv(tmp)).toBe('cursor');
+  });
+
+  it('returns "vscode" when .vscode/ directory exists and no env vars are set', () => {
+    fs.mkdirSync(path.join(tmp, '.vscode'));
+    expect(detectPlatformFromEnv(tmp)).toBe('vscode');
+  });
+
+  it('returns "cursor" when .cursor/ directory exists and no env vars are set', () => {
+    fs.mkdirSync(path.join(tmp, '.cursor'));
+    expect(detectPlatformFromEnv(tmp)).toBe('cursor');
+  });
+
+  it('returns undefined when no signals are present', () => {
+    expect(detectPlatformFromEnv(tmp)).toBeUndefined();
+  });
+
+  it('prefers VSCODE_PID over .cursor/ directory', () => {
+    process.env['VSCODE_PID'] = '1';
+    fs.mkdirSync(path.join(tmp, '.cursor'));
+    expect(detectPlatformFromEnv(tmp)).toBe('vscode');
+  });
+});
+
+describe('ConfigManager.detectedPlatform', () => {
+  let tmp: string;
+  const savedEnv: Record<string, string | undefined> = {};
+  let resolveConfigSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-dp-'));
+    for (const key of ['VSCODE_PID', 'TERM_PROGRAM', 'CURSOR_TRACE_ID']) {
+      savedEnv[key] = process.env[key];
+      delete process.env[key];
+    }
+    // Isolate from ancestor/user configs so platform is never set by cascade
+    resolveConfigSpy = jest.spyOn(ConfigCascade, 'resolveConfigFiles')
+      .mockImplementation((cwd: string) => [path.join(cwd, 'ai-tools.config.json')]);
+  });
+
+  afterEach(() => {
+    resolveConfigSpy.mockRestore();
+    for (const [key, val] of Object.entries(savedEnv)) {
+      if (val === undefined) delete process.env[key];
+      else process.env[key] = val;
+    }
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  it('is undefined when platform is explicitly configured', () => {
+    fs.writeFileSync(
+      path.join(tmp, 'ai-tools.config.json'),
+      JSON.stringify({ platform: 'vscode' }),
+      'utf8',
+    );
+    process.env['VSCODE_PID'] = '1';
+    expect(new ConfigManager(tmp).detectedPlatform).toBeUndefined();
+  });
+
+  it('is set and routes to the correct adapter when auto-detected via VSCODE_PID', () => {
+    process.env['VSCODE_PID'] = '1';
+    const cm = new ConfigManager(tmp);
+    expect(cm.detectedPlatform).toBe('vscode');
+    expect(cm.getPlatform()).toBe('vscode');
+    // subagents should go to .github/agents/ not .agents/agents/
+    const subagentPath = cm.resolveInstallPath('subagent', 'project');
+    expect(subagentPath).toContain('.github');
+  });
+
+  it('is undefined and falls back to universal when no signals exist', () => {
+    const cm = new ConfigManager(tmp);
+    expect(cm.detectedPlatform).toBeUndefined();
+    expect(cm.getPlatform()).toBe('universal');
+  });
+});

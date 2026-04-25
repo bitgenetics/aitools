@@ -7,10 +7,18 @@
   "scripts": {
     "build": "npm run build -w @ai-tools/core && npm run build -w @ai-tools/cli && npm run build -w @ai-tools/server",
     "dev": "npm run dev --workspaces --if-present",
-    "test": "npm test --workspaces --if-present",
+    "test": "npm test -w @ai-tools/core -w @ai-tools/cli -w @ai-tools/server",
+    "test:e2e": "docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans && docker compose -f docker-compose.e2e.yml up --build --exit-code-from e2e --attach e2e --no-log-prefix",
+    "test:e2e:verbose": "docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans && docker compose -f docker-compose.e2e.yml up --build --exit-code-from e2e",
+    "test:e2e:down": "docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans",
     "lint": "npm run lint --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present"
   },
+  "author": {
+    "name": "Michael Benjamin",
+    "email": "turbofoxwave@gmail.com"
+  },
+  "license": "AGPL-3.0-or-later",
   "engines": {
     "node": ">=20.0.0",
     "npm": ">=10.0.0"

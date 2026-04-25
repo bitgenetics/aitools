@@ -1,0 +1,20 @@
+{
+  "name": "skill-learning",
+  "version": "1.2.0",
+  "description": "A skill tool",
+  "category": "skill",
+  "files": [
+    {
+      "src": ".agents/skills/learnings/SKILL.md",
+      "dest": ".agents/skills/learnings/SKILL.md"
+    },
+    {
+      "src": ".agents/skills/learnings/assets/entry-template.md",
+      "dest": ".agents/skills/learnings/assets/entry-template.md"
+    },
+    {
+      "src": ".agents/skills/learnings/learning-log.md",
+      "dest": ".agents/skills/learnings/learning-log.md"
+    }
+  ]
+}

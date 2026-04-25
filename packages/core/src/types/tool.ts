@@ -1,3 +1,17 @@
+﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 /**
  * Tool categories supported by the ai-tools registry.
  * Each category has specific install behaviour and target paths.
@@ -36,6 +50,8 @@ export interface ToolFile {
   dest: string;
   /** When true the file is processed as a Handlebars template before writing. */
   template?: boolean;
+  /** When set, this file is only installed for the specified platform. Omit to install on all platforms. */
+  platform?: TargetPlatform;
 }
 
 /**
@@ -44,8 +60,8 @@ export interface ToolFile {
  * in the platform's mcp.json config file on install.
  */
 export interface McpServerConfig {
-  /** Shell command or path to the server executable. */
-  command: string;
+  /** Shell command or path to the server executable. Required for stdio servers; omit when using url for HTTP servers. */
+  command?: string;
   /** Arguments to pass to the command. */
   args?: string[];
   /** Environment variables for the server process. */
@@ -82,6 +98,13 @@ export interface ToolManifest {
   dependencies?: Record<string, string>;
   /** Free-form metadata used for smart-find / AI discovery. */
   tags?: string[];
+  /** When set, limits install to these platforms. Omit to support all platforms. */
+  platforms?: TargetPlatform[];
+  /**
+   * When true, this tool is hidden from unauthenticated reads when the registry
+   * is running with REGISTRY_ACCESS=public.
+   */
+  private?: boolean;
 }
 
 /**
@@ -93,6 +116,8 @@ export interface InstalledTool {
   version: string;
   category: ToolCategory;
   scope: InstallScope;
+  /** Platform the tool was adapted for (e.g. 'vscode', 'cursor'). */
+  platform: TargetPlatform;
   /** ISO-8601 timestamp of when this version was installed. */
   installedAt: string;
   /** Absolute paths of every file written during installation. */

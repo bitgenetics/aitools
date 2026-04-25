@@ -1,3 +1,17 @@
+﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 import os from 'node:os';
 import path from 'node:path';
 import type { PlatformAdapter } from './types.js';
@@ -12,14 +26,14 @@ import type { ToolCategory, InstallScope } from '@ai-tools/core';
  *
  * Project scope paths:
  *   skill    → .agents/skills/   (Agent Skills spec — universal)
- *   subagent → .agents/agents/
+ *   subagent → .github/agents/   (VS Code custom agents — docs: https://code.visualstudio.com/docs/copilot/customization/custom-agents)
  *   prompt   → .agents/prompts/
  *   mcp      → .vscode/mcp.json  (VS Code-specific)
  *
  * User scope paths:
- *   skill    → ~/.ai-tools/tools/skills/
- *   subagent → ~/.ai-tools/tools/agents/
- *   prompt   → ~/.ai-tools/tools/prompts/
+ *   skill    → ~/.copilot/skills/
+ *   subagent → ~/.copilot/agents/
+ *   prompt   → ~/.copilot/prompts/
  *   mcp      → ~/.vscode/mcp.json
  */
 export class VsCodeAdapter implements PlatformAdapter {
@@ -28,13 +42,13 @@ export class VsCodeAdapter implements PlatformAdapter {
   private readonly DIRS: Record<InstallScope, Record<Exclude<ToolCategory, 'mcp-tool'>, string>> = {
     project: {
       skill:    path.join('.agents', 'skills'),
-      subagent: path.join('.agents', 'agents'),
+      subagent: path.join('.github', 'agents'),
       prompt:   path.join('.agents', 'prompts'),
     },
     user: {
-      skill:    path.join(os.homedir(), '.ai-tools', 'tools', 'skills'),
-      subagent: path.join(os.homedir(), '.ai-tools', 'tools', 'agents'),
-      prompt:   path.join(os.homedir(), '.ai-tools', 'tools', 'prompts'),
+      skill:    path.join(os.homedir(), '.copilot', 'skills'),
+      subagent: path.join(os.homedir(), '.copilot', 'agents'),
+      prompt:   path.join(os.homedir(), '.copilot', 'prompts'),
     },
   };
 

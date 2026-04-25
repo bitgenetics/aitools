@@ -1,13 +1,43 @@
+﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 import { z } from 'zod';
 
 // ── Registry auth ───────────────────────────────────────────────────────────
 
-export const RegistryAuthSchema = z.object({
-  type: z.enum(['bearer', 'basic']),
-  token: z.string().optional(),
-  username: z.string().optional(),
-  password: z.string().optional(),
-});
+export const RegistryAuthSchema = z
+  .object({
+    type: z.enum(['bearer', 'basic']),
+    token: z.string().optional(),
+    username: z.string().optional(),
+    password: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.type === 'bearer' && !data.token) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'bearer auth requires a token',
+        path: ['token'],
+      });
+    } else if (data.type === 'basic' && (!data.username || !data.password)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'basic auth requires both username and password',
+        path: ['username'],
+      });
+    }
+  });
 
 // ── Registry config ─────────────────────────────────────────────────────────
 
@@ -48,6 +78,10 @@ export const LockEntrySchema = z.object({
   integrity: z.string(),
   files: z.array(z.string()),
   installedAt: z.string().datetime(),
+  // Optional: absent on entries written by older versions of ai-tools.
+  platform: z.enum(['universal', 'vscode', 'claude', 'cursor', 'windsurf']).optional(),
+  category: z.enum(['skill', 'subagent', 'prompt', 'mcp-tool']).optional(),
+  scope: z.enum(['project', 'user']).optional(),
 });
 
 export const AiToolsLockSchema = z.object({

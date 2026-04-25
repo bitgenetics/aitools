@@ -1,3 +1,17 @@
+﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -249,7 +263,7 @@ export function createConfigCommand(): Command {
       }
 
       console.log(chalk.dim(`Opening ${filePath} with ${editor.cmd}...`));
-      const result = spawnSync(editor.cmd, [...editor.args, filePath], { stdio: 'inherit', shell: true });
+      const result = spawnSync(editor.cmd, [...editor.args, filePath], { stdio: 'inherit', shell: false });
       if (result.error) {
         console.error(chalk.red(`Failed to open editor: ${result.error.message}`));
         process.exit(1);
@@ -280,7 +294,7 @@ function resolveEditor(): EditorCommand | null {
   }
 
   // Try VS Code (with --wait so spawnSync blocks until the tab is closed)
-  const codeResult = spawnSync('code', ['--version'], { shell: true, encoding: 'utf8' });
+  const codeResult = spawnSync('code', ['--version'], { shell: false, encoding: 'utf8' });
   if (codeResult.status === 0) {
     return { cmd: 'code', args: ['--wait'] };
   }

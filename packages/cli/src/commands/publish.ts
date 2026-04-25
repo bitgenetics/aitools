@@ -1,3 +1,17 @@
+﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 import fs from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
@@ -6,7 +20,9 @@ import chalk from 'chalk';
 import { ConfigManager } from '../utils/config-manager.js';
 import { createRegistryClient } from '../utils/registry-client.js';
 import type { ToolManifest } from '@ai-tools/core';
-import { ToolManifestSchema } from '@ai-tools/core';
+import { ToolManifestSchema, PLATFORM_SPECS } from '@ai-tools/core';
+import type { TargetPlatform } from '@ai-tools/core';
+import { parseSkillFrontmatter, analyzeCompat } from './compat.js';
 
 const MANIFEST_FILE = 'ai-tools.manifest.json';
 
@@ -14,6 +30,7 @@ interface PublishOptions {
   manifest?: string;
   registry?: string;
   dryRun?: boolean;
+  strict?: boolean;
 }
 
 /**
@@ -25,8 +42,8 @@ interface PublishOptions {
  *
  * File layout expected on disk (relative to the manifest file):
  *   ai-tools.manifest.json
- *   skill.md           ← manifest.files[0].src
- *   assets/icon.png    ← manifest.files[1].src
+ *   skill.md           <- manifest.files[0].src
+ *   assets/icon.png    <- manifest.files[1].src
  */
 export function createPublishCommand(): Command {
   return new Command('publish')
@@ -40,14 +57,18 @@ export function createPublishCommand(): Command {
       'Registry URL to publish to (overrides config)',
     )
     .option('--dry-run', 'Validate and show what would be published without uploading')
-    .action(async (options: PublishOptions) => {
+    .option('--strict', 'Block publish if skill has frontmatter fields unsupported on any platform')
+    .action(async (options: PublishOptions, cmd: Command) => {
+      if (cmd.args[0] === 'help') {
+        cmd.help();
+      }
       const cwd = process.cwd();
       const manifestPath = options.manifest
         ? path.resolve(options.manifest)
         : path.join(cwd, MANIFEST_FILE);
       const manifestDir = path.dirname(manifestPath);
 
-      // ── Read & validate manifest ───────────────────────────────────────────
+      // -- Read & validate manifest -----------------------------------------------
       if (!fs.existsSync(manifestPath)) {
         console.error(
           chalk.red(`No manifest found at ${manifestPath}`),
@@ -75,7 +96,7 @@ export function createPublishCommand(): Command {
 
       const manifest: ToolManifest = parsed.data;
 
-      // ── Read source files ──────────────────────────────────────────────────
+      // -- Read source files -------------------------------------------------------
       const files: Record<string, string> = {};
       const missing: string[] = [];
 
@@ -94,18 +115,47 @@ export function createPublishCommand(): Command {
         process.exit(1);
       }
 
-      // ── Dry-run output ─────────────────────────────────────────────────────
+      // -- Compat check (skill only) -----------------------------------------------
+      if (manifest.category === 'skill') {
+        const skillFile = manifest.files.find((f) => f.src.endsWith('SKILL.md'));
+        if (skillFile) {
+          const skillPath = path.resolve(manifestDir, skillFile.src);
+          if (fs.existsSync(skillPath)) {
+            const skillFields = parseSkillFrontmatter(fs.readFileSync(skillPath, 'utf8')) ?? {};
+            const allPlatforms = Object.keys(PLATFORM_SPECS) as TargetPlatform[];
+            const compatResults = analyzeCompat(skillFields, 'skill', allPlatforms);
+            const compatIssues = compatResults.filter((r) =>
+              r.fieldIssues.some((i) => i.support === 'unsupported' || i.support === 'ignored'),
+            );
+            if (compatIssues.length > 0) {
+              console.warn(chalk.yellow('\n  Warning: Compatibility issues found:'));
+              for (const r of compatIssues) {
+                for (const fi of r.fieldIssues.filter((i) => i.support !== 'supported' && i.support !== 'unknown')) {
+                  console.warn(`    ${r.spec.name}: ${fi.field} - ${fi.support}`);
+                }
+              }
+              if (options.strict) {
+                console.error(chalk.red('\n  Publish blocked by --strict. Fix compatibility issues or remove --strict.'));
+                process.exit(1);
+              }
+              console.warn('');
+            }
+          }
+        }
+      }
+
+      // -- Dry-run output ---------------------------------------------------------
       if (options.dryRun) {
         console.log(chalk.bold(`Would publish ${manifest.name}@${manifest.version}`));
         console.log(`  category: ${chalk.cyan(manifest.category)}`);
         console.log(`  files:`);
         for (const entry of manifest.files) {
-          console.log(`    ${chalk.dim(entry.src)} → ${chalk.dim(entry.dest)}`);
+          console.log(`    ${chalk.dim(entry.src)} -> ${chalk.dim(entry.dest)}`);
         }
         return;
       }
 
-      // ── Resolve registry ───────────────────────────────────────────────────
+      // -- Resolve registry --------------------------------------------------------
       const configManager = new ConfigManager(cwd);
       const config = configManager.get();
 
@@ -126,7 +176,7 @@ export function createPublishCommand(): Command {
         process.exit(1);
       }
 
-      // ── Publish ────────────────────────────────────────────────────────────
+      // -- Publish ----------------------------------------------------------------
       const spinner = ora(
         `Publishing ${chalk.bold(manifest.name)}@${manifest.version} to ${chalk.dim(registryConfig.url)}`,
       ).start();
@@ -140,7 +190,16 @@ export function createPublishCommand(): Command {
         console.log(`  integrity: ${chalk.dim(result.integrity)}`);
         console.log(`  registry:  ${chalk.dim(registryConfig.url)}`);
       } catch (err) {
-        spinner.fail(chalk.red((err as Error).message));
+        const code = (err as NodeJS.ErrnoException).code;
+        let message: string;
+        if (code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'ETIMEDOUT') {
+          message = `Registry server not reachable at ${registryConfig.url}\n  Check the server is running or update the URL with: ${chalk.cyan('ai-tools config list')}`;
+        } else {
+          message = err instanceof Error
+            ? (err.message || err.constructor.name || String(err))
+            : String(err);
+        }
+        spinner.fail(chalk.red(message));
         process.exit(1);
       }
     });

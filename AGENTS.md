@@ -39,3 +39,5 @@ npm test                     # run all workspaces
 npm test -w @ai-tools/core   # single package
 npm test -- --coverage       # emit coverage report to /coverage
 ```
+IMPORTANT: only use available tools, do not assume you have acess to one.
+if you attempt to use a tool that is not available to you, adjust your approach.

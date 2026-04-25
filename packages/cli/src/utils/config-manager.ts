@@ -1,3 +1,17 @@
+﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -6,14 +20,54 @@ import type { AiToolsConfig, InstallScope, TargetPlatform, ToolCategory } from '
 import { getAdapter } from '../adapters/index.js';
 import type { PlatformAdapter } from '../adapters/index.js';
 
+// -- Platform auto-detection --------------------------------------------------
+
+/**
+ * Detect the current platform from environment variables and filesystem
+ * signals. Used as a fallback when no platform is set in any config file.
+ *
+ * Priority:
+ *   1. VSCODE_PID / TERM_PROGRAM=vscode -> vscode
+ *   2. CURSOR_TRACE_ID                  -> cursor
+ *   3. .vscode/ directory in cwd        -> vscode
+ *   4. .cursor/ directory in cwd        -> cursor
+ */
+export function detectPlatformFromEnv(cwd: string): TargetPlatform | undefined {
+  if (process.env['VSCODE_PID'] || process.env['TERM_PROGRAM'] === 'vscode') {
+    return 'vscode';
+  }
+  if (process.env['CURSOR_TRACE_ID']) {
+    return 'cursor';
+  }
+  if (fs.existsSync(path.join(cwd, '.vscode'))) {
+    return 'vscode';
+  }
+  if (fs.existsSync(path.join(cwd, '.cursor'))) {
+    return 'cursor';
+  }
+  return undefined;
+}
+
 export class ConfigManager {
   private config: AiToolsConfig;
   private cwd: string;
   private adapter: PlatformAdapter;
+  /**
+   * Non-undefined when the platform was inferred from environment/filesystem
+   * rather than an explicit config entry. The install command uses this to
+   * suggest pinning the platform with `aitools config set platform <p>`.
+   */
+  readonly detectedPlatform: TargetPlatform | undefined;
 
   constructor(cwd: string = process.cwd()) {
     this.cwd = cwd;
     this.config = ConfigCascade.load(cwd);
+    if (!this.config.platform) {
+      this.detectedPlatform = detectPlatformFromEnv(cwd);
+      if (this.detectedPlatform) {
+        this.config = { ...this.config, platform: this.detectedPlatform };
+      }
+    }
     this.adapter = getAdapter(this.config.platform);
   }
 

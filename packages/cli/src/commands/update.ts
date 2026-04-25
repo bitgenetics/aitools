@@ -1,6 +1,21 @@
+﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 import { Command } from 'commander';
 import ora from 'ora';
 import chalk from 'chalk';
+import semver from 'semver';
 import { readManifest } from '@ai-tools/core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { createRegistryClient } from '../utils/registry-client.js';
@@ -18,12 +33,13 @@ export function createUpdateCommand(): Command {
     .alias('up')
     .description('Update installed ai-tool package(s) to the latest matching version')
     .argument('[package]', 'Package name to update (omit to update all)')
-    .option('-s, --scope <scope>', 'Install scope: project or user', 'project')
+    .option('-s, --scope <scope>', 'Override install scope: project or user (defaults to the scope recorded in the lock file)')
     .action(async (pkg: string | undefined, options: { scope?: string }) => {
       const cwd = process.cwd();
       const configManager = new ConfigManager(cwd);
       const installer = new Installer(configManager, cwd);
-      const scope = (options.scope as InstallScope | undefined) ?? configManager.getDefaultScope();
+      // scope is resolved per-tool below; only used when --scope is explicit
+      const explicitScope = options.scope as InstallScope | undefined;
 
       const manifest = readManifest(cwd);
       if (!manifest) {
@@ -47,17 +63,27 @@ export function createUpdateCommand(): Command {
 
       for (const name of targets) {
         if (!allTools[name]) {
-          console.log(chalk.yellow(`  ${name} is not in ai-tools.json — skipping`));
+          console.log(chalk.yellow(`  ${name} is not in ai-tools.json � skipping`));
           continue;
         }
 
+        const range = allTools[name] ?? '*';
         const spinner = ora(`Updating ${chalk.cyan(name)}...`).start();
         let success = false;
+
+        // Use the scope that was recorded at install time so a bare `aitools update`
+        // reinstalls each tool at the same scope it was originally installed at.
+        // Honour an explicit --scope flag as an override.
+        const lock = installer.getLock();
+        const lockedScope = lock.tools[name]?.scope;
+        const scope: InstallScope = explicitScope ?? lockedScope ?? configManager.getDefaultScope();
 
         for (const regConfig of registries) {
           try {
             const client = createRegistryClient(regConfig);
-            const toolManifest = await client.getManifest(name, 'latest');
+            const versions = await client.listVersions(name);
+            const resolvedVersion = semver.maxSatisfying(versions, range) ?? 'latest';
+            const toolManifest = await client.getManifest(name, resolvedVersion);
             await installer.install(client, toolManifest, scope);
             spinner.succeed(`${chalk.green(name)}@${toolManifest.version}`);
             success = true;

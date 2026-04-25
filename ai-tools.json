@@ -1,0 +1,7 @@
+{
+  "tools": {
+    "skill-product-changelog": "^1.2.0",
+    "subagent-researcher": "^1.1.0"
+  },
+  "devTools": {}
+}

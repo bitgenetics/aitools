@@ -1,4 +1,19 @@
+﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 import type { InstalledTool } from './tool.js';
+import type { TargetPlatform, ToolCategory, InstallScope } from './tool.js';
 
 /**
  * ai-tools-lock.json — exact resolved versions and file locations.
@@ -20,10 +35,25 @@ export interface LockEntry {
   resolved: string;
   /** SHA-256 integrity hash of the downloaded tarball (base64). */
   integrity: string;
-  /** Absolute paths of every file written during installation. */
+  /** Paths of every file written during installation, relative to project root (forward slashes). Legacy entries may be absolute. */
   files: string[];
   /** ISO-8601 installation timestamp. */
   installedAt: string;
+  /**
+   * Platform the tool was adapted for at install time.
+   * Absent on entries written by older versions of ai-tools.
+   */
+  platform?: TargetPlatform;
+  /**
+   * Tool category recorded at install time.
+   * Absent on entries written by older versions of ai-tools.
+   */
+  category?: ToolCategory;
+  /**
+   * Install scope (project | user).
+   * Absent on entries written by older versions of ai-tools.
+   */
+  scope?: InstallScope;
 }
 
 /** Construct a lock entry from an InstalledTool record. */
@@ -34,6 +64,9 @@ export function toLockEntry(tool: InstalledTool, resolved: string): LockEntry {
     integrity: tool.integrity,
     files: tool.files,
     installedAt: tool.installedAt,
+    platform: tool.platform,
+    category: tool.category,
+    scope: tool.scope,
   };
 }
 

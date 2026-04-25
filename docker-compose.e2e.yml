@@ -1,0 +1,44 @@
+# E2E test environment.
+#
+# Usage:
+#   docker compose -f docker-compose.e2e.yml up --build -V --exit-code-from e2e
+#
+# The -V flag (--renew-anon-volumes) ensures the /data volume is fresh each
+# run so tests always start with an empty registry.
+#
+# The `registry` service starts first.  The health-check polls /health every
+# 2 s; `e2e` only starts once registry is healthy.  docker compose exits with
+# the e2e container's exit code, so CI can use it as a pass/fail gate.
+
+services:
+  test-registry:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      PORT: "4873"
+      HOST: "0.0.0.0"
+      AI_TOOLS_DATA_DIR: /data
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://localhost:4873/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 5s
+
+  e2e:
+    build:
+      context: .
+      dockerfile: e2e/Dockerfile
+    environment:
+      REGISTRY_URL: "http://test-registry:4873"
+      # Expose CLI binary via PATH inside the container
+      PATH: "/app/packages/cli/node_modules/.bin:/app/node_modules/.bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      AI_TOOLS_CLI: "node /app/packages/cli/dist/cli.js"
+    depends_on:
+      test-registry:
+        condition: service_healthy

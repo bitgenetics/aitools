@@ -1,3 +1,17 @@
+﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 import { Command } from 'commander';
 import ora from 'ora';
 import chalk from 'chalk';
@@ -104,6 +118,11 @@ async function installSingle(
       chalk.yellow('\n  Tip: no platform configured -- files were installed to .agents/') +
       chalk.dim('\n  Run: ai-tools config set platform vscode  (or claude|cursor|windsurf)'),
     );
+  } else if (configManager.detectedPlatform) {
+    console.log(
+      chalk.dim(`\n  Auto-detected platform: ${configManager.detectedPlatform}`) +
+      chalk.dim(`\n  Pin it permanently: ai-tools config set platform ${configManager.detectedPlatform}`),
+    );
   }
 
   // Update ai-tools.json
@@ -147,7 +166,7 @@ async function installAll(
 
     // Skip if already installed at a satisfying version
     if (locked && semver.satisfies(locked.version, range)) {
-      console.log(chalk.dim(`  ${name}@${locked.version} — already satisfied`));
+      console.log(chalk.dim(`  ${name}@${locked.version} � already satisfied`));
       continue;
     }
 
@@ -157,7 +176,9 @@ async function installAll(
     for (const regConfig of registries) {
       try {
         const client = createRegistryClient(regConfig);
-        const toolManifest = await client.getManifest(name, 'latest');
+        const versions = await client.listVersions(name);
+        const resolvedVersion = semver.maxSatisfying(versions, range) ?? 'latest';
+        const toolManifest = await client.getManifest(name, resolvedVersion);
         await installer.install(client, toolManifest, scope);
         spinner.succeed(`${chalk.green(name)}@${toolManifest.version}`);
         success = true;
@@ -177,7 +198,7 @@ async function installAll(
 }
 
 /** Parse "name@version" or just "name" into parts. */
-function parsePackageArg(pkg: string, versionOverride?: string): { name: string; version?: string } {
+export function parsePackageArg(pkg: string, versionOverride?: string): { name: string; version?: string } {
   const atIndex = pkg.lastIndexOf('@');
   if (atIndex > 0) {
     return { name: pkg.slice(0, atIndex), version: versionOverride ?? pkg.slice(atIndex + 1) };
