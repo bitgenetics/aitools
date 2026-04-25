@@ -1,0 +1,16 @@
+{
+  "name": "test-skill",
+  "version": "1.0.0",
+  "description": "A test skill for local testing",
+  "category": "skill",
+  "files": [
+    {
+      "src": "skill.md",
+      "dest": "skills/test-skill.md"
+    }
+  ],
+  "keywords": [
+    "test"
+  ],
+  "author": "local-test"
+}

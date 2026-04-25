@@ -1,0 +1,17 @@
+{
+  "name": "my-test-skill",
+  "version": "2.0.0",
+  "description": "A sample skill for testing publish",
+  "category": "skill",
+  "files": [
+    {
+      "src": "skill.md",
+      "dest": "my-test-skill.md"
+    }
+  ],
+  "keywords": [
+    "test",
+    "sample"
+  ],
+  "author": "local"
+}

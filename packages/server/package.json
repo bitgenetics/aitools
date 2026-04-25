@@ -1,0 +1,23 @@
+{
+  "name": "@ai-tools/server",
+  "version": "0.1.0",
+  "description": "Registry server for ai-tools packages",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch & node --watch dist/index.js",
+    "start": "node dist/index.js",
+    "clean": "rimraf dist tsconfig.tsbuildinfo",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@ai-tools/core": "*",
+    "@fastify/cors": "^11.2.0",
+    "fastify": "^5.8.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "rimraf": "^5.0.7"
+  }
+}

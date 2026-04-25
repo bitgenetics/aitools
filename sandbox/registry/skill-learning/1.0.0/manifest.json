@@ -1,0 +1,12 @@
+{
+  "name": "skill-learning",
+  "version": "1.0.0",
+  "description": "A skill tool",
+  "category": "skill",
+  "files": [
+    {
+      "src": "README.md",
+      "dest": "README.md"
+    }
+  ]
+}

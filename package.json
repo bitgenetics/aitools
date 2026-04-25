@@ -1,0 +1,25 @@
+{
+  "name": "ai-tools",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @ai-tools/core && npm run build -w @ai-tools/cli && npm run build -w @ai-tools/server",
+    "dev": "npm run dev --workspaces --if-present",
+    "test": "npm test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "@types/node": "^20.12.12",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.4",
+    "@types/jest": "^29.5.12"
+  }
+}

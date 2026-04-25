@@ -1,0 +1,186 @@
+import { Command } from 'commander';
+import ora from 'ora';
+import chalk from 'chalk';
+import semver from 'semver';
+import {
+  readManifest,
+  writeManifest,
+  upsertToolDependency,
+} from '@ai-tools/core';
+import type { InstallScope } from '@ai-tools/core';
+import { ConfigManager } from '../utils/config-manager.js';
+import { createRegistryClient } from '../utils/registry-client.js';
+import { Installer } from '../utils/installer.js';
+
+interface InstallOptions {
+  scope?: InstallScope;
+  dev?: boolean;
+  version?: string;
+}
+
+/**
+ * ai-tools install [name[@version]] [options]
+ *
+ * With a name: resolves the tool from the registry, installs it, and saves to ai-tools.json.
+ * Without a name: installs all tools listed in ai-tools.json (like `npm install`).
+ */
+export function createInstallCommand(): Command {
+  return new Command('install')
+    .alias('i')
+    .description('Install an ai-tool package or all packages listed in ai-tools.json')
+    .argument('[package]', 'Package name with optional version, e.g. my-skill or my-skill@1.2.0')
+    .option('-s, --scope <scope>', 'Install scope: project or user', 'project')
+    .option('-D, --dev', 'Save as a devTool dependency')
+    .option('-v, --version <version>', 'Specific version to install (overrides @version in name)')
+    .action(async (pkg: string | undefined, options: InstallOptions) => {
+      const cwd = process.cwd();
+      const configManager = new ConfigManager(cwd);
+      const installer = new Installer(configManager, cwd);
+      const scope = (options.scope as InstallScope | undefined) ?? configManager.getDefaultScope();
+
+      if (pkg) {
+        await installSingle(pkg, options, scope, configManager, installer, cwd);
+      } else {
+        await installAll(scope, configManager, installer, cwd);
+      }
+    });
+}
+
+async function installSingle(
+  pkg: string,
+  options: InstallOptions,
+  scope: InstallScope,
+  configManager: ConfigManager,
+  installer: Installer,
+  cwd: string,
+): Promise<void> {
+  const { name, version } = parsePackageArg(pkg, options.version);
+  const registries = configManager.getRegistries();
+
+  if (registries.length === 0) {
+    console.error(chalk.red('No registries configured. Add one with: ai-tools registry add <url>'));
+    process.exit(1);
+  }
+
+  const spinner = ora(`Resolving ${chalk.cyan(name)}...`).start();
+
+  let manifest = null;
+  let client = null;
+
+  for (const regConfig of registries) {
+    try {
+      const c = createRegistryClient(regConfig);
+      manifest = await c.getManifest(name, version ?? 'latest');
+      client = c;
+      break;
+    } catch {
+      // Try next registry
+    }
+  }
+
+  if (!manifest || !client) {
+    spinner.fail(`Could not find ${chalk.cyan(name)} in any configured registry.`);
+    process.exit(1);
+  }
+
+  spinner.text = `Installing ${chalk.cyan(name)}@${manifest.version}...`;
+
+  let installed;
+  try {
+    installed = await installer.install(client, manifest, scope);
+    spinner.succeed(
+      `Installed ${chalk.green(installed.name)}@${installed.version} (${installed.files.length} file(s))`,
+    );
+    for (const f of installed.files) {
+      console.log(chalk.dim(`  -> ${f}`));
+    }
+  } catch (err) {
+    spinner.fail(`Installation failed: ${(err as Error).message}`);
+    process.exit(1);
+  }
+
+  if (configManager.getPlatform() === 'universal') {
+    console.log(
+      chalk.yellow('\n  Tip: no platform configured -- files were installed to .agents/') +
+      chalk.dim('\n  Run: ai-tools config set platform vscode  (or claude|cursor|windsurf)'),
+    );
+  }
+
+  // Update ai-tools.json
+  const existing = readManifest(cwd) ?? {};
+  const versionRange = `^${manifest.version}`;
+  const updated = upsertToolDependency(existing, name, versionRange, options.dev ?? false);
+  writeManifest(cwd, updated);
+  console.log(chalk.dim(`  Saved to ai-tools.json`));
+}
+
+async function installAll(
+  scope: InstallScope,
+  configManager: ConfigManager,
+  installer: Installer,
+  cwd: string,
+): Promise<void> {
+  const manifest = readManifest(cwd);
+  if (!manifest) {
+    console.error(chalk.red('No ai-tools.json found. Run: ai-tools init'));
+    process.exit(1);
+  }
+
+  const allTools: Record<string, string> = {
+    ...(manifest.tools ?? {}),
+    ...(manifest.devTools ?? {}),
+  };
+
+  const toolNames = Object.keys(allTools);
+  if (toolNames.length === 0) {
+    console.log(chalk.yellow('No tools listed in ai-tools.json.'));
+    return;
+  }
+
+  const registries = configManager.getRegistries();
+  const lock = installer.getLock();
+  let installed = 0;
+
+  for (const name of toolNames) {
+    const range = allTools[name] ?? 'latest';
+    const locked = lock.tools[name];
+
+    // Skip if already installed at a satisfying version
+    if (locked && semver.satisfies(locked.version, range)) {
+      console.log(chalk.dim(`  ${name}@${locked.version} — already satisfied`));
+      continue;
+    }
+
+    const spinner = ora(`Installing ${chalk.cyan(name)}...`).start();
+    let success = false;
+
+    for (const regConfig of registries) {
+      try {
+        const client = createRegistryClient(regConfig);
+        const toolManifest = await client.getManifest(name, 'latest');
+        await installer.install(client, toolManifest, scope);
+        spinner.succeed(`${chalk.green(name)}@${toolManifest.version}`);
+        success = true;
+        installed++;
+        break;
+      } catch {
+        // Try next registry
+      }
+    }
+
+    if (!success) {
+      spinner.fail(`Could not install ${chalk.red(name)}`);
+    }
+  }
+
+  console.log(`\n${chalk.bold(installed)} tool(s) installed.`);
+}
+
+/** Parse "name@version" or just "name" into parts. */
+function parsePackageArg(pkg: string, versionOverride?: string): { name: string; version?: string } {
+  const atIndex = pkg.lastIndexOf('@');
+  if (atIndex > 0) {
+    return { name: pkg.slice(0, atIndex), version: versionOverride ?? pkg.slice(atIndex + 1) };
+  }
+  return { name: pkg, version: versionOverride };
+}
