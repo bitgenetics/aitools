@@ -24,12 +24,15 @@ classDiagram
         +string repository
         +Record~string,string~ dependencies
         +string[] tags
+        +TargetPlatform[] platforms
+        +boolean private
     }
 
     class ToolFile {
         +string src
         +string dest
         +boolean template
+        +TargetPlatform platform
     }
 
     class McpServerConfig {
@@ -73,6 +76,9 @@ classDiagram
         +string integrity
         +string[] files
         +string installedAt
+        +TargetPlatform platform
+        +ToolCategory category
+        +InstallScope scope
     }
 
     class InstalledTool {
@@ -80,6 +86,7 @@ classDiagram
         +string version
         +ToolCategory category
         +InstallScope scope
+        +TargetPlatform platform
         +string installedAt
         +string[] files
         +string registry
@@ -122,7 +129,7 @@ classDiagram
     }
 
     class RegistryAuth {
-        +string type
+        +bearer|basic type
         +string token
         +string username
         +string password
@@ -214,15 +221,37 @@ classDiagram
 
 ## Server storage
 
+Tool data is persisted via `IStorageProvider` (default: `LocalStorageProvider`). PostgreSQL is **not** used for tool storage — it is only used for user/auth when `DATABASE_URL` is configured.
+
 ```mermaid
 classDiagram
+    class IStorageProvider {
+        <<interface>>
+        +read(path) string
+        +write(path, content) void
+        +list(prefix) string[]
+        +delete(path) void
+    }
+
     class ToolStore {
-        -string dataDir
-        +publish(manifest, files) void
+        -IStorageProvider storage
+        +publish(manifest, files, publisher) void
         +get(name, version) StoredTool
         +listVersions(name) string[]
         +search(query) ToolManifest[]
-        +listAll() ToolManifest[]
+        +getOwner(name) OwnerRecord
+        +deprecate(name, version) void
+        +unpublish(name, version) void
+        +setPrivacy(name, private, publisher) void
+        +buildTarball(name, version) Buffer
+    }
+
+    class OrgStore {
+        -IStorageProvider storage
+        +createOrg(name, actor) Org
+        +listOrgs() Org[]
+        +addMember(org, userId, actor) Org
+        +getAuditLog(org) AuditEntry[]
     }
 
     class StoredTool {
@@ -231,22 +260,29 @@ classDiagram
         +string publishedAt
     }
 
+    IStorageProvider <|.. LocalStorageProvider
+    ToolStore --> IStorageProvider
+    OrgStore --> IStorageProvider
     ToolStore --> StoredTool : returns
     StoredTool *-- ToolManifest
 ```
 
-The on-disk layout mirrors `npm`'s local cache:
+### On-disk layout
 
 ```
 dataDir/
+├── orgs.json
+├── audit-log.jsonl
 └── <sanitized-name>/
+    ├── owner.json
     └── <version>/
         ├── manifest.json
-        └── files.json
+        ├── files.json
+        └── deprecated.json   (optional)
 ```
 
 `files.json` is a `Record<string, string>` mapping source paths to file contents.
-Tarballs are synthesised on-the-fly when `GET /tools/:name/:version/tarball` is called.
+Tarballs are synthesised on-the-fly when `GET /api/tools/:name/:version/tarball` is called as a JSON array of `{ path, content }` objects.
 
 ---
 
@@ -302,115 +338,10 @@ erDiagram
 
 ---
 
-## PostgreSQL Database Schema
+## PostgreSQL (auth only)
 
-The registry server uses PostgreSQL for persistent storage. The schema includes:
+When `DATABASE_URL` is set and user management is enabled, PostgreSQL stores users and API tokens via `UserStore`. Tool manifests and files remain on the filesystem (or future cloud storage provider).
 
-### Tables
-
-```sql
--- Tools registry — composite PK because each (name, version) is a distinct record
-CREATE TABLE tools (
-    name TEXT NOT NULL,
-    version TEXT NOT NULL,
-    category TEXT NOT NULL,
-    description TEXT,
-    published_at TIMESTAMPTZ DEFAULT NOW(),
-    PRIMARY KEY (name, version)
-);
-
--- Tool manifests (JSONB for flexibility)
-CREATE TABLE tool_manifests (
-    tool_name TEXT NOT NULL,
-    tool_version TEXT NOT NULL,
-    manifest JSONB NOT NULL,
-    PRIMARY KEY (tool_name, tool_version),
-    FOREIGN KEY (tool_name, tool_version) REFERENCES tools(name, version)
-);
-
--- Tool files
-CREATE TABLE tool_files (
-    tool_name TEXT NOT NULL,
-    tool_version TEXT NOT NULL,
-    file_path TEXT NOT NULL,
-    file_content TEXT NOT NULL,
-    PRIMARY KEY (tool_name, tool_version, file_path),
-    FOREIGN KEY (tool_name, tool_version) REFERENCES tools(name, version)
-);
-
--- Registry configurations
-CREATE TABLE registries (
-    name TEXT PRIMARY KEY,
-    url TEXT NOT NULL,
-    priority INTEGER NOT NULL,
-    access_mode TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Users and authentication
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    username TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Sessions
-CREATE TABLE sessions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id),
-    token TEXT UNIQUE NOT NULL,
-    expires_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Audit log
-CREATE TABLE audit_log (
-    id BIGSERIAL PRIMARY KEY,
-    action TEXT NOT NULL,
-    resource TEXT,
-    details JSONB,
-    user_id UUID REFERENCES users(id),
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-### Indexes
-
-```sql
-CREATE INDEX idx_tools_name ON tools(name);
-CREATE INDEX idx_tools_category ON tools(category);
-CREATE INDEX idx_tool_manifests_name ON tool_manifests(tool_name);
-CREATE INDEX idx_sessions_token ON sessions(token);
-CREATE INDEX idx_sessions_expires ON sessions(expires_at);
-CREATE INDEX idx_audit_log_action ON audit_log(action);
-CREATE INDEX idx_audit_log_created ON audit_log(created_at);
-```
-
-### Views
-
-```sql
--- Latest version of each tool
-CREATE VIEW latest_tools AS
-SELECT name, version, description, published_at
-FROM tools
-WHERE (name, version) IN (
-    SELECT name, MAX(version)
-    FROM tools
-    GROUP BY name
-);
-
--- Tool statistics
-CREATE VIEW tool_stats AS
-SELECT 
-    t.name,
-    COUNT(DISTINCT t.version) as version_count,
-    SUM(CASE WHEN t.category = 'skill' THEN 1 ELSE 0 END) as skill_count,
-    SUM(CASE WHEN t.category = 'subagent' THEN 1 ELSE 0 END) as subagent_count,
-    SUM(CASE WHEN t.category = 'prompt' THEN 1 ELSE 0 END) as prompt_count,
-    SUM(CASE WHEN t.category = 'mcp-tool' THEN 1 ELSE 0 END) as mcp_count
-FROM tools t
-GROUP BY t.name;
-```
+Migrations live in `packages/server/src/db/migrations/`. Org metadata and audit logs are stored in `orgs.json` and `audit-log.jsonl` on the storage provider, not in PostgreSQL.
 
 ---

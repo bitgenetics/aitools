@@ -124,15 +124,27 @@ Fastify HTTP registry. Stateless per-request — all state is in the file system
 graph LR
     subgraph server["@ai-tools/server"]
         app["app.ts<br/>buildApp() factory"]
-        tools_route["routes/tools.ts<br/>GET /tools · /search<br/>POST /tools"]
-        registry_route["routes/registry.ts<br/>GET /upstream<br/>GET /proxy/search"]
-        store["storage/ToolStore<br/>publish · get · list<br/>search · listAll"]
+        tools_route["routes/tools.ts<br/>GET/POST/PATCH /api/tools"]
+        registry_route["routes/registry.ts<br/>GET /upstream · /health · /proxy/search"]
+        org_route["routes/org.ts<br/>GET/POST /api/org/*"]
+        admin_route["routes/admin.ts<br/>GET/POST /api/admin/*"]
+        auth_route["routes/auth.ts<br/>POST /api/auth/*"]
+        portal_route["routes/portal.ts<br/>HTML portal + admin login"]
+        exploration_route["routes/registry-exploration.ts<br/>GET /api/registries · /api/search/all"]
+        store["storage/ToolStore + OrgStore<br/>via IStorageProvider"]
         datafs["dataDir/<br/><name>/<version>/<br/>manifest.json · files.json"]
     end
 
     app --> tools_route
     app --> registry_route
+    app --> org_route
+    app --> admin_route
+    app --> auth_route
+    app --> portal_route
+    app --> exploration_route
     tools_route --> store
+    org_route --> store
+    admin_route --> store
     registry_route -- "HTTP proxy" --> upstream_reg["Upstream<br/>registries"]
     store --> datafs
 ```

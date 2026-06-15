@@ -4,7 +4,7 @@ Sequence diagrams for the primary operations. Actor abbreviations:
 
 - **User** — developer running the CLI
 - **CLI** — `aitools` binary (Commander entry + command handler)
-- **ConfigManager** — reads and merges `aitools.config.json` cascade
+- **ConfigManager** — reads and merges `ai-tools.config.json` cascade
 - **Installer** — downloads and writes files
 - **CacheManager** — local tarball cache at `~/.ai-tools/cache/`
 - **Adapter** — platform-specific path resolver
@@ -33,7 +33,7 @@ sequenceDiagram
     ConfigManager-->>CLI: AiToolsConfig (platform, registries, scope)
 
     CLI->>RegistryClient: getManifest("@scope/my-skill", "latest")
-    RegistryClient->>Registry: GET /tools/@scope/my-skill
+    RegistryClient->>Registry: GET /api/tools/@scope/my-skill
     Registry-->>RegistryClient: ToolManifest
     RegistryClient-->>CLI: ToolManifest
 
@@ -44,7 +44,7 @@ sequenceDiagram
         CacheManager-->>Installer: extracted file paths
     else cache miss
         Installer->>RegistryClient: download(name, version)
-        RegistryClient->>Registry: GET /tools/:name/:version/tarball
+        RegistryClient->>Registry: GET /api/tools/:name/:version/tarball
         Registry-->>RegistryClient: tarball Buffer
         RegistryClient-->>Installer: Buffer
         Installer->>CacheManager: store(name, version, buffer)

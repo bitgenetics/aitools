@@ -65,19 +65,24 @@ ai-tools/
 │       │   │   ├── registry.ts
 │       │   │   ├── auth.ts
 │       │   │   └── ...
-│       │   ├── storage/         # Data storage
-│       │   ├── providers/       # Auth & storage providers
-│       │   ├── db/              # Database layer
+│       │   ├── storage/         # ToolStore, OrgStore, UserStore
+│       │   ├── providers/       # IStorageProvider, IAuthProvider
+│       │   ├── db/              # PostgreSQL migrations (auth only)
 │       │   └── ...
 │       ├── jest.config.cjs
 │       ├── package.json
 │       └── tsconfig.json
 │
-├── e2e/                         # End-to-end tests
+│   └── @ai-tools/e2e/           # Docker-based end-to-end tests
+│
 ├── sandbox/                     # Testing sandbox
 └── docs/
     └── design/                  # Design documentation
 ```
+
+**CLI binary name**: `aitools` (defined in `packages/cli/package.json`)
+
+**CLI commands**: `init`, `dev-init`, `install`, `uninstall`, `update`, `search`, `find`, `list`, `registry`, `publish`, `manifest` (init/validate/bump/update), `config` (list/get/set/unset/edit), `compat`
 
 ---
 

@@ -4,6 +4,8 @@ A package manager for AI tools — discover, install, update, and publish **skil
 
 Think `npm` but for the AI tooling ecosystem. Tools can be scoped to a project (committed to your repo) or installed at the user level (available across all projects in your IDE).
 
+> **Experimental software.** This project is under active development. APIs, file formats, and behavior may change without notice. There are **no warranties of any kind**, express or implied. **Use at your own risk.**
+
 ---
 
 ## Features
@@ -823,4 +825,6 @@ Requires Docker with the default (Linux) engine. The script tears down any previ
 
 ## License
 
-MIT
+[GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0).
+
+This software is provided **as is**, without warranty of any kind. See the experimental notice at the top of this document.

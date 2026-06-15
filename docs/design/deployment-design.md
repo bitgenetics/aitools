@@ -4,71 +4,69 @@
 
 The ai-tools ecosystem supports multiple deployment scenarios:
 
-1. **Single Registry**: One private registry for a team or organization
-2. **Chained Registries**: Multiple registries forming a chain for load balancing and failover
-3. **Public + Private**: Public registry for discovery, private for publishing
-4. **Docker Compose**: Simple local development and testing
-5. **Production Kubernetes**: Scalable production deployment
+1. **Local dev registry**: Docker Compose with optional PostgreSQL for auth
+2. **E2E test registry**: Ephemeral registry via `docker-compose.e2e.yml`
+3. **Chained registries**: Upstream proxy for search and tarball downloads
+4. **Public + Private**: `REGISTRY_ACCESS=public` with per-tool `private` flag
+5. **Production Kubernetes**: Scalable deployment (see below for aspirational examples)
+
+### Deployment modes
+
+The server selects storage and auth backends via provider factories in `packages/server/src/providers/`:
+
+| Mode | Storage | Auth | Typical use |
+|------|---------|------|-------------|
+| **Local/simple** | `LocalStorageProvider` (filesystem) | `SimpleAuthProvider` (env tokens) | Dev, single-team registry |
+| **Database auth** | Filesystem | `DatabaseAuthProvider` + `UserStore` | Multi-user with registration |
+| **Production stubs** | Azure/S3 stubs | OIDC stub | Future cloud deployment |
+
+Tool data is always stored on the filesystem (or cloud storage provider) — PostgreSQL is used for user/auth only when `DATABASE_URL` is configured.
 
 ---
 
 ## Single Registry Deployment
 
-### Docker Compose
+### Docker Compose (local dev)
+
+The repo ships `docker-compose.yml` for a persistent dev registry:
 
 ```yaml
-# docker-compose.yml
-version: '3.8'
-
+# docker-compose.yml (simplified)
 services:
   registry:
-    build: .
-    ports:
-      - "4873:4873"
+    build: { context: ., dockerfile: Dockerfile }
+    ports: ["4873:4873"]
+    env_file: [packages/server/.env]
     environment:
-      - PORT=4873
-      - HOST=0.0.0.0
-      - REGISTRY_ACCESS=private
-      - JWT_SECRET=${JWT_SECRET}
-      - DATABASE_URL=postgresql://user:pass@postgres:5432/ai-tools
+      PORT: "4873"
+      AI_TOOLS_DATA_DIR: /data
     depends_on:
-      - postgres
-    volumes:
-      - ./data:/app/data
-      - ./certs:/app/certs:ro
+      postgres: { condition: service_healthy }
+    volumes: [registry-data:/data]
 
   postgres:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=pass
-      - POSTGRES_DB=ai-tools
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    volumes:
-      - redis_data:/data
-
-volumes:
-  postgres_data:
-  redis_data:
+    image: postgres:16-alpine
+    env_file: [packages/server/.env]
+    volumes: [postgres-data:/var/lib/postgresql/data]
 ```
+
+E2E tests use `docker-compose.e2e.yml` — an ephemeral registry without persistent volumes.
 
 ### Environment Variables
 
+See `packages/server/.env.example`. Key variables:
+
 ```bash
-# .env
 PORT=4873
 HOST=0.0.0.0
-REGISTRY_ACCESS=private
-JWT_SECRET=$(openssl rand -base64 32)
-DATABASE_URL=postgresql://ai-tools:password@localhost:5432/ai-tools?schema=public
-REDIS_URL=redis://localhost:6379
-LOG_LEVEL=info
-RATE_LIMIT_REQUESTS=100
-RATE_LIMIT_WINDOW=hour
+AI_TOOLS_DATA_DIR=./data
+REGISTRY_ACCESS=private          # or public
+DATABASE_URL=postgresql://...    # optional, enables user auth
+AI_TOOLS_PUBLISH_TOKEN=...       # static publish token
+AI_TOOLS_PUBLISHER_TOKENS=...    # JSON map of token → { userId, orgs }
+AI_TOOLS_ADMIN_TOKEN=...         # admin portal access
+UPSTREAMS=public=https://...     # comma-separated name=url pairs
+CORS_ORIGINS=https://...         # comma-separated allowed origins
 ```
 
 ---

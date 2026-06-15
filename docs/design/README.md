@@ -25,18 +25,18 @@ Welcome to the **ai-tools** design documentation. This folder contains comprehen
 
 ### 🛠️ Implementation & Development
 
+- **[Platform Adapter](platform-adapter.md)** - Platform path resolution and compat auditing (15 min)
+- **[Key Flows](flows.md)** - Sequence diagrams for primary operations (15 min)
 - **[Implementation Guide](IMPLEMENTATION-GUIDE.md)** - Development patterns, conventions, best practices (25 min)
+- **[Architecture](architecture.md)** - Package internals and detailed diagrams (10 min)
 
 ---
 
-## 📊 Document Statistics
-
 | Metric | Value |
 |--|------|
-| **Total Documents** | 8 |
-| **Total Reading Time** | ~140 minutes (2h 20min) |
-| **Created Date** | May 14, 2026 |
-| **Version** | 1.0.0 |
+| **Total Documents** | 11 |
+| **Last Updated** | June 13, 2026 |
+| **Version** | 1.1.0 |
 
 ---
 
@@ -97,7 +97,7 @@ packages/
 - Installed tool and lock file
 - Configuration and registry settings
 - Platform specifications
-- Database schema (PostgreSQL)
+- Filesystem storage layout and optional PostgreSQL for auth
 - File system structure
 - Versioning strategy
 
@@ -238,16 +238,16 @@ ai-tools/
 
 ```bash
 # Install a tool
-ai-tools install my-skill@1.2.0
+aitools install my-skill@1.2.0
 
 # Search for tools
-ai-tools search "python skill"
+aitools search "python skill"
 
 # Publish a tool
-ai-tools publish --manifest ai-tools.manifest.json
+aitools publish --manifest ai-tools.manifest.json
 
 # List installed tools
-ai-tools list
+aitools list
 ```
 
 ### Registry Endpoints
@@ -286,9 +286,9 @@ ai-tools list
 - **Config Cascade**: Project → home configuration merge
 - **Platform Adapter**: Platform-specific path resolution
 - **REST API**: Standard REST endpoints for registry
-- **PostgreSQL**: Relational database for tool storage
-- **JWT Auth**: Token-based authentication
-- **Rate Limiting**: Per-user and per-IP limits
+- **Filesystem Storage**: Tool data via `IStorageProvider`
+- **Bearer Auth**: Static or database-backed tokens
+- **Rate Limiting**: Per-route limits on publish and auth
 
 ---
 
@@ -334,9 +334,9 @@ If you have feedback or suggestions for improving this documentation:
 
 ---
 
-**Document Status**: ✅ Complete  
-**Review Status**: ✅ Approved  
-**Next Review**: Q3 2026
+**Document Status**: ✅ Current  
+**Review Status**: Reviewed June 2026  
+**Next Review**: Q4 2026
 
 ---
 
@@ -369,7 +369,7 @@ If you have feedback or suggestions for improving this documentation:
 - Installed tool and lock file
 - Configuration and registry settings
 - Platform specifications
-- Database schema (PostgreSQL)
+- Filesystem storage layout and optional PostgreSQL for auth
 - File system structure
 - Versioning strategy
 
@@ -437,16 +437,16 @@ ai-tools/
 
 ```bash
 # Install a tool
-ai-tools install my-skill@1.2.0
+aitools install my-skill@1.2.0
 
 # Search for tools
-ai-tools search "python skill"
+aitools search "python skill"
 
 # Publish a tool
-ai-tools publish --manifest ai-tools.manifest.json
+aitools publish --manifest ai-tools.manifest.json
 
 # List installed tools
-ai-tools list
+aitools list
 
 # Update a tool
 ai-tools update my-skill
@@ -473,7 +473,7 @@ ai-tools uninstall my-skill
 | `ai-tools.json` | Project dependencies | Project root |
 | `ai-tools.config.json` | Registry and platform config | Project root |
 | `ai-tools-lock.json` | Installation records | Project root |
-| `~/.ai-tools/config.json` | User-level config | User home |
+| `~/ai-tools.config.json` | User-level config | User home |
 
 ---
 
@@ -506,7 +506,7 @@ docker-compose up -d
 http://localhost:4873
 
 # Install a tool from local registry
-ai-tools install my-skill@1.0.0
+aitools install my-skill@1.0.0
 ```
 
 ### 3. Deploy to Production

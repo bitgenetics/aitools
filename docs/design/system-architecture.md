@@ -8,17 +8,17 @@
 
 ## Package Structure
 
-The project is organized as a monorepo with three core packages:
+The project is organized as a monorepo with four packages:
 
 ```
 ai-tools/
 ├── packages/
 │   ├── @ai-tools/core/      # Pure library: types, schemas, utilities
-│   ├── @ai-tools/cli/       # CLI binary (ai-tools command)
-│   └── @ai-tools/server/    # Registry API (Fastify HTTP server)
+│   ├── @ai-tools/cli/       # CLI binary (aitools command)
+│   ├── @ai-tools/server/    # Registry API (Fastify HTTP server)
+│   └── @ai-tools/e2e/       # Docker-based end-to-end tests
 ├── docs/
-├── e2e/                     # End-to-end tests
-└── sandbox/                 # Testing sandbox
+└── sandbox/                 # Local testing sandbox
 ```
 
 ### Package Dependency Graph
@@ -114,13 +114,13 @@ sequenceDiagram
     participant Cache as CacheManager
     participant FS as File System
 
-    Dev->>CLI: ai-tools install my-skill@1.2.0
+    Dev->>CLI: aitools install my-skill@1.2.0
     CLI->>Config: Load config (project → home)
     Config-->>CLI: Merged config with registries
-    CLI->>Registry: GET /registry/packages/my-skill/1.2.0
+    CLI->>Registry: GET /api/tools/my-skill
     Registry-->>CLI: Tool manifest
-    CLI->>Registry: GET /registry/packages/my-skill/1.2.0/tarball
-    Registry-->>CLI: Tarball data
+    CLI->>Registry: GET /api/tools/my-skill/1.2.0/tarball
+    Registry-->>CLI: JSON tarball
     CLI->>Cache: Store tarball
     Cache-->>CLI: Cache hit/miss response
     CLI->>FS: Copy files to .agents/skills/
@@ -137,9 +137,9 @@ sequenceDiagram
     participant Registry as Registry Server
     participant Store as ToolStore
 
-    Dev->>CLI: ai-tools search "python skill"
+    Dev->>CLI: aitools search "python skill"
     CLI->>CLI: Parse query, resolve registries
-    CLI->>Registry: GET /registry/search?q=python+skill
+    CLI->>Registry: GET /api/search?q=python+skill
     Registry->>Store: Query all tool manifests
     Store-->>Registry: Matching tools
     Registry-->>CLI: Search results
@@ -163,14 +163,13 @@ Project Root → Parent Directories → User Home → System (env)
    - Default platform
    - Authentication tokens
 
-2. **`~/.ai-tools/config.json`** (user home)
+2. **`~/ai-tools.config.json`** (user home)
    - Global registry URLs
    - Default settings
 
-3. **Environment Variables**
-   - `AI_TOOLS_REGISTRY_URL`
-   - `AI_TOOLS_PLATFORM`
-   - `AI_TOOLS_PUBLISH_TOKEN`
+3. **Environment Variables** (server only)
+   - `AI_TOOLS_PUBLISH_TOKEN`, `AI_TOOLS_PUBLISHER_TOKENS`
+   - `REGISTRY_ACCESS`, `UPSTREAMS`, `DATABASE_URL`
 
 ### Merge Strategy
 
@@ -179,11 +178,11 @@ Project Root → Parent Directories → User Home → System (env)
 - **Scalar values are overwritten**
 
 ```typescript
-// Example: Registry cascade
+// Example: Registry cascade (project registries queried first)
 Project config:  ["https://private.registry.io"]
 Home config:     ["https://public.registry.io"]
 
-Merged result:   ["https://public.registry.io", "https://private.registry.io"]
+Merged result:   ["https://private.registry.io", "https://public.registry.io"]
 ```
 
 ---
@@ -194,33 +193,21 @@ The system supports multiple target platforms through a **platform adapter** pat
 
 ### Supported Platforms
 
-| Platform | Install Path | Category Support |
-|----------|-------------|------------------|
-| **Universal** | `.agents/skills/` | All categories |
-| **VS Code** | `.agents/skills/` (project) / `~/.copilot/skills/` (user) | All + MCP config |
-| **Claude** | `~/.agents/skills/` | All categories |
-| **Cursor** | `~/.cursor/skills/` | All categories |
-| **Windsurf** | `~/.windsurf/skills/` | All categories |
+| Platform | Project skill path | User skill path |
+|----------|-------------------|-----------------|
+| **Universal** | `.agents/skills/` | `.agents/skills/` |
+| **VS Code** | `.agents/skills/` | `~/.copilot/skills/` |
+| **Claude** | `.claude/skills/` | `~/.claude/skills/` |
+| **Cursor** | `.agents/skills/` | `~/.ai-tools/tools/skills/` |
+| **Windsurf** | `.windsurf/skills/` | `~/.windsurf/skills/` |
 
-### Platform Spec Structure
-
-```typescript
-interface PlatformSpec {
-  id: string;
-  name: string;
-  docsUrl: string;
-  lastVerified: string;
-  supportedCategories: string[];
-  skillFrontmatter: Record<string, FieldSpec>;
-  installPaths: Record<Category, { project: string; user: string }>;
-}
-```
+VS Code subagents install to `.github/agents/` (project) or `~/.copilot/agents/` (user).
 
 ### Platform Detection
 
-The system automatically detects the active platform from:
+The system detects the active platform from:
 1. `ai-tools.config.json` → `platform` field
-2. Environment variable `AI_TOOLS_PLATFORM`
+2. `ConfigManager.detectPlatformFromEnv()` — checks IDE env vars and `.vscode`/`.cursor` directories
 3. Default: `universal`
 
 ---
@@ -229,9 +216,9 @@ The system automatically detects the active platform from:
 
 ### Authentication
 
-1. **Bearer Tokens**: For publishing tools
-2. **OAuth**: Planned for future versions
-3. **Rate Limiting**: Configurable per registry
+1. **Bearer Tokens**: Static or database-backed tokens for publishing and org operations
+2. **Session Cookies**: Admin portal login via `POST /admin/login`
+3. **Rate Limiting**: Per-route limits (e.g. publish: 100/hour)
 
 ### Data Protection
 
@@ -269,7 +256,7 @@ The system automatically detects the active platform from:
 
 - **Local Cache**: `~/.ai-tools/cache/` stores downloaded tarballs
 - **Cache Hit Ratio**: Typical 80%+ for frequently used tools
-- **Cache Invalidation**: Manual via `ai-tools cache clean`
+- **Cache Invalidation**: Re-download on version change; no dedicated `cache clean` command yet
 
 ### Execution Time
 

@@ -110,7 +110,7 @@ graph TB
 
     subgraph subagent["category: subagent"]
         u_a["universal → .agents/agents/"]
-        v_a["vscode    → .agents/agents/"]
+        v_a["vscode    → .github/agents/"]
         cu_a["cursor   → .agents/agents/"]
         cl_a["claude   → .claude/agents/"]
         w_a["windsurf  → .windsurf/agents/"]
@@ -132,6 +132,18 @@ graph TB
         w_m["windsurf  → .windsurf/mcp.json"]
     end
 ```
+
+### User scope paths
+
+| Platform | skill | subagent | prompt | mcp config |
+|----------|-------|----------|--------|------------|
+| universal | `.agents/skills/` | `.agents/agents/` | `.agents/prompts/` | — |
+| vscode | `~/.copilot/skills/` | `~/.copilot/agents/` | `~/.copilot/prompts/` | `~/.vscode/mcp.json` |
+| cursor | `~/.ai-tools/tools/skills/` | `~/.ai-tools/tools/agents/` | `~/.ai-tools/tools/prompts/` | `~/.cursor/mcp.json` |
+| claude | `~/.claude/skills/` | `~/.claude/agents/` | `~/.claude/commands/` | `~/.mcp.json` |
+| windsurf | `~/.windsurf/skills/` | `~/.windsurf/agents/` | `~/.windsurf/rules/` | `~/.windsurf/mcp.json` |
+
+Note: `universal` is the runtime default but cannot be set explicitly in `ai-tools.config.json` (the Zod schema excludes it). Use auto-detection or omit the field.
 
 ---
 

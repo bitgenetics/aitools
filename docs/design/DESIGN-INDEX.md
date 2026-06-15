@@ -1,7 +1,7 @@
 # ai-tools Design Documentation Index
 
-**Last Updated**: May 15, 2026  
-**Version**: 1.0.0
+**Last Updated**: June 13, 2026  
+**Version**: 1.1.0
 
 ---
 
@@ -25,9 +25,12 @@ This folder contains comprehensive design documentation for the **ai-tools** eco
 | Document | Description | Reading Time |
 |----------|-------------|--------------|
 | [System Architecture](system-architecture.md) | Package structure, runtime topology, data flow | 15 min |
-| [Data Model](data-model.md) | Data structures, schemas, database design | 20 min |
+| [Architecture](architecture.md) | Package internals and config cascade (detailed diagrams) | 10 min |
+| [Data Model](data-model.md) | Data structures, schemas, storage layout | 20 min |
 | [API Design](api-design.md) | REST API endpoints, authentication, security | 25 min |
-| [Deployment Design](deployment-design.md) | Deployment strategies, scaling, operations | 30 min |
+| [Platform Adapter](platform-adapter.md) | Platform path resolution and compat auditing | 15 min |
+| [Key Flows](flows.md) | Sequence diagrams for install, publish, search | 15 min |
+| [Deployment Design](deployment-design.md) | Deployment strategies, Kubernetes, operations | 30 min |
 
 ### 🛠️ Implementation Documents
 
@@ -71,8 +74,9 @@ This folder contains comprehensive design documentation for the **ai-tools** eco
 ```
 packages/
 ├── @ai-tools/core/      # Library (types, schemas, utilities)
-├── @ai-tools/cli/       # CLI binary
-└── @ai-tools/server/    # Registry API server
+├── @ai-tools/cli/       # CLI binary (aitools)
+├── @ai-tools/server/    # Registry API server
+└── @ai-tools/e2e/       # Docker-based E2E tests
 ```
 
 **Audience**: Architects, developers, system designers
@@ -218,16 +222,16 @@ ai-tools/
 
 ```bash
 # Install a tool
-ai-tools install my-skill@1.2.0
+aitools install my-skill@1.2.0
 
 # Search for tools
-ai-tools search "python skill"
+aitools search "python skill"
 
 # Publish a tool
-ai-tools publish --manifest ai-tools.manifest.json
+aitools publish --manifest ai-tools.manifest.json
 
 # List installed tools
-ai-tools list
+aitools list
 ```
 
 ### Registry Endpoints
@@ -237,7 +241,9 @@ ai-tools list
 | GET | `/api/tools` | List all tools |
 | GET | `/api/tools/:name` | Get tool manifest |
 | GET | `/api/search?q=<query>` | Search tools |
+| GET | `/api/search/all` | Cross-registry search with pagination |
 | POST | `/api/tools` | Publish tool |
+| GET | `/health` | Health check |
 
 ### Configuration Files
 
@@ -266,9 +272,9 @@ ai-tools list
 - **Config Cascade**: Project → home configuration merge
 - **Platform Adapter**: Platform-specific path resolution
 - **REST API**: Standard REST endpoints for registry
-- **PostgreSQL**: Relational database for tool storage
-- **JWT Auth**: Token-based authentication
-- **Rate Limiting**: Per-user and per-IP limits
+- **Filesystem Storage**: Tool data via `IStorageProvider` (local by default)
+- **Bearer Auth**: Static or database-backed tokens (not JWT)
+- **Rate Limiting**: Per-route limits on publish and auth
 
 ---
 
@@ -276,6 +282,7 @@ ai-tools list
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.1.0 | June 13, 2026 | Aligned docs with implemented API, storage, auth, and CLI |
 | 1.0.0 | May 14, 2026 | Initial design documentation |
 
 ---
@@ -320,6 +327,6 @@ This documentation is licensed under the same license as the ai-tools project.
 
 ---
 
-**Document Status**: ✅ Complete  
-**Review Status**: ✅ Approved  
-**Next Review**: Q3 2026
+**Document Status**: ✅ Current  
+**Review Status**: Reviewed June 2026  
+**Next Review**: Q4 2026

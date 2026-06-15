@@ -1,708 +1,331 @@
 # API Design
 
+**Last Updated**: June 13, 2026
+
 ## Overview
 
-The ai-tools server is built with **Fastify** and provides a RESTful API for registry operations. The API follows REST conventions and includes proper error handling, rate limiting, and authentication support.
+The ai-tools registry server is built with **Fastify** and exposes a REST API for tool discovery, publishing, and org management. A separate HTML portal serves browse and admin UI routes.
+
+Default listen address: `http://localhost:4873`
 
 ---
 
-## API Endpoints
+## Authentication
 
-### Base URL
+### Registry access modes
 
-```
-https://registry.ai-tools.io/api
-```
+Controlled by `REGISTRY_ACCESS`:
 
-### Authentication
-
-All endpoints require authentication when `REGISTRY_ACCESS=private`:
+| Mode | Read endpoints | Write endpoints |
+|------|----------------|-----------------|
+| `private` (default) | Bearer token required | Bearer token required |
+| `public` | Open; tools with `"private": true` hidden from unauthenticated callers | Bearer token required |
 
 ```http
 Authorization: Bearer <token>
 ```
 
+### Auth backends
+
+The server uses pluggable `IAuthProvider` implementations (see `packages/server/src/providers/auth/`):
+
+| Backend | When used | Notes |
+|---------|-----------|-------|
+| **SimpleAuthProvider** | Default local/dev | Static tokens via `AI_TOOLS_PUBLISH_TOKEN`, `AI_TOOLS_PUBLISHER_TOKENS`, or `AI_TOOLS_ADMIN_TOKEN` |
+| **DatabaseAuthProvider** | `DATABASE_URL` set + user management enabled | Users, org tokens, and admin tokens stored in PostgreSQL |
+| **OidcAuthProvider** | Stub | Not yet implemented |
+
+Admin portal access uses `X-Admin-Token` header or an admin session cookie set via `POST /admin/login`.
+
 ---
 
-## Tool Endpoints
+## Error responses
 
-### List All Tools
+Most errors return a plain string:
+
+```json
+{ "error": "Not found" }
+```
+
+Validation errors (Zod) return a flattened object:
+
+```json
+{ "error": { "fieldErrors": {}, "formErrors": [] } }
+```
+
+HTTP status codes follow Fastify conventions (400, 401, 403, 404, 409, 429, 500).
+
+---
+
+## Tool endpoints
+
+### List all tools
 
 ```http
 GET /api/tools
 ```
 
-**Description**: List all available tools (latest version of each).
+Returns the latest version of every tool as a bare `ToolManifest[]` (not wrapped in `{ tools: [...] }`).
 
-**Response** (200 OK):
-
-```json
-{
-  "tools": [
-    {
-      "name": "my-python-skill",
-      "version": "1.2.0",
-      "description": "A Python skill for AI agents",
-      "category": "skill",
-      "keywords": ["python", "llm"],
-      "tags": ["python", "llm"]
-    }
-  ]
-}
-```
-
-**Authentication**: Required (private mode)
+**Auth**: Required in private mode; optional in public mode (private tools filtered out when unauthenticated).
 
 ---
 
-### Get Tool Manifest
-
-```http
-GET /api/tools/:name
-```
-
-**Description**: Get the latest version manifest for a tool.
-
-**Response** (200 OK):
-
-```json
-{
-  "name": "my-python-skill",
-  "version": "1.2.0",
-  "description": "A Python skill for AI agents",
-  "category": "skill",
-  "files": [
-    {
-      "src": "skill.md",
-      "dest": "skill.md"
-    }
-  ],
-  "keywords": ["python", "llm"],
-  "author": "Jane Developer",
-  "repository": "https://github.com/company/my-python-skill"
-}
-```
-
-**Authentication**: Required (private mode)
-
----
-
-### Get Tool Version
-
-```http
-GET /api/tools/:name/:version
-```
-
-**Description**: Get a specific version manifest for a tool.
-
-**Response** (200 OK):
-
-```json
-{
-  "name": "my-python-skill",
-  "version": "1.2.0",
-  "description": "A Python skill for AI agents",
-  "category": "skill",
-  "files": [
-    {
-      "src": "skill.md",
-      "dest": "skill.md"
-    }
-  ]
-}
-```
-
-**Authentication**: Required (private mode)
-
----
-
-### Download Tool Tarball
-
-```http
-GET /api/tools/:name/:version/tarball
-```
-
-**Description**: Download the tool tarball for installation.
-
-**Response** (200 OK):
-
-```
-Content-Type: application/gzip
-Content-Disposition: attachment; filename="my-python-skill-1.2.0.tar.gz"
-Content-Length: 123456
-```
-
-**Authentication**: Required (private mode)
-
----
-
-### Search Tools
+### Search tools
 
 ```http
 GET /api/search?q=<query>
 ```
 
-**Description**: Search tools by query string.
-
-**Query Parameters**:
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| q | string | No | Search query (keywords, tags, description) |
-
-**Response** (200 OK):
+Returns a summary array:
 
 ```json
-{
-  "results": [
-    {
-      "name": "my-python-skill",
-      "version": "1.2.0",
-      "description": "A Python skill for AI agents",
-      "category": "skill",
-      "keywords": ["python", "llm"],
-      "tags": ["python", "llm"]
-    },
-    {
-      "name": "my-llm-prompt",
-      "version": "1.0.0",
-      "description": "An LLM prompt template",
-      "category": "prompt",
-      "keywords": ["llm", "prompt"],
-      "tags": ["llm"]
-    }
-  ]
-}
+[
+  {
+    "name": "my-skill",
+    "version": "1.2.0",
+    "description": "A Python skill",
+    "category": "skill",
+    "keywords": ["python"],
+    "tags": ["llm"]
+  }
+]
 ```
-
-**Authentication**: Required (private mode)
 
 ---
 
-### Publish Tool
+### Get tool manifest
+
+```http
+GET /api/tools/:name
+GET /api/tools/:name/:version
+```
+
+Returns the full `ToolManifest` for the latest or specific version.
+
+Pseudo-routes on the two-segment path:
+
+| Path | Response |
+|------|----------|
+| `GET /api/tools/:name/versions` | `{ name, versions: string[] }` |
+| `GET /api/tools/:name/owner` | `{ name, owner: { org, userId, publishedAt } }` |
+
+---
+
+### Download tarball
+
+```http
+GET /api/tools/:name/:version/tarball
+```
+
+The tarball is a **JSON array** of `{ path, content }` objects (not gzip).
+
+```http
+Content-Type: application/json
+Content-Disposition: attachment; filename="<name>-<version>.json"
+X-Integrity: sha256-<base64-hash>
+```
+
+The CLI verifies integrity using the `X-Integrity` header.
+
+---
+
+### Publish tool
 
 ```http
 POST /api/tools
+Content-Type: application/json
+Authorization: Bearer <token>
 ```
 
-**Description**: Publish a new tool version.
-
-**Request Body**:
+**Body**:
 
 ```json
 {
-  "manifest": {
-    "name": "my-python-skill",
-    "version": "1.2.0",
-    "description": "A Python skill for AI agents",
-    "category": "skill",
-    "files": [
-      {
-        "src": "skill.md",
-        "dest": "skill.md"
-      }
-    ]
-  },
-  "files": {
-    "skill.md": "# My Python Skill\n...",
-    "assets/icon.png": "<binary data>"
-  }
+  "manifest": { "name": "...", "version": "...", "category": "skill", "files": [...], ... },
+  "files": { "skill.md": "# content..." }
 }
 ```
 
-**Response** (201 Created):
+**Response** (201):
 
 ```json
 {
-  "name": "my-python-skill",
+  "name": "my-skill",
   "version": "1.2.0",
-  "id": "uuid-1234-5678-9abc-def012345678"
+  "integrity": "sha256-..."
 }
 ```
 
-**Authentication**: Required (publisher token)
+**Rate limit**: 100 requests per hour per token or IP.
 
 ---
 
-### Update Tool Privacy
+### Update tool privacy
 
 ```http
 PATCH /api/tools/:name
+Authorization: Bearer <token>
 ```
 
-**Description**: Update the privacy setting for a tool.
+**Body**: `{ "private": true }`
 
-**Request Body**:
-
-```json
-{
-  "private": true
-}
-```
-
-**Response** (200 OK):
-
-```json
-{
-  "name": "my-python-skill",
-  "private": true
-}
-```
-
-**Authentication**: Required (publisher token)
+Only the owning org may update privacy settings.
 
 ---
 
-## Registry Endpoints
-
-### Get Registry Info
+### Current identity
 
 ```http
-GET /api/registry
+GET /api/me
 ```
-
-**Description**: Get registry metadata and configuration.
-
-**Response** (200 OK):
 
 ```json
-{
-  "name": "ai-tools-registry",
-  "version": "0.1.0",
-  "access": "private",
-  "upstreams": [
-    {
-      "name": "public",
-      "url": "https://registry.ai-tools.io"
-    }
-  ]
-}
+{ "authenticated": true, "userId": "alice", "org": "acme" }
 ```
+
+Returns `{ "authenticated": false }` when no valid token is present (does not 401).
 
 ---
 
-### Search Registry
+### List org tools (public read)
 
 ```http
-GET /api/registry/search?q=<query>
+GET /api/org/:org/tools
 ```
 
-**Description**: Search across all upstream registries.
-
-**Query Parameters**:
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| q | string | No | Search query |
-
-**Response** (200 OK):
-
-```json
-{
-  "results": [
-    {
-      "name": "my-python-skill",
-      "version": "1.2.0",
-      "source": "public",
-      "url": "https://registry.ai-tools.io/api/tools/my-python-skill/1.2.0"
-    }
-  ]
-}
-```
+Returns all latest-version manifests owned by the given org. Same auth rules as other read endpoints.
 
 ---
 
-## Organization Endpoints
+## Registry and health endpoints
 
-### List Organizations
-
-```http
-GET /api/orgs
-```
-
-**Description**: List all organizations (admin only).
-
-**Response** (200 OK):
-
-```json
-{
-  "organizations": [
-    {
-      "name": "company",
-      "tools": ["my-python-skill", "my-llm-prompt"]
-    }
-  ]
-}
-```
-
-**Authentication**: Required (admin token)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/upstream` | List configured upstream registries |
+| GET | `/proxy/search?q=<query>` | Proxy search to upstream registries |
+| GET | `/health` | Liveness check (200 OK) |
+| GET | `/health/ready` | Readiness check |
 
 ---
 
-### Create Organization
+## Registry exploration endpoints
 
-```http
-POST /api/orgs
-```
+Public routes for cross-registry discovery:
 
-**Description**: Create a new organization (admin only).
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/registries` | List local + upstream registries |
+| GET | `/api/search/all` | Search local and upstream registries with pagination |
 
-**Request Body**:
+**`/api/search/all` query parameters**:
 
-```json
-{
-  "name": "company"
-}
-```
-
-**Response** (201 Created):
-
-```json
-{
-  "name": "company",
-  "id": "org-uuid-1234"
-}
-```
-
-**Authentication**: Required (admin token)
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `q` | `""` | Search query |
+| `sortBy` | `age` | `name` or `age` |
+| `sortDir` | `desc` | `asc` or `desc` |
+| `page` | `1` | Page number |
+| `pageSize` | `10` | Results per page (max 100) |
 
 ---
 
-## Portal Endpoints
+## Org management endpoints
 
-### Get Portal Dashboard
+All routes under `/api/org` require Bearer authentication.
 
-```http
-GET /api/portal
-```
-
-**Description**: Get portal dashboard data (admin only).
-
-**Response** (200 OK):
-
-```json
-{
-  "stats": {
-    "totalTools": 150,
-    "totalVersions": 450,
-    "totalDownloads": 12500
-  },
-  "recentActivity": [
-    {
-      "action": "published",
-      "tool": "my-python-skill",
-      "version": "1.2.0",
-      "timestamp": "2026-05-14T10:30:00Z"
-    }
-  ]
-}
-```
-
-**Authentication**: Required (admin token)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/org/info` | Current user's org identity |
+| GET | `/api/org/tools` | Tools published by caller's org |
+| GET | `/api/org/members` | Org members (stub; use admin API for details) |
+| POST | `/api/org/tools/:name/deprecate?version=<ver>` | Mark a version deprecated |
+| POST | `/api/org/tools/:name/unpublish?version=<ver>` | Remove a version (omit version to remove all) |
 
 ---
 
-## Admin Endpoints
+## Admin endpoints
 
-### Admin Dashboard
+Require `X-Admin-Token` header or valid admin session cookie.
 
-```http
-GET /api/admin
-```
-
-**Description**: Get admin dashboard data (admin only).
-
-**Response** (200 OK):
-
-```json
-{
-  "systemHealth": {
-    "status": "healthy",
-    "uptime": "30d",
-    "lastBackup": "2026-05-14T00:00:00Z"
-  },
-  "security": {
-    "activeSessions": 5,
-    "failedAuthAttempts": 0
-  }
-}
-```
-
-**Authentication**: Required (admin token)
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/admin/orgs` | Create org `{ name, metadata? }` |
+| GET | `/api/admin/orgs` | List all orgs |
+| GET | `/api/admin/orgs/:name` | Get org details |
+| POST | `/api/admin/orgs/:name/members` | Add member `{ userId }` |
+| DELETE | `/api/admin/orgs/:name` | Delete org |
+| POST | `/api/admin/tokens` | Generate publisher token `{ org, userId }` |
+| GET | `/api/admin/audit-log?org=<name>` | Audit log entries |
 
 ---
 
-## Error Responses
+## User auth endpoints
 
-### Standard Error Format
+Registered when `DatabaseAuthProvider` with user management is active.
 
-```json
-{
-  "error": {
-    "code": "ERR_XXX",
-    "message": "Human-readable error message",
-    "details": "Additional error details (optional)"
-  }
-}
-```
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/auth/register` | Create account `{ username, password }` |
+| POST | `/api/auth/login` | Login `{ username, password, org? }` → bearer token |
+| GET | `/api/auth/tokens` | List caller's API tokens (Bearer required) |
+| POST | `/api/auth/tokens` | Create token for org (Bearer required) |
+| DELETE | `/api/auth/tokens/:id` | Revoke token (Bearer required) |
 
-### Error Codes
-
-| Code | HTTP Status | Description |
-|------|-------------|-------------|
-| ERR_UNAUTHORIZED | 401 | Authentication required or failed |
-| ERR_FORBIDDEN | 403 | Insufficient permissions |
-| ERR_NOT_FOUND | 404 | Resource not found |
-| ERR_INVALID_REQUEST | 400 | Invalid request format |
-| ERR_RATE_LIMITED | 429 | Rate limit exceeded |
-| ERR_SERVER_ERROR | 500 | Internal server error |
-
-### Rate Limiting
-
-```http
-RateLimit: 100/hour
-Retry-After: 3600
-```
+Registration is rate-limited to 3 attempts per hour.
 
 ---
 
-## API Versioning
+## HTML portal routes
 
-The API currently uses unversioned endpoints:
+These serve HTML, not JSON:
 
-```
-/api/tools
-/api/search
-/api/registry
-```
-
-Versioning will be introduced via URL path when a breaking change is required:
-
-```
-/api/v1/tools
-/api/v1/search
-```
-
-Future versions will be:
-
-```
-/api/v2/tools
-/api/v2/search
-```
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/` | Tool browse/search page |
+| GET | `/skills/:name` | Tool detail page |
+| GET | `/admin/login` | Admin login form |
+| POST | `/admin/login` | Submit admin token (sets session cookie) |
+| GET | `/admin/logout` | Clear admin session |
+| GET | `/admin` | Admin dashboard (requires session) |
 
 ---
 
-## Request/Response Validation
+## Environment variables
 
-All requests are validated using **Zod** schemas:
+See `packages/server/.env.example` for the full list. Key variables:
 
-### Publish Request Validation
-
-```typescript
-const PublishBodySchema = z.object({
-  manifest: ToolManifestSchema,
-  files: z.record(z.string()),
-});
-
-const result = PublishBodySchema.safeParse(requestBody);
-if (!result.success) {
-  // Return 400 with validation errors
-  return reply.send({
-    error: {
-      code: 'ERR_INVALID_REQUEST',
-      message: 'Request validation failed',
-      details: result.error.issues
-    }
-  });
-}
-```
-
-### Response Validation
-
-All responses are validated to ensure consistency:
-
-```typescript
-const ResponseSchema = z.object({
-  success: z.boolean(),
-  data: z.any(),
-  error: z.object({
-    code: z.string(),
-    message: z.string()
-  }).nullable(),
-});
-
-const result = ResponseSchema.safeParse(response);
-if (!result.success) {
-  // Log and handle invalid response
-  logger.error('Invalid response format');
-}
-```
+| Variable | Purpose |
+|----------|---------|
+| `PORT` | Listen port (default 4873) |
+| `HOST` | Bind address (default 0.0.0.0) |
+| `AI_TOOLS_DATA_DIR` | Tool storage directory |
+| `REGISTRY_ACCESS` | `private` or `public` |
+| `UPSTREAMS` | Comma-separated `name=url` upstream registries |
+| `DATABASE_URL` | PostgreSQL for user/auth (optional) |
+| `AI_TOOLS_PUBLISH_TOKEN` | Single static publish token |
+| `AI_TOOLS_PUBLISHER_TOKENS` | JSON map of token → `{ userId, orgs }` |
+| `AI_TOOLS_ADMIN_TOKEN` | Admin portal token |
+| `CORS_ORIGINS` | Comma-separated allowed origins |
 
 ---
 
-## Security Considerations
+## Rate limiting
 
-### Authentication
+Rate limiting is **per-route**, not global. Currently applied to:
 
-1. **Bearer Tokens**: JWT tokens for API authentication
-2. **Token Expiration**: 24-hour default expiration
-3. **Token Rotation**: Automatic token refresh
-
-### Authorization
-
-1. **Role-Based Access Control (RBAC)**:
-   - `publisher`: Can publish tools
-   - `admin`: Full access to admin endpoints
-   - `reader`: Read-only access (public mode)
-
-2. **Resource Ownership**: Tools can be marked as private to specific organizations
-
-### Input Validation
-
-1. **Schema Validation**: All inputs validated against Zod schemas
-2. **Length Limits**: Maximum file sizes and description lengths
-3. **Sanitization**: All user input sanitized to prevent injection attacks
-
-### Rate Limiting
-
-1. **Per-User Limits**: 100 requests/hour for authenticated users
-2. **Per-IP Limits**: 1000 requests/hour for anonymous users
-3. **Exponential Backoff**: Automatic retry delays on rate limit
+- `POST /api/tools` — 100/hour per token or IP
+- `POST /api/auth/register` — 3/hour
+- `POST /api/auth/login` — rate limited
 
 ---
 
-## Performance Optimization
+## Not implemented
 
-### Caching Strategy
+The following endpoints described in earlier design drafts do **not** exist:
 
-1. **Response Caching**: 5-minute cache for search results
-2. **CDN Integration**: Static assets served from CDN
-3. **Redis Cache**: Hot data cached in Redis
-
-### Database Optimization
-
-1. **Indexing**: Indexed fields for common queries
-2. **Connection Pooling**: PostgreSQL connection pooling
-3. **Query Optimization**: Optimized search queries with full-text search
-
-### API Gateway
-
-1. **Load Balancing**: Horizontal scaling with load balancer
-2. **SSL Termination**: HTTPS at load balancer
-3. **Request Routing**: Smart routing based on user role
-
----
-
-## Monitoring and Observability
-
-### Metrics
-
-- **Request Rate**: Requests per second
-- **Error Rate**: Percentage of failed requests
-- **Latency**: P50, P95, P99 response times
-- **Cache Hit Rate**: Cache effectiveness
-
-### Logging
-
-- **Structured Logs**: JSON-formatted logs
-- **Log Levels**: DEBUG, INFO, WARN, ERROR
-- **Correlation IDs**: Request tracing with correlation IDs
-
-### Alerting
-
-- **Error Thresholds**: Alert on >1% error rate
-- **Latency Thresholds**: Alert on >1s P99 latency
-- **Resource Usage**: Alert on high CPU/memory usage
-
----
-
-## Deployment Considerations
-
-### Environment Variables
-
-```bash
-# Server configuration
-PORT=4873
-HOST=0.0.0.0
-REGISTRY_ACCESS=private
-
-# Authentication
-JWT_SECRET=<secure-random-string>
-JWT_EXPIRATION=24h
-
-# Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/ai-tools
-
-# Rate limiting
-RATE_LIMIT_REQUESTS=100
-RATE_LIMIT_WINDOW=hour
-
-# Logging
-LOG_LEVEL=info
-LOG_FILE=/var/log/ai-tools/server.log
-```
-
-### Docker Deployment
-
-```dockerfile
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
-
-FROM node:20-alpine
-WORKDIR /app
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-EXPOSE 4873
-CMD ["node", "dist/index.js"]
-```
-
-### Kubernetes Deployment
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: ai-tools-registry
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: ai-tools-registry
-  template:
-    metadata:
-      labels:
-        app: ai-tools-registry
-    spec:
-      containers:
-      - name: registry
-        image: ai-tools/registry:latest
-        ports:
-        - containerPort: 4873
-        env:
-        - name: PORT
-          value: "4873"
-        - name: REGISTRY_ACCESS
-          value: "private"
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-```
-
----
-
-## Future Enhancements
-
-1. **GraphQL API**: Alternative GraphQL endpoint for complex queries
-2. **Webhooks**: Notify subscribers of tool updates
-3. **API Keys**: Alternative to JWT for service accounts
-4. **Pagination**: Support for large result sets
-5. **Filtering**: Advanced search with filters
-6. **Export**: Bulk export tools to CSV/JSON
+- `GET /api/registry` / `GET /api/registry/search`
+- `GET /api/portal` / `GET /api/admin` (JSON dashboards)
+- `GET /api/orgs` (use `/api/admin/orgs` instead)
+- JWT-based session auth with token rotation
+- Redis caching layer

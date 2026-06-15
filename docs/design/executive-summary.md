@@ -2,8 +2,8 @@
 
 ## ai-tools Ecosystem Design
 
-**Document Version**: 1.0.0  
-**Last Updated**: May 14, 2026  
+**Document Version**: 1.1.0  
+**Last Updated**: June 13, 2026  
 **Author**: AI Tools Team
 
 ---
@@ -30,15 +30,15 @@ The **ai-tools** ecosystem is a comprehensive package management system for AI-p
 ```mermaid
 graph LR
     subgraph Developer Workstation
-        A[CLI<br/>ai-tools]
+        A[CLI<br/>aitools]
         B[Config<br/>Cascade]
         C[Installer<br/>File Writer]
     end
     
     subgraph Registry Server
-        D[Fastify API<br/>REST Endpoints]
-        E[PostgreSQL<br/>Data Storage]
-        F[Redis<br/>Cache]
+        D[Fastify API<br/>REST + HTML Portal]
+        E[ToolStore<br/>Filesystem via IStorageProvider]
+        F[UserStore<br/>PostgreSQL optional]
     end
     
     subgraph Upstream Registries
@@ -49,8 +49,8 @@ graph LR
     A --> B
     A --> C
     A --> D
-    C --> E
     D --> E
+    D --> F
     D --> G
     D --> H
 ```
@@ -77,12 +77,15 @@ graph LR
 **Purpose**: Command-line interface for tool management
 
 **Key Commands**:
-- `install` - Install tools
-- `uninstall` - Remove tools
-- `update` - Update tools
-- `search` - Find tools
-- `publish` - Publish tools
-- `config` - Manage configuration
+- `init` / `dev-init` — Initialize project or install bundled dev skill
+- `install` / `uninstall` / `update` — Manage installed tools
+- `search` / `find` — Discover tools (find uses smart-search prefix)
+- `publish` / `manifest` — Create and publish tool packages
+- `config` / `registry` — Manage configuration and registries
+- `compat` — Audit platform compatibility
+- `list` — Show installed tools from lock file
+
+**Binary name**: `aitools` (not `ai-tools`)
 
 **Dependencies**: @ai-tools/core, commander, chalk, ora
 
@@ -91,25 +94,36 @@ graph LR
 **Purpose**: HTTP API server for tool registry operations
 
 **Key Features**:
-- REST API endpoints
-- Tool storage and retrieval
-- Search functionality
-- Authentication and authorization
-- Rate limiting
+- REST API endpoints + HTML portal
+- Filesystem tool storage via `IStorageProvider`
+- Optional PostgreSQL for user/auth (`UserStore`)
+- Org management, audit log, and admin portal
+- Pluggable auth (`SimpleAuthProvider`, `DatabaseAuthProvider`)
+- Rate limiting on publish and auth routes
 
-**Dependencies**: @ai-tools/core, fastify, PostgreSQL, Redis
+**Dependencies**: @ai-tools/core, fastify, optional PostgreSQL
+
+---
+
+### 4. @ai-tools/e2e (End-to-End Tests)
+
+**Purpose**: Docker-based integration tests against a live registry
+
+**Dependencies**: @ai-tools/cli, @ai-tools/server (via docker-compose.e2e.yml)
 
 ---
 
 ## Supported Platforms
 
-| Platform | Install Path | Category Support |
-|--|-------------|-----------------|
-| **Universal** | `.agents/skills/` | All categories |
-| **VS Code** | `.agents/skills/` | All + MCP config |
-| **Claude** | `~/.agents/skills/` | All categories |
-| **Cursor** | `~/.cursor/skills/` | All categories |
-| **Windsurf** | `~/.windsurf/skills/` | All categories |
+| Platform | Project skill path | User skill path |
+|----------|-------------------|-----------------|
+| **Universal** | `.agents/skills/` | `.agents/skills/` |
+| **VS Code** | `.agents/skills/` | `~/.copilot/skills/` |
+| **Claude** | `.claude/skills/` | `~/.claude/skills/` |
+| **Cursor** | `.agents/skills/` | `~/.ai-tools/tools/skills/` |
+| **Windsurf** | `.windsurf/skills/` | `~/.windsurf/skills/` |
+
+See [platform-adapter.md](platform-adapter.md) for full path tables per category.
 
 ---
 
@@ -121,7 +135,7 @@ graph LR
 Developer → CLI → Config → Registry → Cache → File System
 ```
 
-1. Developer runs `ai-tools install my-skill@1.2.0`
+1. Developer runs `aitools install my-skill@1.2.0`
 2. CLI loads configuration (project → home cascade)
 3. CLI queries registry for manifest
 4. Registry returns manifest and tarball
@@ -160,7 +174,7 @@ Project Root → Parent Directories → User Home → System (env)
 
 ### Authentication
 
-- **Bearer Tokens**: JWT tokens for API authentication
+- **Bearer Tokens**: Static or database-backed tokens for API authentication
 - **Token Expiration**: 24-hour default
 - **Token Rotation**: Automatic refresh
 
@@ -248,9 +262,9 @@ autoscaling:
 
 ### ✅ Security
 
-- JWT authentication
-- Role-based authorization
-- Rate limiting
+- Bearer token authentication
+- Org-based authorization
+- Per-route rate limiting
 - Input validation
 - Integrity checking
 
