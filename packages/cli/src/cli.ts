@@ -1,4 +1,5 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+﻿#!/usr/bin/env node
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -12,7 +13,6 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-#!/usr/bin/env node
 import { Command } from 'commander';
 import { createInstallCommand } from './commands/install.js';
 import { createUninstallCommand } from './commands/uninstall.js';
