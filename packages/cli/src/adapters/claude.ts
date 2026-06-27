@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -15,22 +15,22 @@
 import os from 'node:os';
 import path from 'node:path';
 import type { PlatformAdapter } from './types.js';
-import type { ToolCategory, InstallScope } from '@ai-tools/core';
+import type { ToolCategory, InstallScope } from '@aitools/core';
 
 /**
  * Claude Code (Anthropic CLI) adapter.
  *
  * Project scope paths:
- *   skill    → .claude/skills/     (Agent Skills spec — SKILL.md directories)
- *   subagent → .claude/agents/     (custom agent .md files)
- *   prompt   → .claude/commands/   (slash commands — legacy; skill is preferred)
- *   mcp      → .mcp.json           (project-root MCP config)
+ *   skill    ? .claude/skills/     (Agent Skills spec � SKILL.md directories)
+ *   subagent ? .claude/agents/     (custom agent .md files)
+ *   prompt   ? .claude/commands/   (slash commands � legacy; skill is preferred)
+ *   mcp      ? .mcp.json           (project-root MCP config)
  *
  * User scope paths:
- *   skill    → ~/.claude/skills/
- *   subagent → ~/.claude/agents/
- *   prompt   → ~/.claude/commands/
- *   mcp      → ~/.claude/mcp.json
+ *   skill    ? ~/.claude/skills/
+ *   subagent ? ~/.claude/agents/
+ *   prompt   ? ~/.claude/commands/
+ *   mcp      ? ~/.claude/mcp.json
  */
 export class ClaudeAdapter implements PlatformAdapter {
   readonly platform = 'claude' as const;

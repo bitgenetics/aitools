@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,8 +14,8 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import https from 'node:https';
 import http from 'node:http';
-import type { ToolManifest, RegistryConfig, GitRegistryConfig, HttpRegistryConfig } from '@ai-tools/core';
-import { isGitRegistryConfig } from '@ai-tools/core';
+import type { ToolManifest, RegistryConfig, GitRegistryConfig, HttpRegistryConfig } from '@aitools/core';
+import { isGitRegistryConfig } from '@aitools/core';
 import { createGitRegistryClient } from './git-registry-client.js';
 
 export interface SearchResult {

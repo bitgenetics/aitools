@@ -1,4 +1,4 @@
-ï»¿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -18,7 +18,7 @@
  * These run against a live registry server.  In CI the server is provided by
  * docker-compose (REGISTRY_URL=http://registry:4873).  Locally you can run:
  *
- *   npm test -w @ai-tools/e2e
+ *   npm test -w @aitools/e2e
  *
  * global-setup.cjs starts a local registry automatically when REGISTRY_URL
  * points at localhost and nothing is listening yet.
@@ -30,7 +30,7 @@ const BASE = (process.env['REGISTRY_URL'] ?? 'http://localhost:4873').replace(/\
 const FIXTURE_MANIFEST = {
   name: 'e2e-test-tool',
   version: '1.0.0',
-  description: 'Tool used by e2e tests â€” safe to delete',
+  description: 'Tool used by e2e tests — safe to delete',
   category: 'skill' as const,
   scope: 'user' as const,
   platform: 'universal' as const,
@@ -49,7 +49,7 @@ async function api(path: string, init?: RequestInit): Promise<Response> {
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await api(path, init);
   if (!res.ok) {
-    throw new Error(`${init?.method ?? 'GET'} ${path} â†’ ${res.status}: ${await res.text()}`);
+    throw new Error(`${init?.method ?? 'GET'} ${path} ? ${res.status}: ${await res.text()}`);
   }
   return res.json() as Promise<T>;
 }
@@ -71,7 +71,7 @@ describe('GET /health', () => {
 
 // ---------------------------------------------------------------------------
 
-describe('POST /api/tools â€” publish', () => {
+describe('POST /api/tools — publish', () => {
   it('publishes a new tool and returns 201 with integrity hash', async () => {
     const res = await api('/api/tools', {
       method: 'POST',
@@ -93,10 +93,10 @@ describe('POST /api/tools â€” publish', () => {
       manifest: { ...FIXTURE_MANIFEST, version: '1.0.0-dup' },
       files: { 'index.md': '# duplicate' },
     };
-    // First publish â€” must succeed
+    // First publish — must succeed
     const first = await api('/api/tools', { method: 'POST', body: JSON.stringify(payload) });
     expect(first.status).toBe(201);
-    // Second publish same version â€” must conflict
+    // Second publish same version — must conflict
     const second = await api('/api/tools', { method: 'POST', body: JSON.stringify(payload) });
     expect(second.status).toBe(409);
   });
@@ -115,7 +115,7 @@ describe('POST /api/tools â€” publish', () => {
 
 // ---------------------------------------------------------------------------
 
-describe('GET /api/tools â€” list', () => {
+describe('GET /api/tools — list', () => {
   it('returns an array containing the published tool', async () => {
     const tools = await json<unknown[]>('/api/tools');
     expect(Array.isArray(tools)).toBe(true);

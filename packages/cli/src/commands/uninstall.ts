@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -15,22 +15,22 @@
 import { Command } from 'commander';
 import ora from 'ora';
 import chalk from 'chalk';
-import { readManifest, writeManifest, removeToolDependency } from '@ai-tools/core';
+import { readManifest, writeManifest, removeToolDependency } from '@aitools/core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { Installer } from '../utils/installer.js';
 
 /**
- * ai-tools uninstall <name>
+ * aitools uninstall <name>
  * Aliases: remove, rm, un
  *
- * Removes all installed files for the named tool and removes it from ai-tools.json.
+ * Removes all installed files for the named tool and removes it from aitools.json.
  */
 export function createUninstallCommand(): Command {
   return new Command('uninstall')
     .alias('remove')
     .alias('rm')
     .alias('un')
-    .description('Remove an installed ai-tool package')
+    .description('Remove an installed AITools package')
     .argument('<package>', 'Package name to remove')
     .action((pkg: string) => {
       const cwd = process.cwd();
@@ -51,12 +51,12 @@ export function createUninstallCommand(): Command {
         process.exit(1);
       }
 
-      // Remove from ai-tools.json if present
+      // Remove from aitools.json if present
       const manifest = readManifest(cwd);
       if (manifest) {
         const updated = removeToolDependency(manifest, pkg);
         writeManifest(cwd, updated);
-        console.log(chalk.dim('  Removed from ai-tools.json'));
+        console.log(chalk.dim('  Removed from aitools.json'));
       }
     });
 }

@@ -49,7 +49,7 @@ describe('Org Routes', () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/tools',
-      headers: { Authorization: 'Bearer token-alice', 'x-ai-tools-org': 'acme' },
+      headers: { Authorization: 'Bearer token-alice', 'x-aitools-org': 'acme' },
       payload: { manifest: manifestBlob, files: filesBlob },
     });
     expect(response.statusCode).toBe(201);
@@ -129,7 +129,7 @@ describe('Org Routes', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/org/tools/test-tool/unpublish?version=1.0.0',
-      headers: { Authorization: 'Bearer token-bob', 'x-ai-tools-org': 'widgetcorp' },
+      headers: { Authorization: 'Bearer token-bob', 'x-aitools-org': 'widgetcorp' },
     });
     expect(res.statusCode).toBe(403);
   });

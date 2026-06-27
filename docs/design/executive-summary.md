@@ -1,6 +1,6 @@
 # Executive Summary
 
-## ai-tools Ecosystem Design
+## AITools Ecosystem Design
 
 **Document Version**: 1.1.0  
 **Last Updated**: June 13, 2026  
@@ -59,7 +59,7 @@ graph LR
 
 ## Core Components
 
-### 1. @ai-tools/core (Library)
+### 1. @aitools/core (Library)
 
 **Purpose**: Shared types, schemas, and utilities
 
@@ -72,7 +72,7 @@ graph LR
 
 **Dependencies**: None (pure library)
 
-### 2. @ai-tools/cli (CLI Tool)
+### 2. @aitools/cli (CLI Tool)
 
 **Purpose**: Command-line interface for tool management
 
@@ -85,11 +85,11 @@ graph LR
 - `compat` — Audit platform compatibility
 - `list` — Show installed tools from lock file
 
-**Binary name**: `aitools` (not `ai-tools`)
+**Binary name**: `aitools`
 
-**Dependencies**: @ai-tools/core, commander, chalk, ora
+**Dependencies**: @aitools/core, commander, chalk, ora
 
-### 3. @ai-tools/server (Registry)
+### 3. @aitools/server (Registry)
 
 **Purpose**: HTTP API server for tool registry operations
 
@@ -101,15 +101,15 @@ graph LR
 - Pluggable auth (`SimpleAuthProvider`, `DatabaseAuthProvider`)
 - Rate limiting on publish and auth routes
 
-**Dependencies**: @ai-tools/core, fastify, optional PostgreSQL
+**Dependencies**: @aitools/core, fastify, optional PostgreSQL
 
 ---
 
-### 4. @ai-tools/e2e (End-to-End Tests)
+### 4. @aitools/e2e (End-to-End Tests)
 
 **Purpose**: Docker-based integration tests against a live registry
 
-**Dependencies**: @ai-tools/cli, @ai-tools/server (via docker-compose.e2e.yml)
+**Dependencies**: @aitools/cli, @aitools/server (via docker-compose.e2e.yml)
 
 ---
 
@@ -120,7 +120,7 @@ graph LR
 | **Universal** | `.agents/skills/` | `.agents/skills/` |
 | **VS Code** | `.agents/skills/` | `~/.copilot/skills/` |
 | **Claude** | `.claude/skills/` | `~/.claude/skills/` |
-| **Cursor** | `.agents/skills/` | `~/.ai-tools/tools/skills/` |
+| **Cursor** | `.agents/skills/` | `~/.aitools/tools/skills/` |
 | **Windsurf** | `.windsurf/skills/` | `~/.windsurf/skills/` |
 
 See [platform-adapter.md](platform-adapter.md) for full path tables per category.
@@ -149,7 +149,7 @@ Developer → CLI → Config → Registry → Cache → File System
 Developer → CLI → Registry → Store → Results
 ```
 
-1. Developer runs `ai-tools search "python skill"`
+1. Developer runs `aitools search "python skill"`
 2. CLI resolves configured registries
 3. CLI queries registry for search results
 4. Registry searches tool store
@@ -313,7 +313,7 @@ autoscaling:
 
 ## Conclusion
 
-The ai-tools ecosystem provides a robust, scalable, and secure platform for managing AI-powered developer tools. Its design emphasizes familiarity (npm-like patterns), flexibility (multi-platform support), and security (comprehensive authentication and authorization).
+The AITools ecosystem provides a robust, scalable, and secure platform for managing AI-powered developer tools. Its design emphasizes familiarity (npm-like patterns), flexibility (multi-platform support), and security (comprehensive authentication and authorization).
 
 The modular architecture enables independent development and deployment of each component, while the configuration cascade and platform adapter patterns provide flexibility for different use cases.
 

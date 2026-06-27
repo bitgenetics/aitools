@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -34,7 +34,7 @@ export interface HttpRegistryConfig extends RegistryConfigBase {
 }
 
 /**
- * Git-backed registry — tools are stored in a cloned repo under `path`.
+ * Git-backed registry � tools are stored in a cloned repo under `path`.
  * Authentication is delegated to the system git credential helper.
  */
 export interface GitRegistryConfig extends RegistryConfigBase {
@@ -62,7 +62,7 @@ export interface RegistryAuth {
 }
 
 /**
- * ai-tools.config.json — the cascading configuration file.
+ * aitools.config.json � the cascading configuration file.
  * Located at project root, user home, or system level.
  * Lower-level files override higher-level ones (project > user > system).
  */
@@ -87,7 +87,7 @@ export interface AiToolsConfig {
 }
 
 /**
- * ai-tools.json — the per-project tool dependency manifest.
+ * aitools.json � the per-project tool dependency manifest.
  * Analogous to package.json for npm.
  */
 export interface AiToolsManifest {

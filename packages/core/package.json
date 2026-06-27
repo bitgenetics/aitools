@@ -1,7 +1,7 @@
 {
-  "name": "@ai-tools/core",
+  "name": "@aitools/core",
   "version": "0.1.0",
-  "description": "Shared types, schemas, and utilities for the ai-tools ecosystem",
+  "description": "Shared types, schemas, and utilities for AITools",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

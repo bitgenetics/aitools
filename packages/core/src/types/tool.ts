@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 /**
- * Tool categories supported by the ai-tools registry.
+ * Tool categories supported by the aitools registry.
  * Each category has specific install behaviour and target paths.
  */
 export type ToolCategory = 'skill' | 'subagent' | 'prompt' | 'mcp-tool';
@@ -73,8 +73,8 @@ export interface McpServerConfig {
 }
 
 /**
- * The canonical manifest for a publishable ai-tool package.
- * This is stored as `ai-tools.manifest.json` at the root of a tool package
+ * The canonical manifest for a publishable AITools package.
+ * This is stored as `aitools.manifest.json` at the root of a tool package
  * and served by the registry.
  */
 export interface ToolManifest {
@@ -94,7 +94,7 @@ export interface ToolManifest {
   keywords?: string[];
   author?: string;
   repository?: string;
-  /** Other ai-tools packages this tool depends on. */
+  /** Other AITools packages this tool depends on. */
   dependencies?: Record<string, string>;
   /** Free-form metadata used for smart-find / AI discovery. */
   tags?: string[];
@@ -109,7 +109,7 @@ export interface ToolManifest {
 
 /**
  * Record of a tool that has been installed into a scope.
- * Persisted in ai-tools-lock.json.
+ * Persisted in aitools-lock.json.
  */
 export interface InstalledTool {
   name: string;

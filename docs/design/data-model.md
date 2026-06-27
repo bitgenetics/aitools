@@ -105,7 +105,7 @@ classDiagram
 ```
 
 `InstalledTool` is the in-memory representation used during an install operation.
-`LockEntry` is the persisted form written to `ai-tools-lock.json`.
+`LockEntry` is the persisted form written to `aitools-lock.json`.
 `toLockEntry(tool, resolved)` converts between them.
 
 ---
@@ -157,8 +157,8 @@ classDiagram
     AiToolsManifest "1" *-- "0..*" RegistryConfig : registries
 ```
 
-`AiToolsConfig` is the merged result of all `ai-tools.config.json` files on disk.
-`AiToolsManifest` is `ai-tools.json` — the project-level tool dependency list.
+`AiToolsConfig` is the merged result of all `aitools.config.json` files on disk.
+`AiToolsManifest` is `aitools.json` — the project-level tool dependency list.
 `installPaths` keys use the format `"<scope>.<category>"`, e.g. `"project.skill"`.
 
 ---

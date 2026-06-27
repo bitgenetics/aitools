@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -17,10 +17,10 @@ import path from 'node:path';
 import type { AiToolsManifest } from '../types/config.js';
 import { AiToolsManifestSchema } from '../schema/config-schema.js';
 
-export const MANIFEST_FILENAME = 'ai-tools.json';
+export const MANIFEST_FILENAME = 'aitools.json';
 
 /**
- * Read an ai-tools.json manifest from a directory.
+ * Read an aitools.json manifest from a directory.
  * Returns null if the file does not exist.
  */
 export function readManifest(dir: string): AiToolsManifest | null {
@@ -42,7 +42,7 @@ export function readManifest(dir: string): AiToolsManifest | null {
 }
 
 /**
- * Write an ai-tools.json manifest to disk.
+ * Write an aitools.json manifest to disk.
  */
 export function writeManifest(dir: string, manifest: AiToolsManifest): void {
   const filePath = path.join(dir, MANIFEST_FILENAME);

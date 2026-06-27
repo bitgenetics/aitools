@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -22,7 +22,7 @@ describe('config command', () => {
   const originalCwd = process.cwd();
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-config-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-config-'));
     process.chdir(tmp);
   });
 
@@ -36,22 +36,22 @@ describe('config command', () => {
     it('writes a key-value pair to the config file', () => {
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createConfigCommand().parse(['set', 'platform', 'vscode'], { from: 'user' });
-      const config = JSON.parse(fs.readFileSync(path.join(tmp, 'ai-tools.config.json'), 'utf8')) as { platform: string };
+      const config = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.config.json'), 'utf8')) as { platform: string };
       expect(config.platform).toBe('vscode');
     });
 
     it('updates an existing key', () => {
-      fs.writeFileSync(path.join(tmp, 'ai-tools.config.json'), JSON.stringify({ platform: 'cursor' }), 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.config.json'), JSON.stringify({ platform: 'cursor' }), 'utf8');
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createConfigCommand().parse(['set', 'platform', 'vscode'], { from: 'user' });
-      const config = JSON.parse(fs.readFileSync(path.join(tmp, 'ai-tools.config.json'), 'utf8')) as { platform: string };
+      const config = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.config.json'), 'utf8')) as { platform: string };
       expect(config.platform).toBe('vscode');
     });
   });
 
   describe('get subcommand', () => {
     it('prints the value of a set key', () => {
-      fs.writeFileSync(path.join(tmp, 'ai-tools.config.json'), JSON.stringify({ platform: 'cursor' }), 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.config.json'), JSON.stringify({ platform: 'cursor' }), 'utf8');
       const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
       createConfigCommand().parse(['get', 'platform'], { from: 'user' });
       expect(logSpy.mock.calls[0]?.[0]).toContain('cursor');
@@ -70,10 +70,10 @@ describe('config command', () => {
 
   describe('unset subcommand', () => {
     it('removes the key from the config file', () => {
-      fs.writeFileSync(path.join(tmp, 'ai-tools.config.json'), JSON.stringify({ platform: 'cursor', defaultScope: 'project' }), 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.config.json'), JSON.stringify({ platform: 'cursor', defaultScope: 'project' }), 'utf8');
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createConfigCommand().parse(['unset', 'platform'], { from: 'user' });
-      const config = JSON.parse(fs.readFileSync(path.join(tmp, 'ai-tools.config.json'), 'utf8')) as Record<string, unknown>;
+      const config = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.config.json'), 'utf8')) as Record<string, unknown>;
       expect(config['platform']).toBeUndefined();
       expect(config['defaultScope']).toBe('project');
     });
@@ -81,7 +81,7 @@ describe('config command', () => {
 
   describe('list subcommand', () => {
     it('prints merged config with key=value format', () => {
-      fs.writeFileSync(path.join(tmp, 'ai-tools.config.json'), JSON.stringify({ platform: 'cursor' }), 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.config.json'), JSON.stringify({ platform: 'cursor' }), 'utf8');
       const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
       createConfigCommand().parse(['list'], { from: 'user' });
       const output = logSpy.mock.calls.map((a) => String(a[0])).join('\n');

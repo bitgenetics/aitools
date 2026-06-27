@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -15,14 +15,14 @@
 /**
  * CLI e2e tests.
  *
- * Exercises the `ai-tools` binary against the live registry.
+ * Exercises the `aitools` binary against the live registry.
  *
- * In docker-compose the env var AI_TOOLS_CLI is set to
+ * In docker-compose the env var AITOOLS_CLI is set to
  *   "node /app/packages/cli/dist/cli.js"
  * so the binary doesn't need to be globally installed.
  *
- * Locally, ensure the CLI is built (`npm run build -w @ai-tools/cli`) and
- * either installed globally or set AI_TOOLS_CLI accordingly.
+ * Locally, ensure the CLI is built (`npm run build -w @aitools/cli`) and
+ * either installed globally or set AITOOLS_CLI accordingly.
  */
 
 import fs from 'node:fs';
@@ -63,7 +63,7 @@ describe('aitools search', () => {
 
   it('reports no results for an unrecognised query', () => {
     const out = run(`search zzz-no-match-xyzzy --registry ${REGISTRY_URL}`);
-    // Either "no results" message or empty output — just must not throw
+    // Either "no results" message or empty output ? just must not throw
     expect(typeof out).toBe('string');
   });
 });
@@ -79,10 +79,10 @@ describe('aitools install', () => {
   });
 
   beforeEach(() => {
-    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
+    tmpDir = makeE2eProjectDir('aitools-e2e-');
     // Write a minimal project config pointing at our test registry
     fs.writeFileSync(
-      path.join(tmpDir, 'ai-tools.config.json'),
+      path.join(tmpDir, 'aitools.config.json'),
       JSON.stringify({
         registries: [{ name: 'e2e-registry', url: REGISTRY_URL, priority: 1 }],
       }),
@@ -96,7 +96,7 @@ describe('aitools install', () => {
   it('installs a tool from the registry into a project directory', () => {
     run(`install ${fixtureName} --scope project`, tmpDir);
     // The lock file should record the installed tool
-    const lockPath = path.join(tmpDir, 'ai-tools-lock.json');
+    const lockPath = path.join(tmpDir, 'aitools-lock.json');
     expect(fs.existsSync(lockPath)).toBe(true);
     const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8')) as {
       tools: Record<string, unknown>;
@@ -117,41 +117,41 @@ describe('aitools init', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
+    tmpDir = makeE2eProjectDir('aitools-e2e-');
   });
 
   afterEach(() => {
     rmTmpDir(tmpDir);
   });
 
-  it('creates ai-tools.json with the directory name as project name', () => {
+  it('creates aitools.json with the directory name as project name', () => {
     run('init', tmpDir);
     const manifest = JSON.parse(
-      fs.readFileSync(path.join(tmpDir, 'ai-tools.json'), 'utf8'),
+      fs.readFileSync(path.join(tmpDir, 'aitools.json'), 'utf8'),
     ) as { name: string };
     expect(manifest.name).toBe(path.basename(tmpDir));
   });
 
-  it('does not overwrite an existing ai-tools.json without --force', () => {
+  it('does not overwrite an existing aitools.json without --force', () => {
     fs.writeFileSync(
-      path.join(tmpDir, 'ai-tools.json'),
+      path.join(tmpDir, 'aitools.json'),
       JSON.stringify({ name: 'original', tools: {} }),
     );
     run('init', tmpDir);
     const content = JSON.parse(
-      fs.readFileSync(path.join(tmpDir, 'ai-tools.json'), 'utf8'),
+      fs.readFileSync(path.join(tmpDir, 'aitools.json'), 'utf8'),
     ) as { name: string };
     expect(content.name).toBe('original');
   });
 
-  it('overwrites an existing ai-tools.json with --force', () => {
+  it('overwrites an existing aitools.json with --force', () => {
     fs.writeFileSync(
-      path.join(tmpDir, 'ai-tools.json'),
+      path.join(tmpDir, 'aitools.json'),
       JSON.stringify({ name: 'original', tools: {} }),
     );
     run('init --force', tmpDir);
     const manifest = JSON.parse(
-      fs.readFileSync(path.join(tmpDir, 'ai-tools.json'), 'utf8'),
+      fs.readFileSync(path.join(tmpDir, 'aitools.json'), 'utf8'),
     ) as { name: string };
     expect(manifest.name).toBe(path.basename(tmpDir));
   });
@@ -168,9 +168,9 @@ describe('aitools list', () => {
   });
 
   beforeEach(() => {
-    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
+    tmpDir = makeE2eProjectDir('aitools-e2e-');
     fs.writeFileSync(
-      path.join(tmpDir, 'ai-tools.config.json'),
+      path.join(tmpDir, 'aitools.config.json'),
       JSON.stringify({
         registries: [{ name: 'e2e-registry', url: REGISTRY_URL, priority: 1 }],
       }),
@@ -211,9 +211,9 @@ describe('aitools uninstall', () => {
   });
 
   beforeEach(() => {
-    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
+    tmpDir = makeE2eProjectDir('aitools-e2e-');
     fs.writeFileSync(
-      path.join(tmpDir, 'ai-tools.config.json'),
+      path.join(tmpDir, 'aitools.config.json'),
       JSON.stringify({
         registries: [{ name: 'e2e-registry', url: REGISTRY_URL, priority: 1 }],
       }),
@@ -228,14 +228,14 @@ describe('aitools uninstall', () => {
     run(`install ${fixtureName} --scope project`, tmpDir);
 
     const before = JSON.parse(
-      fs.readFileSync(path.join(tmpDir, 'ai-tools-lock.json'), 'utf8'),
+      fs.readFileSync(path.join(tmpDir, 'aitools-lock.json'), 'utf8'),
     ) as { tools: Record<string, unknown> };
     expect(before.tools).toHaveProperty(fixtureName);
 
     run(`uninstall ${fixtureName}`, tmpDir);
 
     const after = JSON.parse(
-      fs.readFileSync(path.join(tmpDir, 'ai-tools-lock.json'), 'utf8'),
+      fs.readFileSync(path.join(tmpDir, 'aitools-lock.json'), 'utf8'),
     ) as { tools: Record<string, unknown> };
     expect(after.tools).not.toHaveProperty(fixtureName);
   });
@@ -258,9 +258,9 @@ describe('aitools update', () => {
   });
 
   beforeEach(() => {
-    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
+    tmpDir = makeE2eProjectDir('aitools-e2e-');
     fs.writeFileSync(
-      path.join(tmpDir, 'ai-tools.config.json'),
+      path.join(tmpDir, 'aitools.config.json'),
       JSON.stringify({
         registries: [{ name: 'e2e-registry', url: REGISTRY_URL, priority: 1 }],
       }),
@@ -271,7 +271,7 @@ describe('aitools update', () => {
     rmTmpDir(tmpDir);
   });
 
-  it('exits non-zero when ai-tools.json is missing', () => {
+  it('exits non-zero when aitools.json is missing', () => {
     expect(() => {
       run('update', tmpDir);
     }).toThrow();
@@ -281,16 +281,16 @@ describe('aitools update', () => {
     // Install v1.0.0 (the only version so far)
     run(`install ${fixtureName} --scope project`, tmpDir);
     const beforeLock = JSON.parse(
-      fs.readFileSync(path.join(tmpDir, 'ai-tools-lock.json'), 'utf8'),
+      fs.readFileSync(path.join(tmpDir, 'aitools-lock.json'), 'utf8'),
     ) as { tools: Record<string, { version: string }> };
     expect(beforeLock.tools[`${fixtureName}`]?.version).toBe('1.0.0');
 
     // Publish v1.1.0 so update has something newer to fetch within ^1.0.0
     await publishFixture(fixtureName, '1.1.0');
 
-    // Create ai-tools.json so update knows what to target
+    // Create aitools.json so update knows what to target
     fs.writeFileSync(
-      path.join(tmpDir, 'ai-tools.json'),
+      path.join(tmpDir, 'aitools.json'),
       JSON.stringify({
         name: 'test-project',
         tools: { [`${fixtureName}`]: '^1.0.0' },
@@ -301,7 +301,7 @@ describe('aitools update', () => {
     run(`update ${fixtureName}`, tmpDir);
 
     const afterLock = JSON.parse(
-      fs.readFileSync(path.join(tmpDir, 'ai-tools-lock.json'), 'utf8'),
+      fs.readFileSync(path.join(tmpDir, 'aitools-lock.json'), 'utf8'),
     ) as { tools: Record<string, { version: string }> };
     expect(afterLock.tools[`${fixtureName}`]?.version).toBe('1.1.0');
   });
@@ -313,7 +313,7 @@ describe('aitools manifest bump', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
+    tmpDir = makeE2eProjectDir('aitools-e2e-');
   });
 
   afterEach(() => {
@@ -322,7 +322,7 @@ describe('aitools manifest bump', () => {
 
   function writeManifest(version: string): void {
     fs.writeFileSync(
-      path.join(tmpDir, 'ai-tools.manifest.json'),
+      path.join(tmpDir, 'aitools.manifest.json'),
       JSON.stringify({
         name: 'bump-test',
         version,
@@ -335,7 +335,7 @@ describe('aitools manifest bump', () => {
 
   function readVersion(): string {
     const m = JSON.parse(
-      fs.readFileSync(path.join(tmpDir, 'ai-tools.manifest.json'), 'utf8'),
+      fs.readFileSync(path.join(tmpDir, 'aitools.manifest.json'), 'utf8'),
     ) as { version: string };
     return m.version;
   }
@@ -375,7 +375,7 @@ describe('aitools manifest validate', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
+    tmpDir = makeE2eProjectDir('aitools-e2e-');
   });
 
   afterEach(() => {
@@ -384,7 +384,7 @@ describe('aitools manifest validate', () => {
 
   it('succeeds for a valid manifest with all source files present', () => {
     fs.writeFileSync(
-      path.join(tmpDir, 'ai-tools.manifest.json'),
+      path.join(tmpDir, 'aitools.manifest.json'),
       JSON.stringify({
         name: 'validate-test',
         version: '1.0.0',
@@ -400,7 +400,7 @@ describe('aitools manifest validate', () => {
 
   it('exits non-zero when a declared source file is missing from disk', () => {
     fs.writeFileSync(
-      path.join(tmpDir, 'ai-tools.manifest.json'),
+      path.join(tmpDir, 'aitools.manifest.json'),
       JSON.stringify({
         name: 'validate-test',
         version: '1.0.0',
@@ -424,7 +424,7 @@ describe('aitools publish', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
+    tmpDir = makeE2eProjectDir('aitools-e2e-');
   });
 
   afterEach(() => {
@@ -433,7 +433,7 @@ describe('aitools publish', () => {
 
   it('--dry-run shows what would be published without uploading', () => {
     fs.writeFileSync(
-      path.join(tmpDir, 'ai-tools.manifest.json'),
+      path.join(tmpDir, 'aitools.manifest.json'),
       JSON.stringify({
         name: 'cli-e2e-dry-run-tool',
         version: '1.0.0',
@@ -450,7 +450,7 @@ describe('aitools publish', () => {
   it('publishes a tool to the registry', async () => {
     const toolName = 'cli-e2e-publish-via-cli';
     fs.writeFileSync(
-      path.join(tmpDir, 'ai-tools.manifest.json'),
+      path.join(tmpDir, 'aitools.manifest.json'),
       JSON.stringify({
         name: toolName,
         version: '1.0.0',
@@ -478,7 +478,7 @@ describe('aitools registry', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
+    tmpDir = makeE2eProjectDir('aitools-e2e-');
   });
 
   afterEach(() => {
@@ -488,7 +488,7 @@ describe('aitools registry', () => {
   it('adds a registry to the project config', () => {
     run('registry add http://registry.example.com --name my-reg', tmpDir);
     const cfg = JSON.parse(
-      fs.readFileSync(path.join(tmpDir, 'ai-tools.config.json'), 'utf8'),
+      fs.readFileSync(path.join(tmpDir, 'aitools.config.json'), 'utf8'),
     ) as { registries: Array<{ name: string; url: string }> };
     expect(cfg.registries.some((r) => r.name === 'my-reg')).toBe(true);
   });
@@ -503,7 +503,7 @@ describe('aitools registry', () => {
     run('registry add http://registry.example.com --name my-reg', tmpDir);
     run('registry remove my-reg', tmpDir);
     const cfg = JSON.parse(
-      fs.readFileSync(path.join(tmpDir, 'ai-tools.config.json'), 'utf8'),
+      fs.readFileSync(path.join(tmpDir, 'aitools.config.json'), 'utf8'),
     ) as { registries: Array<{ name: string }> };
     expect(cfg.registries.some((r) => r.name === 'my-reg')).toBe(false);
   });
@@ -511,7 +511,7 @@ describe('aitools registry', () => {
   it('sets priority on the added registry', () => {
     run('registry add http://registry.example.com --name prio-reg --priority 5', tmpDir);
     const cfg = JSON.parse(
-      fs.readFileSync(path.join(tmpDir, 'ai-tools.config.json'), 'utf8'),
+      fs.readFileSync(path.join(tmpDir, 'aitools.config.json'), 'utf8'),
     ) as { registries: Array<{ name: string; priority?: number }> };
     const reg = cfg.registries.find((r) => r.name === 'prio-reg');
     expect(reg?.priority).toBe(5);
@@ -524,7 +524,7 @@ describe('aitools config', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
+    tmpDir = makeE2eProjectDir('aitools-e2e-');
   });
 
   afterEach(() => {
@@ -534,7 +534,7 @@ describe('aitools config', () => {
   it('sets a scalar config key and writes it to project config', () => {
     run('config set platform vscode', tmpDir);
     const cfg = JSON.parse(
-      fs.readFileSync(path.join(tmpDir, 'ai-tools.config.json'), 'utf8'),
+      fs.readFileSync(path.join(tmpDir, 'aitools.config.json'), 'utf8'),
     ) as { platform?: string };
     expect(cfg.platform).toBe('vscode');
   });
@@ -581,7 +581,7 @@ describe('aitools git registry', () => {
   });
 
   afterAll(() => {
-    const cache = path.join(os.homedir(), '.ai-tools', 'git-cache', gitRegName);
+    const cache = path.join(os.homedir(), '.aitools', 'git-cache', gitRegName);
     if (fs.existsSync(cache)) {
       fs.rmSync(cache, { recursive: true, force: true });
     }
@@ -591,9 +591,9 @@ describe('aitools git registry', () => {
   });
 
   beforeEach(() => {
-    tmpDir = makeE2eProjectDir('ai-tools-git-e2e-');
+    tmpDir = makeE2eProjectDir('aitools-git-e2e-');
     fs.writeFileSync(
-      path.join(tmpDir, 'ai-tools.config.json'),
+      path.join(tmpDir, 'aitools.config.json'),
       JSON.stringify({
         registries: [
           {
@@ -615,7 +615,7 @@ describe('aitools git registry', () => {
 
   it('publishes and installs a tool through a git registry', () => {
     fs.writeFileSync(
-      path.join(tmpDir, 'ai-tools.manifest.json'),
+      path.join(tmpDir, 'aitools.manifest.json'),
       JSON.stringify({
         name: fixtureName,
         version: '1.0.0',
@@ -629,7 +629,7 @@ describe('aitools git registry', () => {
     run('publish', tmpDir);
     run(`install ${fixtureName} --scope project`, tmpDir);
 
-    const lockPath = path.join(tmpDir, 'ai-tools-lock.json');
+    const lockPath = path.join(tmpDir, 'aitools-lock.json');
     expect(fs.existsSync(lockPath)).toBe(true);
     const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8')) as {
       tools: Record<string, unknown>;
@@ -639,7 +639,7 @@ describe('aitools git registry', () => {
 
   it('finds a published tool via search', () => {
     fs.writeFileSync(
-      path.join(tmpDir, 'ai-tools.manifest.json'),
+      path.join(tmpDir, 'aitools.manifest.json'),
       JSON.stringify({
         name: `${fixtureName}-search`,
         version: '1.0.0',
@@ -656,14 +656,14 @@ describe('aitools git registry', () => {
   });
 
   it('adds a git registry via registry add', () => {
-    const regDir = makeE2eProjectDir('ai-tools-git-reg-add-');
+    const regDir = makeE2eProjectDir('aitools-git-reg-add-');
     try {
       run(
         `registry add "${gitRegistryUrl.replace(/\\/g, '/')}" --name git-added --type=git --read-branch=main --path=registry/`,
         regDir,
       );
       const cfg = JSON.parse(
-        fs.readFileSync(path.join(regDir, 'ai-tools.config.json'), 'utf8'),
+        fs.readFileSync(path.join(regDir, 'aitools.config.json'), 'utf8'),
       ) as { registries: Array<{ type: string; name: string; url: string }> };
       const added = cfg.registries.find((r) => r.name === 'git-added');
       expect(added?.type).toBe('git');

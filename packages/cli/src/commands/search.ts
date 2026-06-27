@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -20,14 +20,14 @@ import { createRegistryClient } from '../utils/registry-client.js';
 import type { SearchResult } from '../utils/registry-client.js';
 
 /**
- * ai-tools search <query>
+ * aitools search <query>
  *
  * Searches all configured registries and prints matching tools.
  */
 export function createSearchCommand(): Command {
   return new Command('search')
     .alias('s')
-    .description('Search the registry for ai-tool packages')
+    .description('Search the registry for AITools packages')
     .argument('<query>', 'Search terms')
     .option('--json', 'Output raw JSON')
     .option('--registry <url>', 'Search a specific registry URL (overrides config)')
@@ -39,7 +39,7 @@ export function createSearchCommand(): Command {
         : configManager.getRegistries();
 
       if (registries.length === 0) {
-        console.error(chalk.red('No registries configured. Add one with: ai-tools registry add <url>'));
+        console.error(chalk.red('No registries configured. Add one with: aitools registry add <url>'));
         process.exit(1);
       }
 
@@ -52,7 +52,7 @@ export function createSearchCommand(): Command {
           const results = await client.search(query);
           allResults.push(...results);
         } catch {
-          // Registry unavailable — continue to next
+          // Registry unavailable � continue to next
         }
       }
 
@@ -73,7 +73,7 @@ export function createSearchCommand(): Command {
 }
 
 /**
- * ai-tools find <description>
+ * aitools find <description>
  *
  * Smart-find: sends a natural language description to each registry's
  * /smart-search endpoint for AI-powered discovery.

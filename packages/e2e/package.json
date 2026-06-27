@@ -1,8 +1,8 @@
 {
-  "name": "@ai-tools/e2e",
+  "name": "@aitools/e2e",
   "version": "0.1.0",
   "private": true,
-  "description": "End-to-end tests for the ai-tools registry server and CLI",
+  "description": "End-to-end tests for the AITools registry server and CLI",
   "author": {
     "name": "Michael Benjamin",
     "email": "turbofoxwave@gmail.com"
@@ -12,8 +12,8 @@
     "test": "jest --forceExit --testTimeout=30000"
   },
   "dependencies": {
-    "@ai-tools/core": "*",
-    "@ai-tools/cli": "*"
+    "@aitools/core": "*",
+    "@aitools/cli": "*"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",

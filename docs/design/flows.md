@@ -4,12 +4,12 @@ Sequence diagrams for the primary operations. Actor abbreviations:
 
 - **User** — developer running the CLI
 - **CLI** — `aitools` binary (Commander entry + command handler)
-- **ConfigManager** — reads and merges `ai-tools.config.json` cascade
+- **ConfigManager** — reads and merges `aitools.config.json` cascade
 - **Installer** — downloads and writes files
-- **CacheManager** — local tarball cache at `~/.ai-tools/cache/`
+- **CacheManager** — local tarball cache at `~/.aitools/cache/`
 - **Adapter** — platform-specific path resolver
 - **RegistryClient** — HTTP client for a single registry endpoint
-- **Registry** — `@ai-tools/server` (or any compatible registry)
+- **Registry** — `@aitools/server` (or any compatible registry)
 - **FS** — local file system
 
 ---
@@ -48,7 +48,7 @@ sequenceDiagram
         Registry-->>RegistryClient: tarball Buffer
         RegistryClient-->>Installer: Buffer
         Installer->>CacheManager: store(name, version, buffer)
-        CacheManager->>FS: write ~/.ai-tools/cache/<name>/<version>/
+        CacheManager->>FS: write ~/.aitools/cache/<name>/<version>/
         Installer->>CacheManager: getExtracted(name, version)
         CacheManager-->>Installer: extracted file paths
     end
@@ -57,7 +57,7 @@ sequenceDiagram
     Adapter-->>Installer: absolute destination path
 
     Installer->>FS: copy files → destination
-    Installer->>FS: upsertLockEntry → ai-tools-lock.json
+    Installer->>FS: upsertLockEntry → aitools-lock.json
     Installer-->>CLI: InstalledTool
 
     CLI-->>User: ✔ installed @scope/my-skill@1.0.0
@@ -91,7 +91,7 @@ sequenceDiagram
         Installer->>FS: write new mcp.json with server entry
     end
 
-    Installer->>FS: upsertLockEntry → ai-tools-lock.json
+    Installer->>FS: upsertLockEntry → aitools-lock.json
     Installer-->>CLI: InstalledTool
     CLI-->>User: ✔ registered MCP server @scope/my-mcp-tool
 ```
@@ -109,7 +109,7 @@ sequenceDiagram
     participant Registry
 
     User->>CLI: aitools publish
-    CLI->>FS: read ai-tools.manifest.json
+    CLI->>FS: read aitools.manifest.json
     CLI->>CLI: validate with ToolManifestSchema (Zod)
 
     alt validation fails
@@ -178,9 +178,9 @@ sequenceDiagram
     ConfigCascade->>ConfigCascade: resolveConfigFiles(cwd)
 
     loop walk up from cwd to root
-        ConfigCascade->>FS: check <dir>/ai-tools.config.json
+        ConfigCascade->>FS: check <dir>/aitools.config.json
     end
-    ConfigCascade->>FS: check ~/ai-tools.config.json
+    ConfigCascade->>FS: check ~/aitools.config.json
 
     ConfigCascade->>FS: read each file that exists
     Note over ConfigCascade: parse JSONC (strip comments)
@@ -202,7 +202,7 @@ sequenceDiagram
     participant PLATFORM_SPECS
 
     User->>CLI: aitools compat [--platform vscode]
-    CLI->>FS: read ai-tools.manifest.json
+    CLI->>FS: read aitools.manifest.json
     CLI->>CLI: validate with ToolManifestSchema
 
     alt category === "skill"

@@ -1,4 +1,4 @@
-ï»¿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,8 +14,8 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { ToolManifestSchema } from '@ai-tools/core';
-import type { ToolManifest } from '@ai-tools/core';
+import { ToolManifestSchema } from '@aitools/core';
+import type { ToolManifest } from '@aitools/core';
 import type { IAuthProvider } from '../providers/auth/types.js';
 import { ToolStoreError } from '../storage/tool-store.js';
 import type { ToolStore } from '../storage/tool-store.js';
@@ -24,7 +24,7 @@ import type { ToolStore } from '../storage/tool-store.js';
 
 const PublishBodySchema = z.object({
   manifest: ToolManifestSchema,
-  /** Map of src path â†’ file content. */
+  /** Map of src path ? file content. */
   files: z.record(z.string()),
 });
 
@@ -35,12 +35,12 @@ const PatchToolBodySchema = z.object({
 /**
  * Register all /tools routes onto the Fastify instance.
  *
- * GET  /tools                      â€” list latest version of every tool
- * GET  /tools/:name                â€” get latest manifest for a tool
- * GET  /tools/:name/:version       â€” get specific version manifest
- * GET  /tools/:name/:version/tarball â€” download tool tarball
- * GET  /search?q=<query>           â€” search tools
- * POST /tools                      â€” publish a new tool version
+ * GET  /tools                      — list latest version of every tool
+ * GET  /tools/:name                — get latest manifest for a tool
+ * GET  /tools/:name/:version       — get specific version manifest
+ * GET  /tools/:name/:version/tarball — download tool tarball
+ * GET  /search?q=<query>           — search tools
+ * POST /tools                      — publish a new tool version
  */
 export async function registerToolRoutes(
   fastify: FastifyInstance,

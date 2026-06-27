@@ -2,7 +2,7 @@
 name: create-ai-tool
 description: >-
   Use this skill when asked to create, package, or publish a reusable AI tool for
-  the ai-tools registry — even if the user doesn't explicitly say "registry" or
+  the AITools registry — even if the user doesn't explicitly say "registry" or
   "ai-tools". Covers all four package types: skill (SKILL.md workflow instructions),
   subagent (agent persona files), prompt (reusable templates), and mcp-tool (MCP
   server registrations). Also use when bumping a version or republishing an
@@ -11,7 +11,7 @@ metadata:
   author: ai-tools
 ---
 
-Every package needs a folder with `ai-tools.manifest.json` + at least one content file.
+Every package needs a folder with `aitools.manifest.json` + at least one content file.
 
 ## Creating a package
 
@@ -126,6 +126,6 @@ After: `"Use this skill when asked to create, package, or publish a reusable AI 
 
 ## References
 
-Read [references/manifest-reference.md](references/manifest-reference.md) for the full `ai-tools.manifest.json` field reference, including the `mcpServer` block and all optional fields.
+Read [references/manifest-reference.md](references/manifest-reference.md) for the full `aitools.manifest.json` field reference, including the `mcpServer` block and all optional fields.
 
 Read [references/platform-paths.md](references/platform-paths.md) if you need to know exactly where files land per platform (vscode, claude, cursor, windsurf, universal) — useful when writing `dest` values or advising users on where tools install.

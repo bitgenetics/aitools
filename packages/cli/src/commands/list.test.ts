@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -16,8 +16,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createListCommand } from './list.js';
-import { writeLockFile, upsertLockEntry, emptyLock } from '@ai-tools/core';
-import type { LockEntry } from '@ai-tools/core';
+import { writeLockFile, upsertLockEntry, emptyLock } from '@aitools/core';
+import type { LockEntry } from '@aitools/core';
 
 function makeLockEntry(overrides: Partial<LockEntry> = {}): LockEntry {
   return {
@@ -35,7 +35,7 @@ describe('list command', () => {
   const originalCwd = process.cwd();
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-list-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-list-'));
     process.chdir(tmp);
   });
 

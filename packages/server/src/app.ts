@@ -155,8 +155,8 @@ export async function buildApp(options: ServerOptions = {}) {
     );
     if (options.logger && !options.publishToken && !options.publisherAuthConfig) {
       console.warn(
-        '[ai-tools] WARNING: publish endpoint is unauthenticated. ' +
-          'Set DATABASE_URL with user auth (preferred), AI_TOOLS_PUBLISHER_TOKENS, or AI_TOOLS_PUBLISH_TOKEN.',
+        '[aitools] WARNING: publish endpoint is unauthenticated. ' +
+          'Set DATABASE_URL with user auth (preferred), AITOOLS_PUBLISHER_TOKENS, or AITOOLS_PUBLISH_TOKEN.',
       );
     }
   }

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -22,7 +22,7 @@ describe('init command', () => {
   const originalCwd = process.cwd();
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-init-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-init-'));
     process.chdir(tmp);
   });
 
@@ -32,26 +32,26 @@ describe('init command', () => {
     jest.clearAllMocks();
   });
 
-  it('creates ai-tools.json in the current directory', () => {
+  it('creates aitools.json in the current directory', () => {
     jest.spyOn(console, 'log').mockImplementation(() => {});
     createInitCommand().parse([], { from: 'user' });
-    expect(fs.existsSync(path.join(tmp, 'ai-tools.json'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, 'aitools.json'))).toBe(true);
   });
 
   it('creates a file with valid JSON', () => {
     jest.spyOn(console, 'log').mockImplementation(() => {});
     createInitCommand().parse([], { from: 'user' });
-    const raw = fs.readFileSync(path.join(tmp, 'ai-tools.json'), 'utf8');
+    const raw = fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8');
     expect(() => JSON.parse(raw)).not.toThrow();
   });
 
-  it('does not overwrite an existing ai-tools.json when --force is not given', () => {
+  it('does not overwrite an existing aitools.json when --force is not given', () => {
     const existing = JSON.stringify({ tools: { 'existing-skill': '^1.0.0' } });
-    fs.writeFileSync(path.join(tmp, 'ai-tools.json'), existing, 'utf8');
+    fs.writeFileSync(path.join(tmp, 'aitools.json'), existing, 'utf8');
     jest.spyOn(console, 'log').mockImplementation(() => {});
     createInitCommand().parse([], { from: 'user' });
     // File should NOT be overwritten
-    const raw = fs.readFileSync(path.join(tmp, 'ai-tools.json'), 'utf8');
+    const raw = fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8');
     expect(JSON.parse(raw)).toEqual(JSON.parse(existing));
   });
 });

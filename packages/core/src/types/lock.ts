@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -16,12 +16,12 @@ import type { InstalledTool } from './tool.js';
 import type { TargetPlatform, ToolCategory, InstallScope } from './tool.js';
 
 /**
- * ai-tools-lock.json — exact resolved versions and file locations.
+ * aitools-lock.json � exact resolved versions and file locations.
  * Analogous to package-lock.json. Should be committed to source control.
  */
 export interface AiToolsLock {
   lockfileVersion: 1;
-  /** Map of tool name → lock entry. */
+  /** Map of tool name ? lock entry. */
   tools: Record<string, LockEntry>;
 }
 

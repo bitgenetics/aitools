@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -16,18 +16,18 @@ import { Command } from 'commander';
 import fs from 'node:fs';
 import path from 'node:path';
 import chalk from 'chalk';
-import { MANIFEST_FILENAME } from '@ai-tools/core';
+import { MANIFEST_FILENAME } from '@aitools/core';
 
 /**
- * ai-tools init
+ * aitools init
  *
- * Creates an ai-tools.json in the current directory if one does not exist.
- * Also creates an ai-tools.config.json if requested.
+ * Creates an aitools.json in the current directory if one does not exist.
+ * Also creates an aitools.config.json if requested.
  */
 export function createInitCommand(): Command {
   return new Command('init')
-    .description('Initialize ai-tools.json in the current project')
-    .option('--force', 'Overwrite an existing ai-tools.json')
+    .description('Initialize aitools.json in the current project')
+    .option('--force', 'Overwrite an existing aitools.json')
     .action((options: { force?: boolean }) => {
       const cwd = process.cwd();
       const manifestPath = path.join(cwd, MANIFEST_FILENAME);
@@ -46,6 +46,6 @@ export function createInitCommand(): Command {
 
       fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
       console.log(chalk.green(`Created ${MANIFEST_FILENAME}`));
-      console.log(chalk.dim('  Add tools with: ai-tools install <name>'));
+      console.log(chalk.dim('  Add tools with: aitools install <name>'));
     });
 }

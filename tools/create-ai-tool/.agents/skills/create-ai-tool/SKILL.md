@@ -1,12 +1,12 @@
 # create-ai-tool
 
-**Purpose**: Create tool packages that are compatible with the ai-tools registry so they can be published, discovered, and installed by other developers and AI agents.
+**Purpose**: Create tool packages that are compatible with the AITools registry so they can be published, discovered, and installed by other developers and AI agents.
 
 ---
 
 ## Overview
 
-The ai-tools registry distributes four types of AI tool packages:
+The AITools registry distributes four types of AI tool packages:
 
 | Category | What it is | Installed to |
 |---|---|---|
@@ -62,7 +62,7 @@ A skill is a Markdown file (`SKILL.md` by convention) that gives an AI agent ste
 **File structure:**
 ```
 my-skill/
-├── ai-tools.manifest.json
+├── aitools.manifest.json
 └── SKILL.md
 ```
 
@@ -124,7 +124,7 @@ A subagent is a Markdown agent definition file — loaded by the IDE as a custom
 **File structure:**
 ```
 my-agent/
-├── ai-tools.manifest.json
+├── aitools.manifest.json
 └── agent.md
 ```
 
@@ -184,7 +184,7 @@ A prompt is a reusable instruction template — a slash command, system prompt f
 **File structure:**
 ```
 my-prompt/
-├── ai-tools.manifest.json
+├── aitools.manifest.json
 └── prompt.md
 ```
 

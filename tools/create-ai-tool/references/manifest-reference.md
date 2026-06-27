@@ -1,4 +1,4 @@
-# ai-tools.manifest.json — Full Field Reference
+# aitools.manifest.json — Full Field Reference
 
 ## Required fields
 

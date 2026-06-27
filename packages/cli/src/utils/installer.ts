@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,14 +14,14 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import fs from 'node:fs';
 import path from 'node:path';
-import type { ToolManifest, InstalledTool, InstallScope, AiToolsLock, ToolFile, TargetPlatform } from '@ai-tools/core';
+import type { ToolManifest, InstalledTool, InstallScope, AiToolsLock, ToolFile, TargetPlatform } from '@aitools/core';
 import {
   readLockFile,
   writeLockFile,
   upsertLockEntry,
   removeLockEntry,
   toLockEntry,
-} from '@ai-tools/core';
+} from '@aitools/core';
 import type { ConfigManager } from './config-manager.js';
 import type { RegistryClient } from './registry-client.js';
 import { CacheManager } from './cache-manager.js';
@@ -30,8 +30,8 @@ import { CacheManager } from './cache-manager.js';
  * Handles the file-system mechanics of installing and removing tools.
  *
  * Install flow for file-based tools (skill / subagent / prompt):
- *   1. Check CacheManager — if the tarball has already been extracted, skip download.
- *   2. On cache miss: download from registry → store to cache (~/.ai-tools/cache/).
+ *   1. Check CacheManager � if the tarball has already been extracted, skip download.
+ *   2. On cache miss: download from registry ? store to cache (~/.aitools/cache/).
  *   3. Copy files from the cache's .agents/ directory to the platform-specific
  *      destination resolved by ConfigManager / PlatformAdapter.
  *
@@ -64,7 +64,7 @@ export class Installer {
     return this.installFiles(client, manifest, scope);
   }
 
-  // ── File-based install (skill / subagent / prompt) ───────────────────────
+  // -- File-based install (skill / subagent / prompt) -----------------------
 
   private async installFiles(
     client: RegistryClient,
@@ -78,12 +78,12 @@ export class Installer {
         throw new Error(
           `"${manifest.name}" only supports platforms: ${manifest.platforms.join(', ')}.\n` +
           `Your configured platform is "${activePlatform}".\n` +
-          'Run: ai-tools config set platform <platform>  to change it.',
+          'Run: aitools config set platform <platform>  to change it.',
         );
       }
     }
 
-    // Resolve cache entry — download only on miss.
+    // Resolve cache entry � download only on miss.
     let agentsDir: string;
     let integrity: string;
 
@@ -163,7 +163,7 @@ export class Installer {
     return installedTool;
   }
 
-  // ── MCP install (config-file injection) ──────────────────────────────────
+  // -- MCP install (config-file injection) ----------------------------------
 
   private installMcp(
     manifest: ToolManifest,
@@ -224,7 +224,7 @@ export class Installer {
     return installedTool;
   }
 
-  // ── Uninstall ─────────────────────────────────────────────────────────────
+  // -- Uninstall -------------------------------------------------------------
 
   /**
    * Remove all files for a named tool and update the lock file.
@@ -276,7 +276,7 @@ export class Installer {
   }
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// -- Helpers -----------------------------------------------------------------
 
 /**
  * Filter manifest files for the active platform.
@@ -313,7 +313,7 @@ function removeMcpEntry(configPath: string, toolName: string): void {
 
 function cleanEmptyDirs(dir: string, stopAt: string): void {
   // Only clean directories that are descendants of stopAt to avoid removing
-  // unrelated directories (e.g. ~/.ai-tools/ when stopAt is the project cwd).
+  // unrelated directories (e.g. ~/.aitools/ when stopAt is the project cwd).
   const normalizedStop = path.normalize(stopAt);
   const normalizedDir = path.normalize(dir);
   if (!normalizedDir.startsWith(normalizedStop + path.sep)) return;
@@ -325,7 +325,7 @@ function cleanEmptyDirs(dir: string, stopAt: string): void {
       cleanEmptyDirs(path.dirname(dir), stopAt);
     }
   } catch {
-    // Ignore — directory may already be gone
+    // Ignore � directory may already be gone
   }
 }
 

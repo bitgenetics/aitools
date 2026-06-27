@@ -1,4 +1,4 @@
-# ai-tools
+# AITools
 
 A package manager for AI tools — discover, install, update, and publish **skills**, **subagents**, **prompts**, and **MCP tools** across projects and IDE environments.
 
@@ -12,11 +12,11 @@ Think `npm` but for the AI tooling ecosystem. Tools can be scoped to a project (
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Quick starts](#quick-starts)
-  - [Using ai-tools in a project](#1-using-ai-tools-in-a-project)
+  - [Using AITools in a project](#1-using-aitools-in-your-project)
   - [Lightweight git registry](#2-lightweight-git-registry)
   - [Local HTTP registry](#3-local-http-registry)
   - [Enterprise multi-registry](#4-enterprise-multi-registry)
-  - [Developing ai-tools](#5-developing-ai-tools)
+  - [Developing AITools](#5-developing-aitools)
 - [CLI reference](#cli-reference)
 - [Publishing tools](#publishing-tools)
 - [Project files](#project-files)
@@ -35,7 +35,7 @@ Think `npm` but for the AI tooling ecosystem. Tools can be scoped to a project (
 - **Project-scope and user-scope** installs with sensible default paths per category
 - **Extended search** — search by name, description, keywords, and tags across all configured registries
 - **Publish tools** — package and upload skills, agents, and prompts to any registry
-- **Two registry types** — full HTTP server (`@ai-tools/server`) or a **lightweight git-backed registry** (any git remote, no server to run)
+- **Two registry types** — full HTTP server (`@aitools/server`) or a **lightweight git-backed registry** (any git remote, no server to run)
 - **Cascading config** — `aitools.config.json` merges from home directory down to project directory, like `.npmrc`
 - **Lock file** — `aitools-lock.json` pins exact versions for reproducible installs
 - **Registry chaining** — multiple registries resolved by priority; proxy search merges results
@@ -52,20 +52,20 @@ Think `npm` but for the AI tooling ecosystem. Tools can be scoped to a project (
 ## Installation
 
 ```bash
-npm install -g @ai-tools/cli
+npm install -g @aitools/cli
 ```
 
 ---
 
 ## Quick starts
 
-### 1. Using ai-tools in your project
+### 1. Using AITools in your project
 
 ```bash
-# Tell ai-tools which IDE you use (once, global)
+# Tell aitools which IDE you use (once, global)
 aitools config set platform vscode --global   # vscode | claude | cursor | windsurf
 
-# Initialise a project (creates ai-tools.json)
+# Initialise a project (creates aitools.json)
 aitools init
 
 # Search for tools
@@ -97,9 +97,9 @@ aitools uninstall @scope/my-skill
 
 ### 2. Lightweight git registry
 
-Use a **git repository as your registry** — no HTTP server, no database, no Docker. The CLI clones the repo locally (cached under `~/.ai-tools/git-cache/<name>/`), reads tool packages from a `registry/` tree, and publishes by committing and pushing.
+Use a **git repository as your registry** — no HTTP server, no database, no Docker. The CLI clones the repo locally (cached under `~/.aitools/git-cache/<name>/`), reads tool packages from a `registry/` tree, and publishes by committing and pushing.
 
-| | Git registry | HTTP registry (`@ai-tools/server`) |
+| | Git registry | HTTP registry (`@aitools/server`) |
 |---|---|---|
 | **Server to run** | None — any git host (GitHub, Gitea, bare repo) | Yes — Fastify process |
 | **Auth** | System git credentials (SSH keys, credential manager, CI tokens) | Bearer tokens / user accounts |
@@ -159,19 +159,19 @@ Git registries chain with HTTP registries — set `--priority` to control query 
 Run a private registry on your LAN — no Docker, no database. Tools are stored on the local filesystem.
 
 ```bash
-npm install -g @ai-tools/server
+npm install -g @aitools/server
 
 # bash
-AI_TOOLS_DATA_DIR=./data \
-AI_TOOLS_ADMIN_TOKEN=change-me \
-AI_TOOLS_PUBLISHER_TOKENS='{"your-token":{"userId":"you","orgs":["my-org"]}}' \
-node $(npm root -g)/@ai-tools/server/dist/index.js
+AITOOLS_DATA_DIR=./data \
+AITOOLS_ADMIN_TOKEN=change-me \
+AITOOLS_PUBLISHER_TOKENS='{"your-token":{"userId":"you","orgs":["my-org"]}}' \
+node $(npm root -g)/@aitools/server/dist/index.js
 
 # PowerShell
-$env:AI_TOOLS_DATA_DIR = ".\data"
-$env:AI_TOOLS_ADMIN_TOKEN = "change-me"
-$env:AI_TOOLS_PUBLISHER_TOKENS = '{"your-token":{"userId":"you","orgs":["my-org"]}}'
-node (Join-Path (npm root -g) "@ai-tools/server/dist/index.js")
+$env:AITOOLS_DATA_DIR = ".\data"
+$env:AITOOLS_ADMIN_TOKEN = "change-me"
+$env:AITOOLS_PUBLISHER_TOKENS = '{"your-token":{"userId":"you","orgs":["my-org"]}}'
+node (Join-Path (npm root -g) "@aitools/server/dist/index.js")
 ```
 
 Point any client machine at it:
@@ -194,7 +194,7 @@ Full setup with user accounts, a database, and multi-registry chaining for suppl
 # Grab the repo (or just docker-compose.yml + .env.example)
 git clone https://github.com/your-org/ai-tools && cd ai-tools
 
-cp .env.example .env   # set POSTGRES_PASSWORD, AI_TOOLS_ADMIN_TOKEN, etc.
+cp .env.example .env   # set POSTGRES_PASSWORD, AITOOLS_ADMIN_TOKEN, etc.
 docker compose up -d
 ```
 
@@ -234,9 +234,9 @@ You can mix HTTP and git registries in the same chain — for example, an intern
 
 ---
 
-### 5. Developing ai-tools
+### 5. Developing AITools
 
-For hacking on the ai-tools codebase itself:
+For hacking on the AITools codebase itself:
 
 ```bash
 git clone https://github.com/your-org/ai-tools && cd ai-tools
@@ -249,11 +249,11 @@ Spin up a local registry backed by the built server:
 
 ```bash
 # bash
-AI_TOOLS_DATA_DIR=/tmp/ai-tools-dev PORT=4873 HOST=127.0.0.1 \
+AITOOLS_DATA_DIR=/tmp/ai-tools-dev PORT=4873 HOST=127.0.0.1 \
   node packages/server/dist/index.js
 
 # PowerShell
-$env:AI_TOOLS_DATA_DIR = "$env:TEMP\ai-tools-dev"
+$env:AITOOLS_DATA_DIR = "$env:TEMP\ai-tools-dev"
 $env:PORT = "4873"; $env:HOST = "127.0.0.1"
 node packages/server/dist/index.js
 ```
@@ -264,26 +264,26 @@ The server can be started directly from TypeScript source using `tsx` — no bui
 
 ```bash
 # bash — run from TypeScript source with file-watching
-AI_TOOLS_DATA_DIR=/tmp/ai-tools-dev PORT=4873 HOST=127.0.0.1 \
-  npm run dev -w @ai-tools/server
+AITOOLS_DATA_DIR=/tmp/ai-tools-dev PORT=4873 HOST=127.0.0.1 \
+  npm run dev -w @aitools/server
 
 # PowerShell
-$env:AI_TOOLS_DATA_DIR = "$env:TEMP\ai-tools-dev"
+$env:AITOOLS_DATA_DIR = "$env:TEMP\ai-tools-dev"
 $env:PORT = "4873"; $env:HOST = "127.0.0.1"
-npm run dev -w @ai-tools/server
+npm run dev -w @aitools/server
 ```
 
 To attach a debugger (e.g. VS Code **Attach to Node Process**), use the `debug:watch` script — it exposes the inspector on port `9229` and restarts on file changes:
 
 ```bash
 # bash
-AI_TOOLS_DATA_DIR=/tmp/ai-tools-dev PORT=4873 HOST=127.0.0.1 \
-  npm run debug:watch -w @ai-tools/server
+AITOOLS_DATA_DIR=/tmp/ai-tools-dev PORT=4873 HOST=127.0.0.1 \
+  npm run debug:watch -w @aitools/server
 
 # PowerShell
-$env:AI_TOOLS_DATA_DIR = "$env:TEMP\ai-tools-dev"
+$env:AITOOLS_DATA_DIR = "$env:TEMP\ai-tools-dev"
 $env:PORT = "4873"; $env:HOST = "127.0.0.1"
-npm run debug:watch -w @ai-tools/server
+npm run debug:watch -w @aitools/server
 ```
 
 Then in VS Code open the **Run and Debug** panel and choose **Attach to Node Process** (port `9229`). Set breakpoints in any file under `packages/server/src/`.
@@ -292,7 +292,7 @@ Use the locally built CLI against it (no global install needed):
 
 ```bash
 # bash — add a shell alias
-alias ai-tools="node $PWD/packages/cli/dist/cli.js"
+alias aitools="node $PWD/packages/cli/dist/cli.js"
 
 # PowerShell — add a function
 function aitools { node "$PWD/packages/cli/dist/cli.js" @args }
@@ -375,7 +375,7 @@ aitools dev-init
 | `--publish-branch <branch>` | git | Branch for publish (default: read branch) |
 | `--path <path>` | git | Directory inside the repo (default: `registry/`) |
 | `--token <token>` | http | Bearer token for authentication |
-| `-g, --global` | both | Write to user-level config (`~/ai-tools.config.json`) |
+| `-g, --global` | both | Write to user-level config (`~/aitools.config.json`) |
 
 > Git registries use system git credentials. `--token` is rejected for `--type git`.
 
@@ -391,7 +391,7 @@ aitools dev-init
 
 | Flag | Description |
 |---|---|
-| `-m, --manifest <path>` | Path to manifest file (default: `./ai-tools.manifest.json`) |
+| `-m, --manifest <path>` | Path to manifest file (default: `./aitools.manifest.json`) |
 | `-p, --platform <platform>` | Check a specific platform only |
 | `--fix` | Rewrite the SKILL.md file, stripping frontmatter fields unsupported on the target platform(s) |
 
@@ -405,7 +405,7 @@ aitools dev-init
 # 1. Create the publish manifest (once)
 aitools manifest init --category skill --description "My skill"
 
-# 2. Edit ai-tools.manifest.json and add your files, then publish
+# 2. Edit aitools.manifest.json and add your files, then publish
 aitools publish
 
 # 3. To release an update, bump the version first
@@ -523,7 +523,7 @@ Pins exact installed versions. Commit this file.
 
 ### `aitools.config.json` — configuration
 
-Config cascades from your home directory (`~/ai-tools.config.json`) down to the project directory. Project values override user values; registry lists are merged with project registries taking priority.
+Config cascades from your home directory (`~/aitools.config.json`) down to the project directory. Project values override user values; registry lists are merged with project registries taking priority.
 
 The file supports JSONC (comments allowed):
 
@@ -568,7 +568,7 @@ Open the config in your editor:
 
 ```bash
 aitools config edit           # project config
-aitools config edit --global  # user config (~/ai-tools.config.json)
+aitools config edit --global  # user config (~/aitools.config.json)
 ```
 
 ---
@@ -577,7 +577,7 @@ aitools config edit --global  # user config (~/ai-tools.config.json)
 
 Set `platform` in `aitools.config.json` to adapt installs to your IDE.
 
-> **Note:** When no `platform` is set, ai-tools uses a universal layout. Always set a `platform` value so installed files land where your IDE expects them.
+> **Note:** When no `platform` is set, aitools uses a universal layout. Always set a `platform` value so installed files land where your IDE expects them.
 
 ### `skill`
 
@@ -625,10 +625,10 @@ MCP tools inject a server entry into the platform's `mcp.json` config file.
 
 | | Git (`type: "git"`) | HTTP (`type: "http"`) |
 |---|---|---|
-| **What it is** | A git remote whose `registry/` tree holds tool packages | A running `@ai-tools/server` instance |
+| **What it is** | A git remote whose `registry/` tree holds tool packages | A running `@aitools/server` instance |
 | **Server required** | No — GitHub, GitLab, Gitea, or a bare repo on disk | Yes |
 | **Authentication** | SSH keys, git credential manager, CI tokens | Bearer token or user login |
-| **Local cache** | Clone at `~/.ai-tools/git-cache/<name>/` | HTTP responses (no persistent clone) |
+| **Local cache** | Clone at `~/.aitools/git-cache/<name>/` | HTTP responses (no persistent clone) |
 | **Publish** | Commit + push to `publishBranch` (rebases on conflict) | `POST /tools` |
 | **When to pick it** | Lightweight team registry, infra you already have | Search proxy, upstream chaining, admin UI |
 
@@ -636,11 +636,11 @@ Omitting `type` in config defaults to `http` for backward compatibility.
 
 ### Git-backed registry (lightweight)
 
-Point the CLI at any git remote URL. No `@ai-tools/server` process is involved — the registry **is** the repository.
+Point the CLI at any git remote URL. No `@aitools/server` process is involved — the registry **is** the repository.
 
 **How it works**
 
-1. On first use, the CLI clones the repo into `~/.ai-tools/git-cache/<registry-name>/`.
+1. On first use, the CLI clones the repo into `~/.aitools/git-cache/<registry-name>/`.
 2. **Install** and **search** read semver directories under `<path>/<scoped-name>/<version>/`.
 3. **Publish** writes `manifest.json` and `tool.json`, commits, rebases onto the remote branch if needed, then pushes.
 4. Separate **read** and **publish** branches are supported (useful for a `releases` branch fed by CI).
@@ -714,10 +714,10 @@ The full Fastify server supports user accounts, upstream chaining, tarball stora
 
 ## Self-hosted HTTP registry
 
-Run your own registry with `@ai-tools/server`. Three deployment modes are supported — pick the one that fits your situation.
+Run your own registry with `@aitools/server`. Three deployment modes are supported — pick the one that fits your situation.
 
 ```bash
-npm install -g @ai-tools/server
+npm install -g @aitools/server
 ```
 
 ---
@@ -728,35 +728,35 @@ Best for a single team or personal use. No external services required.
 
 ```bash
 # bash
-AI_TOOLS_DATA_DIR=./data \
+AITOOLS_DATA_DIR=./data \
 AUTH_BACKEND=simple \
-AI_TOOLS_ADMIN_TOKEN=secret-admin \
-AI_TOOLS_PUBLISH_TOKEN=secret-publish \
+AITOOLS_ADMIN_TOKEN=secret-admin \
+AITOOLS_PUBLISH_TOKEN=secret-publish \
 node dist/index.js
 
 # PowerShell
-$env:AI_TOOLS_DATA_DIR = ".\data"
+$env:AITOOLS_DATA_DIR = ".\data"
 $env:AUTH_BACKEND     = "simple"
-$env:AI_TOOLS_ADMIN_TOKEN   = "secret-admin"
-$env:AI_TOOLS_PUBLISH_TOKEN = "secret-publish"
+$env:AITOOLS_ADMIN_TOKEN   = "secret-admin"
+$env:AITOOLS_PUBLISH_TOKEN = "secret-publish"
 node dist/index.js
 ```
 
 | Variable | Required | Description |
 |---|---|---|
-| `AI_TOOLS_DATA_DIR` | Yes | Directory where tool tarballs and manifests are stored |
+| `AITOOLS_DATA_DIR` | Yes | Directory where tool tarballs and manifests are stored |
 | `AUTH_BACKEND` | | `simple` (default) |
 | `REGISTRY_ACCESS` | | `private` (default) — all reads require auth; `public` — reads are open, tools with `"private": true` are hidden |
-| `AI_TOOLS_PUBLISH_TOKEN` | | Single shared Bearer token for publish (`POST /tools`) |
-| `AI_TOOLS_PUBLISHER_TOKENS` | | Multi-user token map (JSON, see below) — takes precedence over `AI_TOOLS_PUBLISH_TOKEN` |
-| `AI_TOOLS_ADMIN_TOKEN` | | Bearer token for the `/portal/admin` management UI |
+| `AITOOLS_PUBLISH_TOKEN` | | Single shared Bearer token for publish (`POST /tools`) |
+| `AITOOLS_PUBLISHER_TOKENS` | | Multi-user token map (JSON, see below) — takes precedence over `AITOOLS_PUBLISH_TOKEN` |
+| `AITOOLS_ADMIN_TOKEN` | | Bearer token for the `/portal/admin` management UI |
 | `PORT` | | Port to listen on (default `4873`) |
 | `HOST` | | Host to bind (default `0.0.0.0`) |
 
-**Multi-user publish tokens** — set `AI_TOOLS_PUBLISHER_TOKENS` to a JSON object where each key is a Bearer token:
+**Multi-user publish tokens** — set `AITOOLS_PUBLISHER_TOKENS` to a JSON object where each key is a Bearer token:
 
 ```bash
-AI_TOOLS_PUBLISHER_TOKENS='{"token-alice":{"userId":"alice","orgs":["my-org"]},"token-bob":{"userId":"bob","orgs":["my-org"]}}'
+AITOOLS_PUBLISHER_TOKENS='{"token-alice":{"userId":"alice","orgs":["my-org"]},"token-bob":{"userId":"bob","orgs":["my-org"]}}'
 ```
 
 When publishing, pass the matching token in the `Authorization` header and optionally `X-AI-Tools-Org` to select an org.
@@ -769,24 +769,24 @@ Adds user registration, login, and per-user API tokens stored in a Postgres data
 
 ```bash
 # bash
-AI_TOOLS_DATA_DIR=./data \
+AITOOLS_DATA_DIR=./data \
 DATABASE_URL=postgresql://user:pass@localhost:5432/ai_tools \
-AI_TOOLS_ADMIN_TOKEN=secret-admin \
+AITOOLS_ADMIN_TOKEN=secret-admin \
 node dist/index.js
 
 # PowerShell
-$env:AI_TOOLS_DATA_DIR   = ".\data"
+$env:AITOOLS_DATA_DIR   = ".\data"
 $env:DATABASE_URL         = "postgresql://user:pass@localhost:5432/ai_tools"
-$env:AI_TOOLS_ADMIN_TOKEN = "secret-admin"
+$env:AITOOLS_ADMIN_TOKEN = "secret-admin"
 node dist/index.js
 ```
 
 | Variable | Required | Description |
 |---|---|---|
-| `AI_TOOLS_DATA_DIR` | Yes | Directory where tool tarballs and manifests are stored |
+| `AITOOLS_DATA_DIR` | Yes | Directory where tool tarballs and manifests are stored |
 | `DATABASE_URL` | Yes | Postgres connection string — triggers `AUTH_BACKEND=database` automatically |
 | `REGISTRY_ACCESS` | | `private` (default) — all reads require auth; `public` — reads are open, tools with `"private": true` are hidden |
-| `AI_TOOLS_ADMIN_TOKEN` | | Bearer token for the `/portal/admin` management UI |
+| `AITOOLS_ADMIN_TOKEN` | | Bearer token for the `/portal/admin` management UI |
 | `PORT` | | Port to listen on (default `4873`) |
 | `HOST` | | Host to bind (default `0.0.0.0`) |
 
@@ -797,7 +797,7 @@ The server runs schema migrations on startup. Users register via `POST /api/auth
 Use the bundled `docker-compose.yml` — copy `.env.example` to `.env`, fill in the secrets, then:
 
 ```bash
-cp .env.example .env   # edit AI_TOOLS_ADMIN_TOKEN, POSTGRES_PASSWORD, DATABASE_URL
+cp .env.example .env   # edit AITOOLS_ADMIN_TOKEN, POSTGRES_PASSWORD, DATABASE_URL
 docker compose up -d
 ```
 
@@ -817,7 +817,7 @@ AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=https;..." \
 AZURE_STORAGE_CONTAINER=ai-tools \
 OIDC_ISSUER=https://login.microsoftonline.com/<tenant>/v2.0 \
 OIDC_AUDIENCE=api://ai-tools \
-AI_TOOLS_ADMIN_TOKEN=secret-admin \
+AITOOLS_ADMIN_TOKEN=secret-admin \
 node dist/index.js
 ```
 
@@ -865,8 +865,8 @@ See `.env.example` in the repo root for a full reference with descriptions of ev
 ### Example with upstreams
 
 ```bash
-AI_TOOLS_DATA_DIR=/var/lib/ai-tools \
-UPSTREAMS="public=https://registry.ai-tools.dev" \
+AITOOLS_DATA_DIR=/var/lib/ai-tools \
+UPSTREAMS="public=https://registry.aitools.dev" \
 node dist/index.js
 ```
 
@@ -914,7 +914,7 @@ curl -X PATCH https://registry.example.com/tools/my-skill \
 Point a registry at one or more upstreams to federate results:
 
 ```bash
-UPSTREAMS="public=https://registry.ai-tools.dev,internal=https://internal.example.com"
+UPSTREAMS="public=https://registry.aitools.dev,internal=https://internal.example.com"
 ```
 
 Registries are resolved in priority order; the first match wins for installs, and search results are merged.
@@ -924,12 +924,12 @@ Registries are resolved in priority order; the first match wins for installs, an
 ## Monorepo structure
 
 ```
-aitools/
+ai-tools/
 ├── packages/
-│   ├── core/        # @ai-tools/core — shared types, schemas, config cascade, lock utilities
-│   ├── cli/         # @ai-tools/cli  — the `aitools` CLI
-│   ├── server/      # @ai-tools/server — self-hosted HTTP registry
-│   └── e2e/         # @ai-tools/e2e  — end-to-end tests (HTTP + Gitea git registry)
+│   ├── core/        # @aitools/core — shared types, schemas, config cascade, lock utilities
+│   ├── cli/         # @aitools/cli  — the `aitools` CLI
+│   ├── server/      # @aitools/server — self-hosted HTTP registry
+│   └── e2e/         # @aitools/e2e  — end-to-end tests (HTTP + Gitea git registry)
 ├── tsconfig.base.json
 └── package.json
 ```
@@ -949,9 +949,9 @@ npm run build
 npm test
 
 # Run tests with coverage
-npm test -w @ai-tools/core -- --coverage
-npm test -w @ai-tools/server -- --coverage
-npm test -w @ai-tools/cli -- --coverage
+npm test -w @aitools/core -- --coverage
+npm test -w @aitools/server -- --coverage
+npm test -w @aitools/cli -- --coverage
 ```
 
 ### Unit / integration tests
@@ -976,7 +976,7 @@ Docker e2e spins up three backing services:
 
 | Service | Role |
 |---------|------|
-| `test-registry` | HTTP registry (`@ai-tools/server`) |
+| `test-registry` | HTTP registry (`@aitools/server`) |
 | `gitea-init` + `gitea` | Real Git remote for git-registry publish/install/search tests |
 | `e2e` | Jest runner |
 
@@ -987,19 +987,19 @@ Git registry tests use Gitea when `GITEA_URL` is set (Docker). Locally they fall
 1. Build:
 
    ```bash
-   npm run build -w @ai-tools/core && npm run build -w @ai-tools/cli
+   npm run build -w @aitools/core && npm run build -w @aitools/cli
    ```
 
 2. Start a fresh registry in one terminal:
 
    ```bash
    # PowerShell
-   $env:AI_TOOLS_DATA_DIR = "$env:TEMP\ai-tools-e2e-data"
+   $env:AITOOLS_DATA_DIR = "$env:TEMP\aitools-e2e-data"
    $env:PORT = "4873"; $env:HOST = "127.0.0.1"
    node packages/server/dist/index.js
 
    # bash
-   AI_TOOLS_DATA_DIR=/tmp/ai-tools-e2e-data PORT=4873 HOST=127.0.0.1 \
+   AITOOLS_DATA_DIR=/tmp/aitools-e2e-data PORT=4873 HOST=127.0.0.1 \
      node packages/server/dist/index.js
    ```
 
@@ -1008,21 +1008,21 @@ Git registry tests use Gitea when `GITEA_URL` is set (Docker). Locally they fall
    ```bash
    # PowerShell
    $env:REGISTRY_URL = "http://localhost:4873"
-   $env:AI_TOOLS_CLI = "node $PWD/packages/cli/dist/cli.js"
-   npm test -w @ai-tools/e2e
+   $env:AITOOLS_CLI = "node $PWD/packages/cli/dist/cli.js"
+   npm test -w @aitools/e2e
 
    # bash
    REGISTRY_URL=http://localhost:4873 \
-   AI_TOOLS_CLI="node $(pwd)/packages/cli/dist/cli.js" \
-   npm test -w @ai-tools/e2e
+   AITOOLS_CLI="node $(pwd)/packages/cli/dist/cli.js" \
+   npm test -w @aitools/e2e
    ```
 
    > Re-running against the same server can cause 409 conflicts. Delete the data directory and restart the server before re-running.
 
 ### Test coverage targets
 
-- `@ai-tools/core` and `@ai-tools/cli`: >= 80% statements / branches / functions
-- `@ai-tools/server` route handlers: integration-tested via Fastify `inject()` — no real HTTP port
+- `@aitools/core` and `@aitools/cli`: >= 80% statements / branches / functions
+- `@aitools/server` route handlers: integration-tested via Fastify `inject()` — no real HTTP port
 
 ---
 

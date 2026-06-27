@@ -39,7 +39,7 @@ export {
 } from './schema/config-schema.js';
 
 // Config cascade
-export { ConfigCascade } from './config/cascade.js';
+export { ConfigCascade, CONFIG_FILENAME } from './config/cascade.js';
 
 // Lock file utilities
 export {

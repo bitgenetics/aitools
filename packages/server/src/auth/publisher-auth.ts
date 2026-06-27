@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import type { IncomingHttpHeaders } from 'node:http';
+import { readOrgHeader } from '../env.js';
 
 export interface PublisherIdentity {
   userId: string;
@@ -62,9 +63,7 @@ export function resolvePublisher(
     };
   }
 
-  const requestedOrg = headers['x-ai-tools-org'];
-  const normalizedRequestedOrg =
-    typeof requestedOrg === 'string' ? requestedOrg.trim() : '';
+  const normalizedRequestedOrg = readOrgHeader(headers) ?? '';
 
   const org =
     normalizedRequestedOrg.length > 0
@@ -77,7 +76,7 @@ export function resolvePublisher(
     return {
       ok: false,
       statusCode: 403,
-      error: 'Multiple org memberships detected. Provide x-ai-tools-org header.',
+      error: 'Multiple org memberships detected. Provide x-aitools-org header.',
     };
   }
 
@@ -99,7 +98,7 @@ export function resolvePublisher(
 }
 
 /**
- * Parse JSON auth config from env var AI_TOOLS_PUBLISHER_TOKENS.
+ * Parse JSON auth config from env var AITOOLS_PUBLISHER_TOKENS.
  */
 export function parsePublisherAuthConfigFromEnv(
   raw: string | undefined,
@@ -110,11 +109,11 @@ export function parsePublisherAuthConfigFromEnv(
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new Error('Invalid AI_TOOLS_PUBLISHER_TOKENS JSON');
+    throw new Error('Invalid AITOOLS_PUBLISHER_TOKENS JSON');
   }
 
   if (!parsed || typeof parsed !== 'object') {
-    throw new Error('AI_TOOLS_PUBLISHER_TOKENS must be a JSON object');
+    throw new Error('AITOOLS_PUBLISHER_TOKENS must be a JSON object');
   }
 
   const tokens = parsed as Record<string, unknown>;
@@ -122,11 +121,11 @@ export function parsePublisherAuthConfigFromEnv(
 
   for (const [token, value] of Object.entries(tokens)) {
     if (!token.trim()) {
-      throw new Error('AI_TOOLS_PUBLISHER_TOKENS contains an empty token key');
+      throw new Error('AITOOLS_PUBLISHER_TOKENS contains an empty token key');
     }
 
     if (!value || typeof value !== 'object') {
-      throw new Error(`AI_TOOLS_PUBLISHER_TOKENS[${token}] must be an object`);
+      throw new Error(`AITOOLS_PUBLISHER_TOKENS[${token}] must be an object`);
     }
 
     const userId = (value as { userId?: unknown }).userId;
@@ -134,13 +133,13 @@ export function parsePublisherAuthConfigFromEnv(
 
     if (typeof userId !== 'string' || !userId.trim()) {
       throw new Error(
-        `AI_TOOLS_PUBLISHER_TOKENS[${token}].userId must be a non-empty string`,
+        `AITOOLS_PUBLISHER_TOKENS[${token}].userId must be a non-empty string`,
       );
     }
 
     if (!Array.isArray(orgs) || orgs.some((org) => typeof org !== 'string' || !org.trim())) {
       throw new Error(
-        `AI_TOOLS_PUBLISHER_TOKENS[${token}].orgs must be an array of non-empty strings`,
+        `AITOOLS_PUBLISHER_TOKENS[${token}].orgs must be an array of non-empty strings`,
       );
     }
 

@@ -139,11 +139,11 @@ graph TB
 |----------|-------|----------|--------|------------|
 | universal | `.agents/skills/` | `.agents/agents/` | `.agents/prompts/` | — |
 | vscode | `~/.copilot/skills/` | `~/.copilot/agents/` | `~/.copilot/prompts/` | `~/.vscode/mcp.json` |
-| cursor | `~/.ai-tools/tools/skills/` | `~/.ai-tools/tools/agents/` | `~/.ai-tools/tools/prompts/` | `~/.cursor/mcp.json` |
+| cursor | `~/.aitools/tools/skills/` | `~/.aitools/tools/agents/` | `~/.aitools/tools/prompts/` | `~/.cursor/mcp.json` |
 | claude | `~/.claude/skills/` | `~/.claude/agents/` | `~/.claude/commands/` | `~/.mcp.json` |
 | windsurf | `~/.windsurf/skills/` | `~/.windsurf/agents/` | `~/.windsurf/rules/` | `~/.windsurf/mcp.json` |
 
-Note: `universal` is the runtime default but cannot be set explicitly in `ai-tools.config.json` (the Zod schema excludes it). Use auto-detection or omit the field.
+Note: `universal` is the runtime default but cannot be set explicitly in `aitools.config.json` (the Zod schema excludes it). Use auto-detection or omit the field.
 
 ---
 
@@ -213,7 +213,7 @@ flowchart TD
     spec_index["Register in PLATFORM_SPECS<br/>packages/core/src/platforms/index.ts"]
     adapter["Create PlatformAdapter class<br/>packages/cli/src/adapters/&lt;platform&gt;.ts"]
     adapters_index["Register in ADAPTERS record<br/>packages/cli/src/adapters/index.ts"]
-    build["Build: core → cli<br/>npm run build -w @ai-tools/core<br/>npm run build -w @ai-tools/cli"]
+    build["Build: core → cli<br/>npm run build -w @aitools/core<br/>npm run build -w @aitools/cli"]
     docs["Update platform-paths.md<br/>bump + republish create-ai-tool"]
     done([Done])
 

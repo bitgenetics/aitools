@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -82,9 +82,9 @@ describe('CursorAdapter', () => {
       );
     });
 
-    it('returns ~/.ai-tools/tools/skills/ for user-scope skill', () => {
+    it('returns ~/.aitools/tools/skills/ for user-scope skill', () => {
       expect(adapter.resolveDir('skill', 'user', CWD)).toBe(
-        path.join(HOME, '.ai-tools', 'tools', 'skills'),
+        path.join(HOME, '.aitools', 'tools', 'skills'),
       );
     });
   });
@@ -152,9 +152,9 @@ describe('UniversalAdapter', () => {
       );
     });
 
-    it('returns ~/.ai-tools/tools/skills/ for user-scope skill', () => {
+    it('returns ~/.aitools/tools/skills/ for user-scope skill', () => {
       expect(adapter.resolveDir('skill', 'user', CWD)).toBe(
-        path.join(HOME, '.ai-tools', 'tools', 'skills'),
+        path.join(HOME, '.aitools', 'tools', 'skills'),
       );
     });
 
@@ -172,9 +172,9 @@ describe('UniversalAdapter', () => {
       );
     });
 
-    it('returns ~/.ai-tools/mcp.json for user scope', () => {
+    it('returns ~/.aitools/mcp.json for user scope', () => {
       expect(adapter.resolveMcpConfig('user', CWD)).toBe(
-        path.join(HOME, '.ai-tools', 'mcp.json'),
+        path.join(HOME, '.aitools', 'mcp.json'),
       );
     });
   });

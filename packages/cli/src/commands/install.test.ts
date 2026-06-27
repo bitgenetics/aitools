@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -19,8 +19,8 @@ import path from 'node:path';
 import { Installer } from '../utils/installer.js';
 import { ConfigManager } from '../utils/config-manager.js';
 import { CacheManager } from '../utils/cache-manager.js';
-import { readLockFile, writeManifest } from '@ai-tools/core';
-import type { ToolManifest, RegistryConfig } from '@ai-tools/core';
+import { readLockFile, writeManifest } from '@aitools/core';
+import type { ToolManifest, RegistryConfig } from '@aitools/core';
 import type { RegistryClient, DownloadResult } from '../utils/registry-client.js';
 
 describe('parsePackageArg', () => {
@@ -68,7 +68,7 @@ describe('parsePackageArg', () => {
   });
 });
 
-// ── Integration tests ────────────────────────────────────────────────────────
+// -- Integration tests --------------------------------------------------------
 
 const SKILL_MANIFEST: ToolManifest = {
   name: 'test-skill',
@@ -100,9 +100,9 @@ describe('install integration: single package', () => {
   let cacheTmp: string;
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-install-int-'));
-    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-cache-int-'));
-    fs.writeFileSync(path.join(tmp, 'ai-tools.config.json'), JSON.stringify({ platform: 'vscode' }), 'utf8');
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-install-int-'));
+    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cache-int-'));
+    fs.writeFileSync(path.join(tmp, 'aitools.config.json'), JSON.stringify({ platform: 'vscode' }), 'utf8');
   });
 
   afterEach(() => {
@@ -174,9 +174,9 @@ describe('install integration: registry chaining', () => {
   let cacheTmp: string;
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-chain-'));
-    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-cache-chain-'));
-    fs.writeFileSync(path.join(tmp, 'ai-tools.config.json'), JSON.stringify({ platform: 'vscode' }), 'utf8');
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-chain-'));
+    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cache-chain-'));
+    fs.writeFileSync(path.join(tmp, 'aitools.config.json'), JSON.stringify({ platform: 'vscode' }), 'utf8');
   });
 
   afterEach(() => {

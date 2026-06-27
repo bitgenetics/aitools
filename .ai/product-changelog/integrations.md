@@ -18,7 +18,7 @@
 
 ---
 
-### `RegistryClient` (cli) ↔ `@ai-tools/server` REST API
+### `RegistryClient` (cli) ↔ `@aitools/server` REST API
 **How they connect**: `createRegistryClient(config)` dispatches on `config.type`. HTTP clients call `GET /tools/:name/:version`, `GET /tools/:name/:version/tarball`, `GET /search?q=`, `POST /tools`. Auth is sent as `Bearer` or `Basic` via the `Authorization` header.  
 **Key files**: `packages/cli/src/utils/registry-client.ts` (client), `packages/server/src/routes/tools.ts` (server)  
 **Gotchas**: The server returns non-JSON on some errors (Fastify default error bodies). `RegistryClient` wraps `JSON.parse` in a try-catch and re-throws with a descriptive message. On ECONNREFUSED/ENOTFOUND/ETIMEDOUT the `publish` command shows the registry URL and a "server not reachable" message.
@@ -26,7 +26,7 @@
 ---
 
 ### `GitRegistryClient` (cli) ↔ git remote — 2026-06-26 `d7f8fa0`
-**How they connect**: When `registries[].type === "git"`, `createGitRegistryClient()` clones/fetches the remote into `~/.ai-tools/git-cache/<name>/`, reads `registry/<tool>/<version>/manifest.json` and `tool.json`, and publishes via `git add/commit/push` (with `pull --rebase` on push conflict). No HTTP calls — auth comes from the system git credential helper.  
+**How they connect**: When `registries[].type === "git"`, `createGitRegistryClient()` clones/fetches the remote into `~/.aitools/git-cache/<name>/`, reads `registry/<tool>/<version>/manifest.json` and `tool.json`, and publishes via `git add/commit/push` (with `pull --rebase` on push conflict). No HTTP calls — auth comes from the system git credential helper.  
 **Key files**: `packages/cli/src/utils/git-registry-client.ts`, `packages/core/src/types/config.ts` (`GitRegistryConfig`)  
 **Gotchas**: Git search is local substring matching over manifests (no server-side AI search). `listVersions` walks semver directories on disk. Lock file `resolved` may be a git remote URL, not an HTTP tarball URL. Scoped package dirs use `@scope__name` (`/` → `__`).
 
@@ -67,7 +67,7 @@
 
 ---
 
-### `@ai-tools/cli` ↔ `@ai-tools/core` (shared types and utilities)
-**How they connect**: `@ai-tools/core` is a peer dependency of `@ai-tools/cli`. The CLI imports schemas (`ToolManifestSchema`), types (`ToolManifest`, `InstalledTool`, `PlatformSpec`), config utilities (`ConfigCascade`), lock utilities (`readLockFile`, `writeLockFile`, `upsertLockEntry`), manifest utilities, and platform specs. Core never imports from CLI.  
+### `@aitools/cli` ↔ `@aitools/core` (shared types and utilities)
+**How they connect**: `@aitools/core` is a peer dependency of `@aitools/cli`. The CLI imports schemas (`ToolManifestSchema`), types (`ToolManifest`, `InstalledTool`, `PlatformSpec`), config utilities (`ConfigCascade`), lock utilities (`readLockFile`, `writeLockFile`, `upsertLockEntry`), manifest utilities, and platform specs. Core never imports from CLI.  
 **Key files**: `packages/core/src/index.ts` (all exports), `packages/cli/src/` (all consumers)  
 **Gotchas**: Core is compiled before CLI (`npm run build` order: core → cli → server). If you change a core export, rebuild core before testing the CLI.

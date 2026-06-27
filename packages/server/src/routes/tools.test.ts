@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { buildApp } from '../app.js';
-import type { ToolManifest } from '@ai-tools/core';
+import type { ToolManifest } from '@aitools/core';
 
 const VALID_MANIFEST: ToolManifest = {
   name: 'test-skill',
@@ -50,7 +50,7 @@ describe('Tool HTTP routes', () => {
     fs.rmSync(tmp, { recursive: true });
   });
 
-  // ── GET /tools ─────────────────────────────────────────────────────────────
+  // -- GET /tools -------------------------------------------------------------
 
   describe('GET /tools', () => {
     it('returns an empty array when no tools are published', async () => {
@@ -66,7 +66,7 @@ describe('Tool HTTP routes', () => {
     });
   });
 
-  // ── POST /tools ────────────────────────────────────────────────────────────
+  // -- POST /tools ------------------------------------------------------------
 
   describe('POST /tools', () => {
     it('returns 201 with an integrity hash on success', async () => {
@@ -100,7 +100,7 @@ describe('Tool HTTP routes', () => {
     });
   });
 
-  // ── GET /tools/:name ───────────────────────────────────────────────────────
+  // -- GET /tools/:name -------------------------------------------------------
 
   describe('GET /tools/:name', () => {
     it('returns 404 for an unknown tool', async () => {
@@ -116,7 +116,7 @@ describe('Tool HTTP routes', () => {
     });
   });
 
-  // ── GET /tools/:name/:version ──────────────────────────────────────────────
+  // -- GET /tools/:name/:version ----------------------------------------------
 
   describe('GET /tools/:name/:version', () => {
     beforeEach(() => publish(app));
@@ -139,7 +139,7 @@ describe('Tool HTTP routes', () => {
     });
   });
 
-  // ── GET /tools/:name/:version/tarball ──────────────────────────────────────
+  // -- GET /tools/:name/:version/tarball --------------------------------------
 
   describe('GET /tools/:name/:version/tarball', () => {
     it('returns the tarball as a JSON array of file entries', async () => {
@@ -162,7 +162,7 @@ describe('Tool HTTP routes', () => {
     });
   });
 
-  // ── GET /search ────────────────────────────────────────────────────────────
+  // -- GET /search ------------------------------------------------------------
 
   describe('GET /search', () => {
     it('returns tools matching the query', async () => {
@@ -185,7 +185,7 @@ describe('Tool HTTP routes', () => {
     });
   });
 
-  // ── GET /health ────────────────────────────────────────────────────────────
+  // -- GET /health ------------------------------------------------------------
 
   describe('GET /health', () => {
     it('returns status ok', async () => {
@@ -198,7 +198,7 @@ describe('Tool HTTP routes', () => {
 
 
 
-describe('POST /tools — publishToken enforcement', () => {
+describe('POST /tools � publishToken enforcement', () => {
   let tmp2: string;
   let authApp: Awaited<ReturnType<typeof buildApp>>;
 
@@ -242,7 +242,7 @@ describe('POST /tools — publishToken enforcement', () => {
   });
 });
 
-describe('POST /tools — org-aware publisher auth', () => {
+describe('POST /tools � org-aware publisher auth', () => {
   let tmp4: string;
   let orgAuthApp: Awaited<ReturnType<typeof buildApp>>;
 
@@ -275,7 +275,7 @@ describe('POST /tools — org-aware publisher auth', () => {
     expect(res.statusCode).toBe(401);
   });
 
-  it('returns 403 when a multi-org user does not specify x-ai-tools-org', async () => {
+  it('returns 403 when a multi-org user does not specify x-aitools-org', async () => {
     const res = await orgAuthApp.inject({
       method: 'POST',
       url: '/api/tools',
@@ -299,7 +299,7 @@ describe('POST /tools — org-aware publisher auth', () => {
       url: '/api/tools',
       headers: {
         authorization: 'Bearer tokenB',
-        'x-ai-tools-org': 'acme',
+        'x-aitools-org': 'acme',
       },
       payload: {
         manifest: { ...VALID_MANIFEST, version: '1.0.1' },
@@ -322,7 +322,7 @@ describe('POST /tools — org-aware publisher auth', () => {
       url: '/api/tools',
       headers: {
         authorization: 'Bearer tokenC',
-        'x-ai-tools-org': 'other',
+        'x-aitools-org': 'other',
       },
       payload: {
         manifest: { ...VALID_MANIFEST, version: '1.0.2' },
@@ -334,7 +334,7 @@ describe('POST /tools — org-aware publisher auth', () => {
   });
 });
 
-describe('buildApp — upstream URL validation', () => {
+describe('buildApp � upstream URL validation', () => {
   let tmp3: string;
 
   beforeEach(() => {
@@ -375,7 +375,7 @@ describe('buildApp — upstream URL validation', () => {
   });
 });
 
-// ── registryAccess ──────────────────────────────────────────────────────────
+// -- registryAccess ----------------------------------------------------------
 
 const PRIVATE_MANIFEST: ToolManifest = {
   ...VALID_MANIFEST,
@@ -483,7 +483,7 @@ describe('registryAccess=public', () => {
   });
 });
 
-// ── PATCH /tools/:name — owner privacy control ──────────────────────────────
+// -- PATCH /tools/:name � owner privacy control ------------------------------
 
 describe('PATCH /tools/:name', () => {
   let tmp: string;

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -15,22 +15,22 @@
 import os from 'node:os';
 import path from 'node:path';
 import type { PlatformAdapter } from './types.js';
-import type { ToolCategory, InstallScope } from '@ai-tools/core';
+import type { ToolCategory, InstallScope } from '@aitools/core';
 
 /**
  * Windsurf IDE (Cognition) adapter.
  *
  * Project scope paths:
- *   skill    → .windsurf/skills/
- *   subagent → .windsurf/agents/
- *   prompt   → .windsurf/rules/   (Wave 8+: .windsurf/rules/*.md)
- *   mcp      → .windsurf/mcp.json
+ *   skill    ? .windsurf/skills/
+ *   subagent ? .windsurf/agents/
+ *   prompt   ? .windsurf/rules/   (Wave 8+: .windsurf/rules/*.md)
+ *   mcp      ? .windsurf/mcp.json
  *
  * User scope paths:
- *   skill    → ~/.windsurf/skills/
- *   subagent → ~/.windsurf/agents/
- *   prompt   → ~/.windsurf/rules/
- *   mcp      → ~/.windsurf/mcp.json
+ *   skill    ? ~/.windsurf/skills/
+ *   subagent ? ~/.windsurf/agents/
+ *   prompt   ? ~/.windsurf/rules/
+ *   mcp      ? ~/.windsurf/mcp.json
  */
 export class WindsurfAdapter implements PlatformAdapter {
   readonly platform = 'windsurf' as const;

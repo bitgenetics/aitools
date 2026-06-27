@@ -1,4 +1,4 @@
-# ai-tools — Test Coverage Gap Report
+# AITools — Test Coverage Gap Report
 
 **Date:** 2026-04-25  
 **Scope:** Unit and integration test gaps across all packages
@@ -9,15 +9,15 @@
 
 | Package | Stmts | Branch | Funcs | Target (≥80%) |
 |---|---|---|---|---|
-| `@ai-tools/core` | 81.5% | 66.7% | 75% | ⚠ branch/funcs below |
-| `@ai-tools/cli` | 47.4% | 33.5% | 38.2% | ❌ all below |
-| `@ai-tools/server` | 94.0% | 62.0% | 97.2% | ⚠ branch below |
+| `@aitools/core` | 81.5% | 66.7% | 75% | ⚠ branch/funcs below |
+| `@aitools/cli` | 47.4% | 33.5% | 38.2% | ❌ all below |
+| `@aitools/server` | 94.0% | 62.0% | 97.2% | ⚠ branch below |
 
 The E2E suite (`packages/e2e/`) covers the CLI command lifecycle against a live Docker registry. It is not counted in the figures above.
 
 ---
 
-## 1. `@ai-tools/core`
+## 1. `@aitools/core`
 
 ### 1.1 `config/cascade.ts` — 63.6% statements / 46.7% branch
 
@@ -49,7 +49,7 @@ describe('ConfigCascade.load()', () => {
   it('resolveConfigFiles() does not duplicate the home directory', () => {
     // If cwd IS the home directory, home should not appear twice
     const files = ConfigCascade.resolveConfigFiles(os.homedir());
-    const homeConfig = path.join(os.homedir(), 'ai-tools.config.json');
+    const homeConfig = path.join(os.homedir(), 'aitools.config.json');
     expect(files.filter((f) => f === homeConfig).length).toBe(1);
   });
 });
@@ -65,7 +65,7 @@ Line 31 (`toLockEntry`) is a trivial factory function; coverage is only 75% due 
 
 ---
 
-## 2. `@ai-tools/cli`
+## 2. `@aitools/cli`
 
 ### 2.1 `utils/registry-client.ts` — 4.7% statements / 0% branch ❌ Critical
 
@@ -225,7 +225,7 @@ it('replaces arrays rather than merging when writing config (known limitation)',
 
 ---
 
-## 3. `@ai-tools/server`
+## 3. `@aitools/server`
 
 ### 3.1 `routes/registry.ts` — 96.4% statements / 71.4% branch
 
@@ -262,7 +262,7 @@ The E2E suite (`packages/e2e/src/cli.test.ts` and `api.test.ts`) covers:
 ✅ `--version` output  
 ✅ `search` keyword search  
 ✅ `install` single tool, version pinning  
-✅ `install` all from `ai-tools.json`  
+✅ `install` all from `aitools.json`  
 ✅ `update` within semver range  
 ✅ `uninstall`  
 ✅ `list`  

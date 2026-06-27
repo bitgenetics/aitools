@@ -37,7 +37,7 @@
 ---
 
 ### Fastify `buildApp()` / `inject()` for server tests
-**Used for**: Testing `@ai-tools/server` route handlers.  
+**Used for**: Testing `@aitools/server` route handlers.  
 **How**: Call `buildApp(options)` to get a Fastify instance, then use `app.inject({ method, url, payload })` to fire requests without binding a network port. No `supertest` or real HTTP needed.  
 **Example**: `packages/server/src/routes/tools.test.ts`  
 **Do not**: Start the server with `app.listen()` in tests — it causes port conflicts and slow teardown.
@@ -48,7 +48,7 @@
 **Used for**: Everything that reads or writes installed tool state.  
 **How**: `readLockFile(cwd)` → mutate with `upsertLockEntry` / `removeLockEntry` → `writeLockFile(cwd, lock)`. Always re-read before writing; never cache the lock object across async boundaries.  
 **Example**: `packages/cli/src/utils/installer.ts`, `packages/cli/src/commands/dev-init.ts`  
-**Do not**: Write directly to `ai-tools-lock.json` — always use the lock utilities so the schema stays valid.
+**Do not**: Write directly to `aitools-lock.json` — always use the lock utilities so the schema stays valid.
 
 ---
 

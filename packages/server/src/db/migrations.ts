@@ -71,5 +71,5 @@ export async function seedAdminUser(pool: Pool): Promise<void> {
     'INSERT INTO users (username, password_hash) VALUES ($1, $2)',
     [username, passwordHash],
   );
-  console.log(`[ai-tools] Seeded admin user: ${username}`);
+  console.log(`[aitools] Seeded admin user: ${username}`);
 }

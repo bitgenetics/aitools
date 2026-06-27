@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -36,9 +36,9 @@ describe('search command', () => {
   const originalCwd = process.cwd();
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-search-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-search-'));
     fs.writeFileSync(
-      path.join(tmp, 'ai-tools.config.json'),
+      path.join(tmp, 'aitools.config.json'),
       JSON.stringify({ registries: [{ name: 'test', url: 'http://registry.example.com' }] }),
       'utf8',
     );
@@ -93,9 +93,9 @@ describe('find command', () => {
   const originalCwd = process.cwd();
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-find-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-find-'));
     fs.writeFileSync(
-      path.join(tmp, 'ai-tools.config.json'),
+      path.join(tmp, 'aitools.config.json'),
       JSON.stringify({ registries: [{ name: 'test', url: 'http://registry.example.com' }] }),
       'utf8',
     );

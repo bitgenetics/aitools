@@ -20,14 +20,14 @@
  *   Mode 1 — Local (cross-project AI-tool sharing, no external users)
  *     STORAGE_BACKEND=filesystem
  *     AUTH_BACKEND=simple
- *     AI_TOOLS_ADMIN_TOKEN=<token>           (optional)
- *     AI_TOOLS_PUBLISHER_TOKENS=...          (optional)
+ *     AITOOLS_ADMIN_TOKEN=<token>
+ *     AITOOLS_PUBLISHER_TOKENS=...
  *
  *   Mode 2 — Dev (local simulation of the deployed system)
  *     STORAGE_BACKEND=filesystem
  *     AUTH_BACKEND=database
  *     DATABASE_URL=postgresql://...
- *     AI_TOOLS_ADMIN_TOKEN=<token>
+ *     AITOOLS_ADMIN_TOKEN=<token>
  *
  *   Mode 3 — Production (deployed, cloud storage, external auth)
  *     STORAGE_BACKEND=azure | s3

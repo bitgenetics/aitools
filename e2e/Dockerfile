@@ -19,6 +19,6 @@ COPY packages/core packages/core/
 COPY packages/cli packages/cli/
 COPY packages/e2e packages/e2e/
 
-RUN npm run build -w @ai-tools/core && npm run build -w @ai-tools/cli
+RUN npm run build -w @aitools/core && npm run build -w @aitools/cli
 
-CMD ["npm", "test", "-w", "@ai-tools/e2e"]
+CMD ["npm", "test", "-w", "@aitools/e2e"]

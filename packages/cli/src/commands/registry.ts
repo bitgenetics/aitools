@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -15,8 +15,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { ConfigManager } from '../utils/config-manager.js';
-import { RegistryConfigSchema } from '@ai-tools/core';
-import type { RegistryConfig, GitRegistryConfig, HttpRegistryConfig } from '@ai-tools/core';
+import { RegistryConfigSchema } from '@aitools/core';
+import type { RegistryConfig, GitRegistryConfig, HttpRegistryConfig } from '@aitools/core';
 
 function defaultRegistryName(url: string): string {
   try {
@@ -29,7 +29,7 @@ function defaultRegistryName(url: string): string {
 }
 
 /**
- * ai-tools registry
+ * aitools registry
  *
  * Subcommands: list, add, remove
  */
@@ -46,7 +46,7 @@ export function createRegistryCommand(): Command {
 
       if (registries.length === 0) {
         console.log(chalk.yellow('No registries configured.'));
-        console.log(chalk.dim('  Add one with: ai-tools registry add <url>'));
+        console.log(chalk.dim('  Add one with: aitools registry add <url>'));
         return;
       }
 
@@ -81,7 +81,7 @@ export function createRegistryCommand(): Command {
     .option('--publish-branch <branch>', 'Git registry publish branch (default: read branch)')
     .option('--path <path>', 'Path inside git repo where tools are stored (default: registry/)')
     .option('--token <token>', 'Bearer token for HTTP registry authentication')
-    .option('-g, --global', 'Write to user-level config (~/.ai-tools.config.json)')
+    .option('-g, --global', 'Write to user-level config (~/.aitools.config.json)')
     .action((
       url: string,
       options: {
@@ -147,15 +147,15 @@ export function createRegistryCommand(): Command {
         console.log(chalk.green(`Updated registry: ${registryName}`));
       } else {
         registries.push(newRegistry);
-        console.log(chalk.green(`Added registry: ${registryName} → ${url}`));
+        console.log(chalk.green(`Added registry: ${registryName} ? ${url}`));
       }
 
       if (options.global) {
         configManager.writeUserConfig({ registries });
-        console.log(chalk.dim(`  saved to ~/ai-tools.config.json`));
+        console.log(chalk.dim(`  saved to ~/aitools.config.json`));
       } else {
         configManager.writeProjectConfig({ registries });
-        console.log(chalk.dim(`  saved to ./ai-tools.config.json`));
+        console.log(chalk.dim(`  saved to ./aitools.config.json`));
       }
     });
 
@@ -163,7 +163,7 @@ export function createRegistryCommand(): Command {
     .command('remove <name>')
     .alias('rm')
     .description('Remove a registry from the project or user config')
-    .option('-g, --global', 'Remove from user-level config (~/.ai-tools.config.json)')
+    .option('-g, --global', 'Remove from user-level config (~/.aitools.config.json)')
     .action((name: string, options: { global?: boolean }) => {
       const cwd = process.cwd();
       const configManager = new ConfigManager(cwd);

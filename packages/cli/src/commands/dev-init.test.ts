@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { readLockFile, writeLockFile, upsertLockEntry } from '@ai-tools/core';
+import { readLockFile, writeLockFile, upsertLockEntry } from '@aitools/core';
 import { BUNDLED_NAME, BUNDLED_VERSION } from './dev-init.js';
 import { ConfigManager } from '../utils/config-manager.js';
 
@@ -33,7 +33,7 @@ describe('dev-init lock file behaviour', () => {
   let tmp: string;
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-dev-init-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-dev-init-'));
   });
 
   afterEach(() => {
@@ -63,9 +63,9 @@ describe('dev-init install path', () => {
   let tmp: string;
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-dev-init-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-dev-init-'));
     fs.writeFileSync(
-      path.join(tmp, 'ai-tools.config.json'),
+      path.join(tmp, 'aitools.config.json'),
       JSON.stringify({ platform: 'vscode' }),
       'utf8',
     );

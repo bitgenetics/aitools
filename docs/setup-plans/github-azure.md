@@ -21,17 +21,17 @@
 
 ## Step 1 — Fork the Repository
 
-On GitHub, fork `turbofoxwave/aitools` to your organisation's GitHub account, then clone it locally:
+On GitHub, fork `turbofoxwave/ai-tools` to your organisation's GitHub account, then clone it locally:
 
 ```bash
-git clone https://github.com/your-org/aitools
-cd aitools
+git clone https://github.com/your-org/ai-tools
+cd ai-tools
 ```
 
 Track upstream to receive security patches:
 
 ```bash
-git remote add upstream https://github.com/turbofoxwave/aitools
+git remote add upstream https://github.com/turbofoxwave/ai-tools
 git fetch upstream
 git merge upstream/main
 ```
@@ -103,7 +103,7 @@ az keyvault create \
 
 # Store secrets (never in source control or GitHub Secrets)
 az keyvault secret set --vault-name kv-aitools-prod \
-  --name AI-TOOLS-ADMIN-TOKEN \
+  --name AITOOLS-ADMIN-TOKEN \
   --value "$(openssl rand -hex 32)"
 
 az keyvault secret set --vault-name kv-aitools-prod \
@@ -162,7 +162,7 @@ az containerapp create \
   --cpu 1 --memory 2Gi \
   --ingress external --target-port 4873 \
   --secrets \
-    admin-token=keyvaultref:https://kv-aitools-prod.vault.azure.net/secrets/AI-TOOLS-ADMIN-TOKEN,identityref:<managed-identity-id> \
+    admin-token=keyvaultref:https://kv-aitools-prod.vault.azure.net/secrets/AITOOLS-ADMIN-TOKEN,identityref:<managed-identity-id> \
     database-url=keyvaultref:https://kv-aitools-prod.vault.azure.net/secrets/DATABASE-URL,identityref:<managed-identity-id> \
     storage-conn=keyvaultref:https://kv-aitools-prod.vault.azure.net/secrets/AZURE-STORAGE-CONNECTION-STRING,identityref:<managed-identity-id> \
   --env-vars \
@@ -171,7 +171,7 @@ az containerapp create \
     OIDC_AUDIENCE=<appId> \
     STORAGE_BACKEND=azure \
     REGISTRY_ACCESS=private \
-    AI_TOOLS_ADMIN_TOKEN=secretref:admin-token \
+    AITOOLS_ADMIN_TOKEN=secretref:admin-token \
     DATABASE_URL=secretref:database-url \
     AZURE_STORAGE_CONNECTION_STRING=secretref:storage-conn \
     AZURE_STORAGE_CONTAINER=registry-data
@@ -197,7 +197,7 @@ az ad app federated-credential create \
   --parameters '{
     "name": "github-actions-main",
     "issuer": "https://token.actions.githubusercontent.com",
-    "subject": "repo:your-org/aitools:ref:refs/heads/main",
+    "subject": "repo:your-org/ai-tools:ref:refs/heads/main",
     "audiences": ["api://AzureADTokenExchange"]
   }'
 ```
@@ -306,7 +306,7 @@ Place **Azure Application Gateway (WAF v2 tier)** or **Azure Front Door** in fro
 AUTH_BACKEND=oidc
 OIDC_ISSUER=https://login.microsoftonline.com/<tenantId>/v2.0
 OIDC_AUDIENCE=<appId>
-AI_TOOLS_ADMIN_TOKEN=<from Key Vault>
+AITOOLS_ADMIN_TOKEN=<from Key Vault>
 
 # Database
 DATABASE_URL=postgresql://ai_tools:<password>@psql-aitools-prod.postgres.database.azure.com/ai_tools?sslmode=require

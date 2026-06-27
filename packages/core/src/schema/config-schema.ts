@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,7 +14,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import { z } from 'zod';
 
-// ── Registry auth ───────────────────────────────────────────────────────────
+// -- Registry auth -----------------------------------------------------------
 
 export const RegistryAuthSchema = z
   .object({
@@ -39,7 +39,7 @@ export const RegistryAuthSchema = z
     }
   });
 
-// ── Registry config ─────────────────────────────────────────────────────────
+// -- Registry config ---------------------------------------------------------
 
 export const HttpRegistryConfigSchema = z.object({
   type: z.literal('http'),
@@ -70,9 +70,9 @@ export const RegistryConfigSchema = z.preprocess(
   z.discriminatedUnion('type', [HttpRegistryConfigSchema, GitRegistryConfigSchema]),
 );
 
-// ── ai-tools.config.json ────────────────────────────────────────────────────
+// -- aitools.config.json ----------------------------------------------------
 
-// 'universal' is intentionally excluded — it is our internal cache/storage
+// 'universal' is intentionally excluded � it is our internal cache/storage
 // convention and not a valid user-facing platform target.
 export const TargetPlatformSchema = z.enum(['vscode', 'claude', 'cursor', 'windsurf']);
 
@@ -83,7 +83,7 @@ export const AiToolsConfigSchema = z.object({
   installPaths: z.record(z.string()).optional(),
 });
 
-// ── ai-tools.json ───────────────────────────────────────────────────────────
+// -- aitools.json -----------------------------------------------------------
 
 export const AiToolsManifestSchema = z.object({
   name: z.string().optional(),
@@ -92,7 +92,7 @@ export const AiToolsManifestSchema = z.object({
   registries: z.array(RegistryConfigSchema).optional(),
 });
 
-// ── ai-tools-lock.json ──────────────────────────────────────────────────────
+// -- aitools-lock.json ------------------------------------------------------
 
 export const LockEntrySchema = z.object({
   version: z.string(),

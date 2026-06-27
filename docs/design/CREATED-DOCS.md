@@ -7,7 +7,7 @@
 
 ## Overview
 
-This document summarizes the design documentation created for the ai-tools project. The following comprehensive design documents have been added to the `/docs/design` folder.
+This document summarizes the design documentation created for the AITools project. The following comprehensive design documents have been added to the `/docs/design` folder.
 
 ---
 
@@ -18,7 +18,7 @@ This document summarizes the design documentation created for the ai-tools proje
 **Purpose**: High-level overview for stakeholders and decision-makers.
 
 **Key Sections**:
-- Overview of ai-tools ecosystem
+- Overview of AITools ecosystem
 - Key design principles
 - Architecture at a glance
 - Core components

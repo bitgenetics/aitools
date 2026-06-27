@@ -6,10 +6,10 @@
 
 | Type | When to use | Auth |
 |------|-------------|------|
-| **HTTP** (`@ai-tools/server`) | Teams needing search API, admin portal, user accounts | Bearer token or DB-backed users |
+| **HTTP** (`@aitools/server`) | Teams needing search API, admin portal, user accounts | Bearer token or DB-backed users |
 | **Git** | Small teams with an existing git repo; no server to host | System git credentials (SSH, credential manager, CI tokens) |
 
-Git registries store tools under `<path>/<tool-name>/<version>/` inside the repo (`manifest.json` + `tool.json`). The CLI maintains a local clone at `~/.ai-tools/git-cache/<registry-name>/`.
+Git registries store tools under `<path>/<tool-name>/<version>/` inside the repo (`manifest.json` + `tool.json`). The CLI maintains a local clone at `~/.aitools/git-cache/<registry-name>/`.
 
 See [readme.md](../readme.md#registry-types) for `aitools registry add --type git` usage and CI setup.
 
@@ -21,7 +21,7 @@ The simplest production setup: one container backed by a local volume.
 
 ```bash
 cp .env.example .env
-# Edit .env — set AI_TOOLS_ADMIN_TOKEN, POSTGRES_PASSWORD, DATABASE_URL, etc.
+# Edit .env — set AITOOLS_ADMIN_TOKEN, POSTGRES_PASSWORD, DATABASE_URL, etc.
 
 docker compose up -d
 ```
@@ -39,7 +39,7 @@ The registry is then available at `http://localhost:4873`.
 ```bash
 cp .env.example .env
 # Mandatory: set unique values for
-#   AI_TOOLS_ADMIN_TOKEN   (generate with: openssl rand -hex 32)
+#   AITOOLS_ADMIN_TOKEN   (generate with: openssl rand -hex 32)
 #   POSTGRES_PASSWORD
 #   DATABASE_URL           (must match POSTGRES_USER/POSTGRES_PASSWORD)
 #   AUTH_BACKEND=database
@@ -123,7 +123,7 @@ Create the secret:
 
 ```bash
 kubectl create secret generic ai-tools-secrets \
-  --from-literal=AI_TOOLS_ADMIN_TOKEN="$(openssl rand -hex 32)" \
+  --from-literal=AITOOLS_ADMIN_TOKEN="$(openssl rand -hex 32)" \
   --from-literal=DATABASE_URL="postgresql://user:password@postgres-host:5432/ai_tools" \
   --from-literal=POSTGRES_PASSWORD="strong-password"
 ```
@@ -134,7 +134,7 @@ kubectl create secret generic ai-tools-secrets \
 
 ```ini
 [Unit]
-Description=ai-tools registry
+Description=AITools registry
 After=network.target postgresql.service
 
 [Service]
@@ -155,7 +155,7 @@ WantedBy=multi-user.target
 Place environment variables in `/etc/ai-tools/env` (mode 0600, owned by root):
 
 ```
-AI_TOOLS_ADMIN_TOKEN=...
+AITOOLS_ADMIN_TOKEN=...
 DATABASE_URL=postgresql://...
 AUTH_BACKEND=database
 REGISTRY_ACCESS=private
@@ -204,6 +204,6 @@ Set `STORAGE_BACKEND` in `.env`:
 
 | Value | Description |
 |-------|-------------|
-| `filesystem` (default) | Stores data under `AI_TOOLS_DATA_DIR`. Mount a persistent volume. |
+| `filesystem` (default) | Stores data under `AITOOLS_DATA_DIR`. Mount a persistent volume. |
 | `azure` | Azure Blob Storage. Requires `AZURE_STORAGE_CONNECTION_STRING` + `AZURE_STORAGE_CONTAINER`. |
 | `s3` | AWS S3. Requires `AWS_S3_BUCKET` + `AWS_REGION`. Reads credentials from environment / instance role. |

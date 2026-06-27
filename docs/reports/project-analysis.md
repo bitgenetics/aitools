@@ -1,4 +1,4 @@
-# ai-tools — Project Analysis
+# AITools — Project Analysis
 
 **Date:** 2026-04-25 (fresh review)  
 **Scope:** Full codebase — purpose, architecture, implementation, verification, gaps
@@ -7,13 +7,13 @@
 
 ## TL;DR
 
-`ai-tools` is a well-conceived package manager for AI tool artefacts. The architecture is clean, the core library is solid, and the Docker-based E2E suite is genuinely useful. Several earlier bugs (version sorting, MCP schema validation, registry write auth, and mcp.json error handling) have been fixed. The primary remaining weaknesses are: the "smart find" feature is still a placeholder, three manifest fields are dead code (templates, dependencies, binary tarballs), and CLI command unit test coverage is critically low at 47% statements / 34% branch — meaning most command logic is only verified through the Docker E2E suite.
+`AITools` is a well-conceived package manager for AI tool artefacts. The architecture is clean, the core library is solid, and the Docker-based E2E suite is genuinely useful. Several earlier bugs (version sorting, MCP schema validation, registry write auth, and mcp.json error handling) have been fixed. The primary remaining weaknesses are: the "smart find" feature is still a placeholder, three manifest fields are dead code (templates, dependencies, binary tarballs), and CLI command unit test coverage is critically low at 47% statements / 34% branch — meaning most command logic is only verified through the Docker E2E suite.
 
 ---
 
 ## 1. Purpose
 
-`ai-tools` is `npm` applied to the AI tooling ecosystem: it discovers, installs, updates, and publishes **skills**, **subagents**, **prompts**, and **MCP servers** across projects and IDE environments.
+`AITools` is `npm` applied to the AI tooling ecosystem: it discovers, installs, updates, and publishes **skills**, **subagents**, **prompts**, and **MCP servers** across projects and IDE environments.
 
 The model is coherent and well-scoped:
 
@@ -33,10 +33,10 @@ The model is coherent and well-scoped:
 
 ```
 packages/
-  core/    @ai-tools/core   — types, schemas, config, lock, platform specs
-  cli/     @ai-tools/cli    — ai-tools binary (Commander)
-  server/  @ai-tools/server — Fastify registry HTTP API
-  e2e/     @ai-tools/e2e   — Docker-based end-to-end tests
+  core/    @aitools/core   — types, schemas, config, lock, platform specs
+  cli/     @aitools/cli    — aitools binary (Commander)
+  server/  @aitools/server — Fastify registry HTTP API
+  e2e/     @aitools/e2e   — Docker-based end-to-end tests
 tools/
   create-ai-tool/            — published skill; dogfoods the system
 .agents/skills/              — project-scoped skills for AI coding agents
@@ -53,7 +53,7 @@ All strict options are on (`strict`, `noUncheckedIndexedAccess`, `noImplicitRetu
 
 ### 2.4 Module system inconsistency (not yet resolved)
 
-`@ai-tools/cli` declares `"type": "module"` (ESM). `@ai-tools/core` and `@ai-tools/server` do not, making them implicitly CommonJS.
+`@aitools/cli` declares `"type": "module"` (ESM). `@aitools/core` and `@aitools/server` do not, making them implicitly CommonJS.
 
 Consequences that persist:
 - The CLI Jest config overrides `module` to `"CommonJS"` for ts-jest
@@ -72,7 +72,7 @@ Zod schemas guard every external boundary:
 - `ToolManifestSchema` — on `POST /tools` and on `publish`
 - `AiToolsConfigSchema` — on every config file read
 - `AiToolsLockSchema` — on every lock file read
-- `AiToolsManifestSchema` — on every `ai-tools.json` read
+- `AiToolsManifestSchema` — on every `aitools.json` read
 
 Validation failures produce clear error messages. Bad data never propagates silently.
 
@@ -82,7 +82,7 @@ Validation failures produce clear error messages. Bad data never propagates sile
 
 ### 3.3 Semver-correct version resolution
 
-`ToolStore.listVersions()` sorts with `semver.rcompare`. Both `installAll` and `update` use `semver.maxSatisfying(versions, range)` to honour the semver range stored in `ai-tools.json`. The lock-file skip check uses `semver.satisfies`. The full semver contract is correct end-to-end.
+`ToolStore.listVersions()` sorts with `semver.rcompare`. Both `installAll` and `update` use `semver.maxSatisfying(versions, range)` to honour the semver range stored in `aitools.json`. The lock-file skip check uses `semver.satisfies`. The full semver contract is correct end-to-end.
 
 ### 3.4 Atomic lock file writes
 
@@ -98,7 +98,7 @@ Multiple registries are queried by `priority`. The server's `POST /tools` endpoi
 
 ### 3.7 Cache with SHA-256 integrity
 
-Downloaded tarballs are stored at `~/.ai-tools/cache/<name>/<version>/` with a SHA-256 hash. Cache hits skip re-download and the hash is recorded in the lock file for future verification.
+Downloaded tarballs are stored at `~/.aitools/cache/<name>/<version>/` with a SHA-256 hash. Cache hits skip re-download and the hash is recorded in the lock file for future verification.
 
 ### 3.8 Platform specs and `compat` command
 
@@ -152,7 +152,7 @@ The "tarball" is `JSON.stringify([{ path, content }])` where `content` is a UTF-
 
 #### `cleanEmptyDirs` stop boundary for user-scope
 
-The stop boundary is `cwd` (the project directory). For user-scope tools under `~/.ai-tools/tools/`, the loop terminates immediately and leaves stale empty directories accumulating in `~/.ai-tools/tools/`. Not harmful but a maintenance annoyance.
+The stop boundary is `cwd` (the project directory). For user-scope tools under `~/.aitools/tools/`, the loop terminates immediately and leaves stale empty directories accumulating in `~/.aitools/tools/`. Not harmful but a maintenance annoyance.
 
 #### Write auth defaults to disabled
 
@@ -168,9 +168,9 @@ When `publishToken` is not configured, `POST /tools` is open to anyone who can r
 
 | Package | Statements | Branch | Functions |
 |---|---|---|---|
-| `@ai-tools/core` | 81.5% | 66.7% | 75% |
-| `@ai-tools/cli` | 47.4% | 33.5% | 38.2% |
-| `@ai-tools/server` | 94.0% | 62.0% | 97.2% |
+| `@aitools/core` | 81.5% | 66.7% | 75% |
+| `@aitools/cli` | 47.4% | 33.5% | 38.2% |
+| `@aitools/server` | 94.0% | 62.0% | 97.2% |
 
 ### 5.1 Core — gaps
 

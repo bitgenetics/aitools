@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -100,19 +100,19 @@ describe('ConfigCascade.readFile', () => {
   });
 
   it('returns null for a file containing invalid JSON', () => {
-    const file = path.join(tmp, 'ai-tools.config.json');
+    const file = path.join(tmp, 'aitools.config.json');
     fs.writeFileSync(file, 'not json', 'utf8');
     expect(ConfigCascade.readFile(file)).toBeNull();
   });
 
   it('returns null when the JSON fails schema validation', () => {
-    const file = path.join(tmp, 'ai-tools.config.json');
+    const file = path.join(tmp, 'aitools.config.json');
     fs.writeFileSync(file, JSON.stringify({ defaultScope: 'invalid-scope' }), 'utf8');
     expect(ConfigCascade.readFile(file)).toBeNull();
   });
 
   it('returns the parsed config for a valid file', () => {
-    const file = path.join(tmp, 'ai-tools.config.json');
+    const file = path.join(tmp, 'aitools.config.json');
     fs.writeFileSync(file, JSON.stringify({ defaultScope: 'user' }), 'utf8');
     expect(ConfigCascade.readFile(file)).toEqual({ defaultScope: 'user' });
   });
@@ -121,7 +121,7 @@ describe('ConfigCascade.readFile', () => {
     const config = {
       registries: [{ name: 'test', url: 'https://test.example.com' }],
     };
-    const file = path.join(tmp, 'ai-tools.config.json');
+    const file = path.join(tmp, 'aitools.config.json');
     fs.writeFileSync(file, JSON.stringify(config), 'utf8');
     const result = ConfigCascade.readFile(file);
     expect(result?.registries).toHaveLength(1);
@@ -150,7 +150,7 @@ describe('ConfigCascade.load', () => {
 
   it('reads platform from a project-level config file', () => {
     fs.writeFileSync(
-      path.join(tmp, 'ai-tools.config.json'),
+      path.join(tmp, 'aitools.config.json'),
       JSON.stringify({ platform: 'vscode' }),
       'utf8',
     );
@@ -159,7 +159,7 @@ describe('ConfigCascade.load', () => {
 
   it('reads defaultScope from a project-level config file', () => {
     fs.writeFileSync(
-      path.join(tmp, 'ai-tools.config.json'),
+      path.join(tmp, 'aitools.config.json'),
       JSON.stringify({ defaultScope: 'user' }),
       'utf8',
     );
@@ -171,12 +171,12 @@ describe('ConfigCascade.load', () => {
     try {
       const child = fs.mkdtempSync(path.join(parent, 'child-'));
       fs.writeFileSync(
-        path.join(parent, 'ai-tools.config.json'),
+        path.join(parent, 'aitools.config.json'),
         JSON.stringify({ platform: 'claude' }),
         'utf8',
       );
       fs.writeFileSync(
-        path.join(child, 'ai-tools.config.json'),
+        path.join(child, 'aitools.config.json'),
         JSON.stringify({ platform: 'cursor' }),
         'utf8',
       );
@@ -188,7 +188,7 @@ describe('ConfigCascade.load', () => {
 
   it('silently skips a file with an invalid schema', () => {
     fs.writeFileSync(
-      path.join(tmp, 'ai-tools.config.json'),
+      path.join(tmp, 'aitools.config.json'),
       JSON.stringify({ defaultScope: 'not-a-valid-scope' }),
       'utf8',
     );
@@ -203,17 +203,17 @@ describe('ConfigCascade.load', () => {
 describe('ConfigCascade.resolveConfigFiles', () => {
   it('includes the home directory path', () => {
     const files = ConfigCascade.resolveConfigFiles('/tmp/some-project');
-    const homeConfig = path.join(os.homedir(), 'ai-tools.config.json');
+    const homeConfig = path.join(os.homedir(), 'aitools.config.json');
     expect(files).toContain(homeConfig);
   });
 
   it('includes the cwd itself', () => {
     const files = ConfigCascade.resolveConfigFiles('/tmp/myproject');
-    expect(files.some((f) => f.endsWith(`myproject${path.sep}ai-tools.config.json`))).toBe(true);
+    expect(files.some((f) => f.endsWith(`myproject${path.sep}aitools.config.json`))).toBe(true);
   });
 
   it('does not include the home directory config twice when cwd is the home dir', () => {
-    const homeConfig = path.join(os.homedir(), 'ai-tools.config.json');
+    const homeConfig = path.join(os.homedir(), 'aitools.config.json');
     const files = ConfigCascade.resolveConfigFiles(os.homedir());
     const count = files.filter((f) => f === homeConfig).length;
     expect(count).toBe(1);
@@ -221,29 +221,29 @@ describe('ConfigCascade.resolveConfigFiles', () => {
 
   it('lists home config before project config (home is lower priority)', () => {
     const files = ConfigCascade.resolveConfigFiles('/tmp/myproject');
-    const homeIndex = files.findIndex((f) => f === path.join(os.homedir(), 'ai-tools.config.json'));
+    const homeIndex = files.findIndex((f) => f === path.join(os.homedir(), 'aitools.config.json'));
     const projIndex = files.findIndex((f) => f.includes('myproject'));
     expect(homeIndex).toBeLessThan(projIndex);
   });
 
-  it('stops walking at AI_TOOLS_CONFIG_ROOT when set', () => {
+  it('stops walking at AITOOLS_CONFIG_ROOT when set', () => {
     const root = path.join(os.tmpdir(), 'config-root-boundary');
     const project = path.join(root, 'nested', 'project');
-    const previousRoot = process.env['AI_TOOLS_CONFIG_ROOT'];
-    process.env['AI_TOOLS_CONFIG_ROOT'] = root;
+    const previousRoot = process.env['AITOOLS_CONFIG_ROOT'];
+    process.env['AITOOLS_CONFIG_ROOT'] = root;
     try {
       const files = ConfigCascade.resolveConfigFiles(project);
-      const homeConfig = path.join(os.homedir(), 'ai-tools.config.json');
+      const homeConfig = path.join(os.homedir(), 'aitools.config.json');
       const walkedFiles = files.filter((f) => f !== homeConfig);
       expect(walkedFiles.every((f) => f.startsWith(root))).toBe(true);
       expect(walkedFiles).toEqual([
-        path.join(root, 'ai-tools.config.json'),
-        path.join(root, 'nested', 'ai-tools.config.json'),
-        path.join(project, 'ai-tools.config.json'),
+        path.join(root, 'aitools.config.json'),
+        path.join(root, 'nested', 'aitools.config.json'),
+        path.join(project, 'aitools.config.json'),
       ]);
     } finally {
-      if (previousRoot === undefined) delete process.env['AI_TOOLS_CONFIG_ROOT'];
-      else process.env['AI_TOOLS_CONFIG_ROOT'] = previousRoot;
+      if (previousRoot === undefined) delete process.env['AITOOLS_CONFIG_ROOT'];
+      else process.env['AITOOLS_CONFIG_ROOT'] = previousRoot;
     }
   });
 });

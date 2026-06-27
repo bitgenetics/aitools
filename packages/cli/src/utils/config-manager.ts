@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -15,8 +15,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ConfigCascade } from '@ai-tools/core';
-import type { AiToolsConfig, InstallScope, TargetPlatform, ToolCategory } from '@ai-tools/core';
+import { ConfigCascade, CONFIG_FILENAME } from '@aitools/core';
+import type { AiToolsConfig, InstallScope, TargetPlatform, ToolCategory } from '@aitools/core';
 import { getAdapter } from '../adapters/index.js';
 import type { PlatformAdapter } from '../adapters/index.js';
 
@@ -127,14 +127,14 @@ export class ConfigManager {
     return [...registries].sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100));
   }
 
-  /** Write a project-level ai-tools.config.json. */
+  /** Write a project-level aitools.config.json. */
   writeProjectConfig(patch: Partial<AiToolsConfig>): void {
-    this.writeConfigFile(path.join(this.cwd, 'ai-tools.config.json'), patch);
+    this.writeConfigFile(path.join(this.cwd, CONFIG_FILENAME), patch);
   }
 
-  /** Write a user-level ai-tools.config.json in the home directory. */
+  /** Write a user-level aitools.config.json in the home directory. */
   writeUserConfig(patch: Partial<AiToolsConfig>): void {
-    this.writeConfigFile(path.join(os.homedir(), 'ai-tools.config.json'), patch);
+    this.writeConfigFile(path.join(os.homedir(), CONFIG_FILENAME), patch);
   }
 
   private writeConfigFile(filePath: string, patch: Partial<AiToolsConfig>): void {

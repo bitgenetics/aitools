@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -18,10 +18,10 @@ import type { AiToolsLock, LockEntry } from '../types/lock.js';
 import { AiToolsLockSchema } from '../schema/config-schema.js';
 import { emptyLock } from '../types/lock.js';
 
-export const LOCK_FILENAME = 'ai-tools-lock.json';
+export const LOCK_FILENAME = 'aitools-lock.json';
 
 /**
- * Read an ai-tools-lock.json from disk.
+ * Read an aitools-lock.json from disk.
  * Returns an empty lock if the file does not exist.
  * Throws a descriptive error if the file exists but is malformed.
  */
@@ -45,7 +45,7 @@ export function readLockFile(dir: string): AiToolsLock {
 }
 
 /**
- * Write an ai-tools-lock.json to disk atomically (write → rename).
+ * Write an aitools-lock.json to disk atomically (write ? rename).
  */
 export function writeLockFile(dir: string, lock: AiToolsLock): void {
   const filePath = path.join(dir, LOCK_FILENAME);

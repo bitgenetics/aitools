@@ -5,7 +5,7 @@
 
 ## System Overview
 
-`ai-tools` is a package manager for AI tools — skills, subagents, prompts, and MCP tools. Think `npm` for the AI tooling ecosystem. It is a TypeScript + Node.js ≥20 ESM monorepo with four packages: `@ai-tools/core`, `@ai-tools/cli` (binary: `aitools`), `@ai-tools/server` (Fastify HTTP registry), and `@ai-tools/e2e`. Registries can be **HTTP** (`@ai-tools/server`) or **git-backed** (any git remote, no server). Project context for AI assistants lives in `.ai/product-changelog/` (load `index.md` first, then section files as needed).
+`AITools` is a package manager for AI tools — skills, subagents, prompts, and MCP tools. Think `npm` for the AI tooling ecosystem. It is a TypeScript + Node.js ≥20 ESM monorepo with four packages: `@aitools/core`, `@aitools/cli` (binary: `aitools`), `@aitools/server` (Fastify HTTP registry), and `@aitools/e2e`. Registries can be **HTTP** (`@aitools/server`) or **git-backed** (any git remote, no server). Project context for AI assistants lives in `.ai/product-changelog/` (load `index.md` first, then section files as needed).
 
 ---
 

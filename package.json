@@ -1,13 +1,13 @@
 {
-  "name": "ai-tools",
+  "name": "aitools",
   "private": true,
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @ai-tools/core && npm run build -w @ai-tools/cli && npm run build -w @ai-tools/server",
+    "build": "npm run build -w @aitools/core && npm run build -w @aitools/cli && npm run build -w @aitools/server",
     "dev": "npm run dev --workspaces --if-present",
-    "test": "npm test -w @ai-tools/core -w @ai-tools/cli -w @ai-tools/server",
+    "test": "npm test -w @aitools/core -w @aitools/cli -w @aitools/server",
     "test:e2e": "docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans && docker compose -f docker-compose.e2e.yml up --build --exit-code-from e2e --attach e2e --no-log-prefix",
     "test:e2e:verbose": "docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans && docker compose -f docker-compose.e2e.yml up --build --exit-code-from e2e",
     "test:e2e:down": "docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans",

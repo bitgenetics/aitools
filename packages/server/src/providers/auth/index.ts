@@ -21,6 +21,7 @@ import type { IAuthProvider } from './types.js';
 import { SimpleAuthProvider } from './simple.js';
 import { DatabaseAuthProvider } from './database.js';
 import { OidcAuthProvider } from './oidc.js';
+import { readEnv } from '../../env.js';
 import type { PublisherAuthConfig } from '../../auth/publisher-auth.js';
 import type { UserStore } from '../../storage/user-store.js';
 
@@ -51,7 +52,7 @@ export interface AuthProviderConfig {
  *
  * Reads from env vars when called without config:
  *   AUTH_BACKEND=simple|database|oidc  (default: simple)
- *   AI_TOOLS_ADMIN_TOKEN
+ *   AITOOLS_ADMIN_TOKEN
  *   OIDC_ISSUER / OIDC_AUDIENCE / OIDC_ADMIN_ROLE / OIDC_ORG_CLAIM
  */
 export function createAuthProvider(config?: AuthProviderConfig): IAuthProvider {
@@ -60,7 +61,7 @@ export function createAuthProvider(config?: AuthProviderConfig): IAuthProvider {
     (process.env['AUTH_BACKEND'] as AuthBackend | undefined) ??
     'simple';
 
-  const adminToken = config?.adminToken ?? process.env['AI_TOOLS_ADMIN_TOKEN'];
+  const adminToken = config?.adminToken ?? readEnv('AITOOLS_ADMIN_TOKEN');
 
   switch (backend) {
     case 'simple':

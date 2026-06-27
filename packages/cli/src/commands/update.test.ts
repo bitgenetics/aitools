@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -18,8 +18,8 @@ import path from 'node:path';
 import { createUpdateCommand } from './update.js';
 import { createRegistryClient } from '../utils/registry-client.js';
 import { Installer } from '../utils/installer.js';
-import { writeLockFile, upsertLockEntry, emptyLock } from '@ai-tools/core';
-import type { ToolManifest } from '@ai-tools/core';
+import { writeLockFile, upsertLockEntry, emptyLock } from '@aitools/core';
+import type { ToolManifest } from '@aitools/core';
 
 jest.mock('../utils/registry-client.js');
 jest.mock('../utils/installer.js');
@@ -61,9 +61,9 @@ describe('update command', () => {
   const originalCwd = process.cwd();
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-update-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-update-'));
     fs.writeFileSync(
-      path.join(tmp, 'ai-tools.config.json'),
+      path.join(tmp, 'aitools.config.json'),
       JSON.stringify({ registries: [{ name: 'test', url: 'http://registry.example.com' }] }),
       'utf8',
     );
@@ -75,7 +75,7 @@ describe('update command', () => {
     fs.rmSync(tmp, { recursive: true });
   });
 
-  it('exits with 1 when no ai-tools.json is found', async () => {
+  it('exits with 1 when no aitools.json is found', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => {});
     const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
       throw new Error(`process.exit(${code})`);
@@ -88,7 +88,7 @@ describe('update command', () => {
   });
 
   it('prints a message when there are no tools to update', async () => {
-    fs.writeFileSync(path.join(tmp, 'ai-tools.json'), JSON.stringify({ tools: {} }), 'utf8');
+    fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify({ tools: {} }), 'utf8');
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     await createUpdateCommand().parseAsync([], { from: 'user' });
     const output = logSpy.mock.calls.map((a) => String(a[0])).join('\n');
@@ -97,7 +97,7 @@ describe('update command', () => {
   });
 
   it('queries registry versions for each installed tool', async () => {
-    fs.writeFileSync(path.join(tmp, 'ai-tools.json'), JSON.stringify({ tools: { 'my-skill': '^1.0.0' } }), 'utf8');
+    fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify({ tools: { 'my-skill': '^1.0.0' } }), 'utf8');
     writeLockFile(
       tmp,
       upsertLockEntry(emptyLock(), 'my-skill', {

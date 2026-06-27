@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -15,7 +15,7 @@
 import os from 'node:os';
 import path from 'node:path';
 import type { PlatformAdapter } from './types.js';
-import type { ToolCategory, InstallScope } from '@ai-tools/core';
+import type { ToolCategory, InstallScope } from '@aitools/core';
 
 /**
  * Cursor IDE adapter.
@@ -24,16 +24,16 @@ import type { ToolCategory, InstallScope } from '@ai-tools/core';
  * paths for file-based categories for cross-IDE portability.
  *
  * Project scope paths:
- *   skill    → .agents/skills/   (Agent Skills spec — universal)
- *   subagent → .agents/agents/
- *   prompt   → .agents/prompts/
- *   mcp      → .cursor/mcp.json  (Cursor-specific)
+ *   skill    ? .agents/skills/   (Agent Skills spec � universal)
+ *   subagent ? .agents/agents/
+ *   prompt   ? .agents/prompts/
+ *   mcp      ? .cursor/mcp.json  (Cursor-specific)
  *
  * User scope paths:
- *   skill    → ~/.ai-tools/tools/skills/
- *   subagent → ~/.ai-tools/tools/agents/
- *   prompt   → ~/.ai-tools/tools/prompts/
- *   mcp      → ~/.cursor/mcp.json
+ *   skill    ? ~/.aitools/tools/skills/
+ *   subagent ? ~/.aitools/tools/agents/
+ *   prompt   ? ~/.aitools/tools/prompts/
+ *   mcp      ? ~/.cursor/mcp.json
  */
 export class CursorAdapter implements PlatformAdapter {
   readonly platform = 'cursor' as const;
@@ -45,9 +45,9 @@ export class CursorAdapter implements PlatformAdapter {
       prompt:   path.join('.agents', 'prompts'),
     },
     user: {
-      skill:    path.join(os.homedir(), '.ai-tools', 'tools', 'skills'),
-      subagent: path.join(os.homedir(), '.ai-tools', 'tools', 'agents'),
-      prompt:   path.join(os.homedir(), '.ai-tools', 'tools', 'prompts'),
+      skill:    path.join(os.homedir(), '.aitools', 'tools', 'skills'),
+      subagent: path.join(os.homedir(), '.aitools', 'tools', 'agents'),
+      prompt:   path.join(os.homedir(), '.aitools', 'tools', 'prompts'),
     },
   };
 

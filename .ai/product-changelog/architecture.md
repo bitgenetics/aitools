@@ -13,7 +13,7 @@
 ---
 
 ### Platform adapter pattern for install path resolution — 2026-04-26 `d0b6f60`
-**What**: A `PlatformAdapter` interface (`resolveDir`, `resolveMcpConfig`) is implemented by five adapters: `universal`, `vscode`, `claude`, `cursor`, `windsurf`. `ConfigManager` selects the active adapter from `ai-tools.config.json`.  
+**What**: A `PlatformAdapter` interface (`resolveDir`, `resolveMcpConfig`) is implemented by five adapters: `universal`, `vscode`, `claude`, `cursor`, `windsurf`. `ConfigManager` selects the active adapter from `aitools.config.json`.  
 **Why**: Each IDE places skills/agents/prompts in different directories and config formats. The adapter isolates this variation so `Installer` never needs to branch on platform.  
 **Impact**: Adding a new platform requires only a new adapter class + platform spec entry. No changes to install, uninstall, or update logic.  
 **Key files**: `packages/cli/src/adapters/`, `packages/core/src/platforms/`, `packages/cli/src/utils/config-manager.ts`
@@ -21,15 +21,15 @@
 ---
 
 ### Git-backed registry mode — 2026-06-26 `d7f8fa0`
-**What**: Registries can be `type: "git"` — tool packages are stored in a git repo under `registry/<tool>/<version>/` (`manifest.json` + `tool.json`). The CLI maintains a local clone at `~/.ai-tools/git-cache/<name>/` and delegates auth to system git.  
-**Why**: Small teams and solo devs often already have a private git repo; this avoids hosting `@ai-tools/server` while still supporting install/search/publish through the same CLI commands.  
+**What**: Registries can be `type: "git"` — tool packages are stored in a git repo under `registry/<tool>/<version>/` (`manifest.json` + `tool.json`). The CLI maintains a local clone at `~/.aitools/git-cache/<name>/` and delegates auth to system git.  
+**Why**: Small teams and solo devs often already have a private git repo; this avoids hosting `@aitools/server` while still supporting install/search/publish through the same CLI commands.  
 **Impact**: `RegistryConfig` is a discriminated union (`http` | `git`). `createRegistryClient()` dispatches to `HttpRegistryClient` or `GitRegistryClient`. Configs without `type` remain HTTP for backward compatibility. Lock `resolved` accepts git remote URLs.  
 **Key files**: `packages/cli/src/utils/git-registry-client.ts`, `packages/core/src/schema/config-schema.ts`, `packages/cli/src/commands/registry.ts`
 
 ---
 
 ### Config cascade (home → project) — 2026-04-26 `d0b6f60` (updated `d7f8fa0`)
-**What**: `ConfigCascade.load()` walks from `cwd` up to the filesystem root, then the user home, reading `ai-tools.config.json` at each level. Lower-level files win; arrays (registries) are merged with lower-level entries prepended. `AI_TOOLS_CONFIG_ROOT` stops the upward walk at a boundary (used by e2e to isolate from the real user profile on Windows).  
+**What**: `ConfigCascade.load()` walks from `cwd` up to the filesystem root, then the user home, reading `aitools.config.json` at each level. Lower-level files win; arrays (registries) are merged with lower-level entries prepended. `AITOOLS_CONFIG_ROOT` stops the upward walk at a boundary (used by e2e to isolate from the real user profile on Windows).  
 **Why**: Users need project-level overrides (platform, registry) without touching a global config. Mirrors the mental model of `.npmrc`.  
 **Impact**: Project-level config always beats home config. Never mutate the merged result — reload after writes.  
 **Key files**: `packages/core/src/config/cascade.ts`, `packages/core/src/types/config.ts`
@@ -37,7 +37,7 @@
 ---
 
 ### Fastify registry server with ToolStore JSON persistence — 2026-04-26 `d0b6f60`
-**What**: `@ai-tools/server` is a standalone Fastify v5 HTTP server exposing REST endpoints for tool discovery, download, and publish. `ToolStore` persists manifests as JSON + tarballs under `./data/`.  
+**What**: `@aitools/server` is a standalone Fastify v5 HTTP server exposing REST endpoints for tool discovery, download, and publish. `ToolStore` persists manifests as JSON + tarballs under `./data/`.  
 **Why**: A self-hosted registry allows teams to publish internal tools privately. Fastify was chosen for its TypeScript-first design and low overhead. `buildApp()` is separated from `listen()` so tests can inject requests without binding a port.  
 **Impact**: The server is stateless per request; all state lives in `ToolStore`. Registry chaining (proxy search to upstreams) is handled in `routes/registry.ts`.  
 **Key files**: `packages/server/src/app.ts`, `packages/server/src/storage/tool-store.ts`, `packages/server/src/routes/`
@@ -45,7 +45,7 @@
 ---
 
 ### Registry chaining with priority ordering — 2026-04-26 `d0b6f60`
-**What**: Multiple registries are configured as an ordered list in `ai-tools.config.json`. The CLI queries them by priority (lower number = higher priority). Search merges results across all registries; install/fetch stops at the first registry that has the package.  
+**What**: Multiple registries are configured as an ordered list in `aitools.config.json`. The CLI queries them by priority (lower number = higher priority). Search merges results across all registries; install/fetch stops at the first registry that has the package.  
 **Why**: Enables a private registry to shadow public tools by name while still falling back to the public registry for everything else. Mirrors npm scoped registry behaviour.  
 **Impact**: The first registry with a matching tool name wins for installs. Search results may contain duplicates across registries — the CLI deduplicates by name.  
 **Key files**: `packages/cli/src/utils/registry-client.ts`, `packages/server/src/routes/registry.ts`
@@ -93,7 +93,7 @@
 ---
 
 ### Design documentation aligned with implementation — 2026-06-15 `21e553f`
-**What**: Comprehensive `docs/design/` suite (API, data model, deployment, platform adapter, flows) updated to reflect actual behaviour: filesystem tool storage, bearer auth (not JWT), `aitools` binary name, four packages, real endpoint catalog.  
+**What**: Comprehensive `docs/design/` suite updated to reflect actual behaviour: filesystem tool storage, bearer auth (not JWT), `aitools` binary name, four packages, real endpoint catalog.  
 **Why**: Original May 2026 docs described aspirational PostgreSQL/Redis/JWT architecture that was never implemented.  
 **Impact**: Prefer `docs/design/` over `readme.md` for API accuracy. `docs/setup-plans/github-azure.md` documents target Azure deployment; Azure Blob and OIDC providers remain stubs in code.  
 **Key files**: `docs/design/DESIGN-INDEX.md`, `docs/design/api-design.md`, `docs/deployment.md`, `docs/setup-plans/github-azure.md`

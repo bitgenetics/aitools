@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide provides practical implementation details for developers working on the ai-tools ecosystem. It covers code structure, patterns, conventions, and best practices.
+This guide provides practical implementation details for developers working on the AITools ecosystem. It covers code structure, patterns, conventions, and best practices.
 
 ---
 
@@ -27,7 +27,7 @@ This guide provides practical implementation details for developers working on t
 ```
 ai-tools/
 ├── packages/
-│   ├── @ai-tools/core/          # Library (types, schemas, utilities)
+│   ├── @aitools/core/          # Library (types, schemas, utilities)
 │   │   ├── src/
 │   │   │   ├── types/           # TypeScript type definitions
 │   │   │   ├── schema/          # Zod validation schemas
@@ -40,7 +40,7 @@ ai-tools/
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
-│   ├── @ai-tools/cli/           # CLI binary
+│   ├── @aitools/cli/           # CLI binary
 │   │   ├── src/
 │   │   │   ├── cli.ts           # CLI entry point
 │   │   │   ├── index.ts         # Public API exports
@@ -56,7 +56,7 @@ ai-tools/
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
-│   └── @ai-tools/server/        # Registry server
+│   └── @aitools/server/        # Registry server
 │       ├── src/
 │       │   ├── app.ts           # Application builder
 │       │   ├── index.ts         # Entry point
@@ -73,7 +73,7 @@ ai-tools/
 │       ├── package.json
 │       └── tsconfig.json
 │
-│   └── @ai-tools/e2e/           # Docker-based end-to-end tests
+│   └── @aitools/e2e/           # Docker-based end-to-end tests
 │
 ├── sandbox/                     # Testing sandbox
 └── docs/
@@ -158,13 +158,13 @@ vi packages/server/src/routes/tools.ts
 
 ```bash
 # Run tests for specific package
-npm test -w @ai-tools/core
+npm test -w @aitools/core
 
 # Run tests for CLI
-npm test -w @ai-tools/cli
+npm test -w @aitools/cli
 
 # Run tests for server
-npm test -w @ai-tools/server
+npm test -w @aitools/server
 
 # Run all tests
 npm test
@@ -177,7 +177,7 @@ npm test -- --coverage
 
 ```bash
 # Build specific package
-npm run build -w @ai-tools/core
+npm run build -w @aitools/core
 
 # Build all packages
 npm run build
@@ -254,9 +254,9 @@ describe('YourModule', () => {
 
 ### Test Coverage Targets
 
-- **@ai-tools/core**: ≥ 80%
-- **@ai-tools/cli**: ≥ 80%
-- **@ai-tools/server**: Integration tests via Fastify `inject()`
+- **@aitools/core**: ≥ 80%
+- **@aitools/cli**: ≥ 80%
+- **@aitools/server**: Integration tests via Fastify `inject()`
 
 ### Running Tests
 
@@ -265,7 +265,7 @@ describe('YourModule', () => {
 npm test
 
 # Run single package
-npm test -w @ai-tools/core
+npm test -w @aitools/core
 
 # Run with coverage
 npm test -- --coverage
@@ -283,7 +283,7 @@ npm run dev
 
 ```typescript
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { ConfigCascade } from '@ai-tools/core';
+import { ConfigCascade } from '@aitools/core';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -315,17 +315,17 @@ describe('ConfigCascade', () => {
       };
 
       fs.writeFileSync(
-        path.join(projectDir, 'ai-tools.config.json'),
+        path.join(projectDir, 'aitools.config.json'),
         JSON.stringify(projectConfig),
       );
       fs.writeFileSync(
-        path.join(homeDir, 'ai-tools.config.json'),
+        path.join(homeDir, 'aitools.config.json'),
         JSON.stringify(homeConfig),
       );
 
       const config = ConfigCascade.merge([
-        ConfigCascade.readFile(path.join(homeDir, 'ai-tools.config.json'))!,
-        ConfigCascade.readFile(path.join(projectDir, 'ai-tools.config.json'))!,
+        ConfigCascade.readFile(path.join(homeDir, 'aitools.config.json'))!,
+        ConfigCascade.readFile(path.join(projectDir, 'aitools.config.json'))!,
       ]);
 
       expect(config.platform).toBe('vscode');
@@ -355,7 +355,7 @@ describe('ConfigCascade', () => {
 
 ```typescript
 import { describe, it, expect } from '@jest/globals';
-import { getAdapter } from '../adapters/index.js'; // from @ai-tools/cli
+import { getAdapter } from '../adapters/index.js'; // from @aitools/cli
 
 describe('getAdapter()', () => {
   it('returns an adapter for every supported platform', () => {
@@ -380,7 +380,7 @@ describe('getAdapter()', () => {
 
 ```typescript
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { readLockFile, writeLockFile, upsertLockEntry, LOCK_FILENAME } from '@ai-tools/core';
+import { readLockFile, writeLockFile, upsertLockEntry, LOCK_FILENAME } from '@aitools/core';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -429,7 +429,7 @@ describe('lock file utilities', () => {
 ```typescript
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import nock from 'nock';
-import { RegistryClient } from '@ai-tools/cli';
+import { RegistryClient } from '@aitools/cli';
 
 describe('RegistryClient', () => {
   let client: RegistryClient;
@@ -476,7 +476,7 @@ describe('RegistryClient', () => {
 npm test
 
 # Run single package
-npm test -w @ai-tools/core
+npm test -w @aitools/core
 
 # Run with coverage
 npm test -- --coverage
@@ -499,7 +499,7 @@ npm run dev
 npm run build
 
 # Build specific package
-npm run build -w @ai-tools/core
+npm run build -w @aitools/core
 
 # Build in watch mode
 npm run dev
@@ -508,9 +508,9 @@ npm run dev
 npm run clean
 
 # Clean all packages
-npm run clean -w @ai-tools/core
-npm run clean -w @ai-tools/cli
-npm run clean -w @ai-tools/server
+npm run clean -w @aitools/core
+npm run clean -w @aitools/cli
+npm run clean -w @aitools/server
 ```
 
 ### Deployment
@@ -558,7 +558,7 @@ docker-compose down -v
 ### 1. Config Cascade Pattern
 
 ```typescript
-import { ConfigCascade } from '@ai-tools/core';
+import { ConfigCascade } from '@aitools/core';
 
 // Load configuration from cascade
 const config = ConfigCascade.load(cwd);
@@ -583,7 +583,7 @@ const installPath = adapter.resolveDir(category, scope, cwd);
 ### 3. Schema Validation Pattern
 
 ```typescript
-import { ToolManifestSchema } from '@ai-tools/core';
+import { ToolManifestSchema } from '@aitools/core';
 
 // Validate manifest
 const result = ToolManifestSchema.safeParse(raw);

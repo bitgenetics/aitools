@@ -28,16 +28,16 @@ const AUTH_BACKEND = process.env['AUTH_BACKEND'] ?? 'simple';
 const DATABASE_URL = process.env['DATABASE_URL'];
 
 if (AUTH_BACKEND === 'database' && !DATABASE_URL) {
-  console.error('[ai-tools] FATAL: AUTH_BACKEND=database requires DATABASE_URL to be set.');
+  console.error('[aitools] FATAL: AUTH_BACKEND=database requires DATABASE_URL to be set.');
   process.exit(1);
 }
 if (AUTH_BACKEND === 'oidc') {
   if (!process.env['OIDC_ISSUER']) {
-    console.error('[ai-tools] FATAL: AUTH_BACKEND=oidc requires OIDC_ISSUER to be set.');
+    console.error('[aitools] FATAL: AUTH_BACKEND=oidc requires OIDC_ISSUER to be set.');
     process.exit(1);
   }
   if (!process.env['OIDC_AUDIENCE']) {
-    console.error('[ai-tools] FATAL: AUTH_BACKEND=oidc requires OIDC_AUDIENCE to be set.');
+    console.error('[aitools] FATAL: AUTH_BACKEND=oidc requires OIDC_AUDIENCE to be set.');
     process.exit(1);
   }
 }
@@ -62,10 +62,10 @@ async function main() {
       await seedAdminUser(pool);
       userStore = new UserStore(pool);
       stopCleanup = startTokenCleanup(pool);
-      console.log('[ai-tools] Database connected and schema ready.');
+      console.log('[aitools] Database connected and schema ready.');
     } catch (err) {
-      console.error('[ai-tools] Failed to connect to database:', err);
-      console.warn('[ai-tools] Falling back to env-var token auth.');
+      console.error('[aitools] Failed to connect to database:', err);
+      console.warn('[aitools] Falling back to env-var token auth.');
     }
   }
 
@@ -100,7 +100,7 @@ async function main() {
   process.on('SIGINT', () => void shutdown('SIGINT'));
 
   const address = await fastify.listen({ port: PORT, host: HOST });
-  fastify.log.info(`ai-tools registry server running at ${address}`);
+  fastify.log.info(`AITools registry server running at ${address}`);
 }
 
 main().catch((err: unknown) => {

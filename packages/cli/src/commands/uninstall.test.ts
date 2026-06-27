@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -16,8 +16,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createUninstallCommand } from './uninstall.js';
-import { writeLockFile, upsertLockEntry, emptyLock, readLockFile } from '@ai-tools/core';
-import type { LockEntry } from '@ai-tools/core';
+import { writeLockFile, upsertLockEntry, emptyLock, readLockFile } from '@aitools/core';
+import type { LockEntry } from '@aitools/core';
 
 function makeLockEntry(files: string[]): LockEntry {
   return {
@@ -72,16 +72,16 @@ describe('uninstall command', () => {
     expect(lock.tools['my-skill']).toBeUndefined();
   });
 
-  it('removes the tool from ai-tools.json when present', () => {
+  it('removes the tool from aitools.json when present', () => {
     const installedFile = path.join(tmp, 'skill.md');
     fs.writeFileSync(installedFile, '# Skill', 'utf8');
     writeLockFile(tmp, upsertLockEntry(emptyLock(), 'my-skill', makeLockEntry([installedFile])));
-    fs.writeFileSync(path.join(tmp, 'ai-tools.json'), JSON.stringify({ tools: { 'my-skill': '^1.0.0' } }), 'utf8');
+    fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify({ tools: { 'my-skill': '^1.0.0' } }), 'utf8');
 
     jest.spyOn(console, 'log').mockImplementation(() => {});
     createUninstallCommand().parse(['my-skill'], { from: 'user' });
 
-    const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'ai-tools.json'), 'utf8')) as { tools: Record<string, string> };
+    const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as { tools: Record<string, string> };
     expect(manifest.tools['my-skill']).toBeUndefined();
   });
 

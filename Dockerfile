@@ -17,7 +17,7 @@ COPY tsconfig.base.json ./
 COPY packages/core packages/core/
 COPY packages/server packages/server/
 
-RUN npm run build -w @ai-tools/core && npm run build -w @ai-tools/server
+RUN npm run build -w @aitools/core && npm run build -w @aitools/server
 
 # ---- Runtime stage ----
 FROM node:22-alpine
@@ -27,7 +27,7 @@ COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY packages/server/package.json packages/server/
 
-RUN npm ci --workspace=@ai-tools/core --workspace=@ai-tools/server --omit=dev --ignore-scripts
+RUN npm ci --workspace=@aitools/core --workspace=@aitools/server --omit=dev --ignore-scripts
 
 COPY --from=builder /app/packages/core/dist packages/core/dist/
 COPY --from=builder /app/packages/server/dist packages/server/dist/
@@ -40,7 +40,7 @@ EXPOSE 4873
 
 ENV PORT=4873
 ENV HOST=0.0.0.0
-ENV AI_TOOLS_DATA_DIR=/data
+ENV AITOOLS_DATA_DIR=/data
 
 VOLUME ["/data"]
 

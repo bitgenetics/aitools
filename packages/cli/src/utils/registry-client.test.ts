@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,7 +14,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import http from 'node:http';
 import { createRegistryClient } from './registry-client.js';
-import type { ToolManifest } from '@ai-tools/core';
+import type { ToolManifest } from '@aitools/core';
 
 // ---------------------------------------------------------------------------
 // Minimal local HTTP server used across all tests
@@ -92,7 +92,7 @@ describe('createRegistryClient', () => {
     return createRegistryClient({ name: 'test', url: server.url, auth });
   }
 
-  // ── getManifest ────────────────────────────────────────────────────────────
+  // -- getManifest ------------------------------------------------------------
 
   describe('getManifest()', () => {
     it('returns parsed manifest on 200', async () => {
@@ -130,7 +130,7 @@ describe('createRegistryClient', () => {
     });
   });
 
-  // ── listVersions ───────────────────────────────────────────────────────────
+  // -- listVersions -----------------------------------------------------------
 
   describe('listVersions()', () => {
     it('returns the versions array from the registry response', async () => {
@@ -151,7 +151,7 @@ describe('createRegistryClient', () => {
     });
   });
 
-  // ── search ─────────────────────────────────────────────────────────────────
+  // -- search -----------------------------------------------------------------
 
   describe('search()', () => {
     it('returns results with the registry URL attached', async () => {
@@ -181,7 +181,7 @@ describe('createRegistryClient', () => {
     });
   });
 
-  // ── download ───────────────────────────────────────────────────────────────
+  // -- download ---------------------------------------------------------------
 
   describe('download()', () => {
     it('returns the response body as a Buffer with integrity', async () => {
@@ -197,7 +197,7 @@ describe('createRegistryClient', () => {
     });
   });
 
-  // ── publish ────────────────────────────────────────────────────────────────
+  // -- publish ----------------------------------------------------------------
 
   describe('publish()', () => {
     it('returns name, version, and integrity on 201', async () => {
@@ -233,7 +233,7 @@ describe('createRegistryClient', () => {
     });
   });
 
-  // ── authentication headers ─────────────────────────────────────────────────
+  // -- authentication headers -------------------------------------------------
 
   describe('authentication headers', () => {
     it('sends Authorization: Bearer when bearer auth is configured', async () => {
@@ -256,7 +256,7 @@ describe('createRegistryClient', () => {
     });
   });
 
-  // ── network failures ───────────────────────────────────────────────────────
+  // -- network failures -------------------------------------------------------
 
   describe('network failures', () => {
     it('rejects getManifest when the server is not reachable', async () => {

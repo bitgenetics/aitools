@@ -23,7 +23,7 @@ The server emits **structured JSON logs** via Fastify's built-in Pino logger. Ea
 docker compose logs --no-color registry | tee -a /var/log/ai-tools.log
 
 # systemd (logs already in journal)
-journalctl -u ai-tools -o json-pretty -f
+journalctl -u aitools -o json-pretty -f
 ```
 
 ### Forwarding to a log aggregator
@@ -33,7 +33,7 @@ Point your log shipper (Fluentd, Logstash, Vector, etc.) at the container stdout
 ```toml
 [sources.docker]
 type = "docker_logs"
-include_containers = ["ai-tools-registry"]
+include_containers = ["aitools-registry"]
 
 [sinks.loki]
 type = "loki"
@@ -43,7 +43,7 @@ endpoint = "http://loki:3100"
 
 ### Audit log
 
-The org store appends an audit trail to `<AI_TOOLS_DATA_DIR>/audit-log.jsonl`. Each line is a timestamped JSON event. Ship this file separately for compliance.
+The org store appends an audit trail to `<AITOOLS_DATA_DIR>/audit-log.jsonl`. Each line is a timestamped JSON event. Ship this file separately for compliance.
 
 ```bash
 tail -f /data/audit-log.jsonl | jq .
@@ -69,7 +69,7 @@ In Kubernetes, use a `CronJob` backed by a persistent volume or cloud bucket.
 
 ### Filesystem storage
 
-Back up the `AI_TOOLS_DATA_DIR` volume. Because tool files are immutable once published, an rsync snapshot is safe:
+Back up the `AITOOLS_DATA_DIR` volume. Because tool files are immutable once published, an rsync snapshot is safe:
 
 ```bash
 rsync -az /data/ s3://my-bucket/ai-tools-backup/
@@ -85,7 +85,7 @@ For Azure/S3 backends, enable versioning on the container/bucket — no addition
    ```bash
    openssl rand -hex 32
    ```
-2. Update the secret (`AI_TOOLS_ADMIN_TOKEN` in `.env`, Kubernetes secret, or Vault).
+2. Update the secret (`AITOOLS_ADMIN_TOKEN` in `.env`, Kubernetes secret, or Vault).
 3. Restart the server to pick up the new token.
 4. Revoke old tokens via the admin portal (`/portal/admin`) or directly in the database:
    ```sql
@@ -148,7 +148,7 @@ No manual SQL migrations are required for minor versions.
 | Symptom | Likely cause | Fix |
 |---------|-------------|-----|
 | `503` on `/health/ready` | Database unreachable | Check `DATABASE_URL`, Postgres health, firewall rules |
-| `401` on all requests | No auth configured / wrong token | Verify `AI_TOOLS_ADMIN_TOKEN` or `AI_TOOLS_PUBLISHER_TOKENS` in env |
+| `401` on all requests | No auth configured / wrong token | Verify `AITOOLS_ADMIN_TOKEN` or `AITOOLS_PUBLISHER_TOKENS` in env |
 | `429` on login | Rate limit triggered | Wait 15 minutes, or reduce login attempts |
 | Container exits immediately | Bad env var (e.g. `AUTH_BACKEND=database` without `DATABASE_URL`) | Check startup logs for `FATAL:` messages |
-| Tool files missing after restart | `AI_TOOLS_DATA_DIR` not persisted | Mount a named volume or PVC to `/data` |
+| Tool files missing after restart | `AITOOLS_DATA_DIR` not persisted | Mount a named volume or PVC to `/data` |

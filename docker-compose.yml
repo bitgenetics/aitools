@@ -22,7 +22,7 @@ services:
     environment:
       PORT: "4873"
       HOST: "0.0.0.0"
-      AI_TOOLS_DATA_DIR: /data
+      AITOOLS_DATA_DIR: /data
     depends_on:
       postgres:
         condition: service_healthy

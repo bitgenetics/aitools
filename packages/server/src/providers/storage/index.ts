@@ -38,13 +38,14 @@ import { LocalStorageProvider } from './local.js';
 import { AzureStorageProvider } from './azure.js';
 import { S3StorageProvider } from './s3.js';
 import path from 'node:path';
+import { readEnv } from '../../env.js';
 
 /**
  * Construct a storage provider from configuration.
  *
  * Reads from env vars when called without config:
  *   STORAGE_BACKEND=filesystem|azure|s3   (default: filesystem)
- *   AI_TOOLS_DATA_DIR                      (filesystem root)
+ *   AITOOLS_DATA_DIR
  *   AZURE_STORAGE_CONNECTION_STRING
  *   AZURE_STORAGE_CONTAINER
  *   AWS_S3_BUCKET
@@ -57,7 +58,7 @@ export function createStorageProvider(config?: StorageProviderConfig): IStorageP
     case 'filesystem': {
       const root =
         config?.rootDir ??
-        process.env['AI_TOOLS_DATA_DIR'] ??
+        readEnv('AITOOLS_DATA_DIR') ??
         path.resolve(process.cwd(), 'data');
       return new LocalStorageProvider(root);
     }

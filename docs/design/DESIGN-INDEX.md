@@ -1,4 +1,4 @@
-# ai-tools Design Documentation Index
+# AITools Design Documentation Index
 
 **Last Updated**: June 13, 2026  
 **Version**: 1.1.0
@@ -7,7 +7,7 @@
 
 ## Welcome
 
-This folder contains comprehensive design documentation for the **ai-tools** ecosystem. The ai-tools project is a package management system for AI-powered developer tools (skills, subagents, prompts, and MCP servers), modeled after npm but extended for AI tool ecosystems.
+This folder contains comprehensive design documentation for the **ai-tools** ecosystem. AITools is a package management system for AI-powered developer tools (skills, subagents, prompts, and MCP servers), modeled after npm but extended for AI tool ecosystems.
 
 ---
 
@@ -60,7 +60,7 @@ This folder contains comprehensive design documentation for the **ai-tools** eco
 
 ### System Architecture
 
-**Purpose**: Understand the overall structure and components of the ai-tools ecosystem.
+**Purpose**: Understand the overall structure and components of the AITools ecosystem.
 
 **Key Topics**:
 - Package dependency graph
@@ -73,10 +73,10 @@ This folder contains comprehensive design documentation for the **ai-tools** eco
 **Architecture Highlights**:
 ```
 packages/
-├── @ai-tools/core/      # Library (types, schemas, utilities)
-├── @ai-tools/cli/       # CLI binary (aitools)
-├── @ai-tools/server/    # Registry API server
-└── @ai-tools/e2e/       # Docker-based E2E tests
+├── @aitools/core/      # Library (types, schemas, utilities)
+├── @aitools/cli/       # CLI binary (aitools)
+├── @aitools/server/    # Registry API server
+└── @aitools/e2e/       # Docker-based E2E tests
 ```
 
 **Audience**: Architects, developers, system designers
@@ -212,9 +212,9 @@ packages/
 ```
 ai-tools/
 ├── packages/
-│   ├── @ai-tools/core/      # Library
-│   ├── @ai-tools/cli/       # CLI
-│   └── @ai-tools/server/    # Server
+│   ├── @aitools/core/      # Library
+│   ├── @aitools/cli/       # CLI
+│   └── @aitools/server/    # Server
 └── docs/design/             # This folder
 ```
 
@@ -228,7 +228,7 @@ aitools install my-skill@1.2.0
 aitools search "python skill"
 
 # Publish a tool
-aitools publish --manifest ai-tools.manifest.json
+aitools publish --manifest aitools.manifest.json
 
 # List installed tools
 aitools list
@@ -249,9 +249,9 @@ aitools list
 
 | File | Purpose | Location |
 |------|---------|----------|
-| `ai-tools.json` | Project dependencies | Project root |
-| `ai-tools.config.json` | Registry and platform config | Project root |
-| `ai-tools-lock.json` | Installation records | Project root |
+| `aitools.json` | Project dependencies | Project root |
+| `aitools.config.json` | Registry and platform config | Project root |
+| `aitools-lock.json` | Installation records | Project root |
 
 ---
 
@@ -323,7 +323,7 @@ If you have feedback or suggestions for improving this documentation:
 
 ## License
 
-This documentation is licensed under the same license as the ai-tools project.
+This documentation is licensed under the same license as the AITools project.
 
 ---
 

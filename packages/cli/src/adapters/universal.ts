@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -15,19 +15,19 @@
 import os from 'node:os';
 import path from 'node:path';
 import type { PlatformAdapter } from './types.js';
-import type { ToolCategory, InstallScope } from '@ai-tools/core';
+import type { ToolCategory, InstallScope } from '@aitools/core';
 
 /**
- * Universal adapter — internal fallback used when no platform is configured.
+ * Universal adapter � internal fallback used when no platform is configured.
  *
- * ~/.ai-tools/ is our tool's home directory on the user machine:
- *   cache/     ← downloaded tarballs, extracted to .agents/ structure
- *   tools/     ← user-scope installs when no IDE platform is set
+ * ~/.aitools/ is our tool's home directory on the user machine:
+ *   cache/     ? downloaded tarballs, extracted to .agents/ structure
+ *   tools/     ? user-scope installs when no IDE platform is set
  *
  * Project scope uses .agents/ (visible project-level fallback).
- * User scope uses ~/.ai-tools/tools/ (our dedicated home dir).
+ * User scope uses ~/.aitools/tools/ (our dedicated home dir).
  *
- * Users should always set "platform" in ai-tools.config.json so files
+ * Users should always set "platform" in aitools.config.json so files
  * land in the location their IDE expects.
  */
 export class UniversalAdapter implements PlatformAdapter {
@@ -40,9 +40,9 @@ export class UniversalAdapter implements PlatformAdapter {
       prompt:   path.join('.agents', 'prompts'),
     },
     user: {
-      skill:    path.join(os.homedir(), '.ai-tools', 'tools', 'skills'),
-      subagent: path.join(os.homedir(), '.ai-tools', 'tools', 'agents'),
-      prompt:   path.join(os.homedir(), '.ai-tools', 'tools', 'prompts'),
+      skill:    path.join(os.homedir(), '.aitools', 'tools', 'skills'),
+      subagent: path.join(os.homedir(), '.aitools', 'tools', 'agents'),
+      prompt:   path.join(os.homedir(), '.aitools', 'tools', 'prompts'),
     },
   };
 
@@ -53,7 +53,7 @@ export class UniversalAdapter implements PlatformAdapter {
 
   resolveMcpConfig(scope: InstallScope, cwd: string): string {
     if (scope === 'project') return path.resolve(cwd, '.agents', 'mcp.json');
-    return path.join(os.homedir(), '.ai-tools', 'mcp.json');
+    return path.join(os.homedir(), '.aitools', 'mcp.json');
   }
 }
 

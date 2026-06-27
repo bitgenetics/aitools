@@ -1,7 +1,7 @@
 {
-  "name": "@ai-tools/server",
+  "name": "@aitools/server",
   "version": "0.1.0",
-  "description": "Registry server for ai-tools packages",
+  "description": "Registry server for AITools packages",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
@@ -19,7 +19,7 @@
   },
   "license": "AGPL-3.0-or-later",
   "dependencies": {
-    "@ai-tools/core": "*",
+    "@aitools/core": "*",
     "@fastify/cors": "^11.2.0",
     "@fastify/helmet": "^13.0.2",
     "@fastify/rate-limit": "^10.3.0",

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -19,12 +19,12 @@ import ora from 'ora';
 import chalk from 'chalk';
 import { ConfigManager } from '../utils/config-manager.js';
 import { createRegistryClient } from '../utils/registry-client.js';
-import type { ToolManifest } from '@ai-tools/core';
-import { ToolManifestSchema, PLATFORM_SPECS } from '@ai-tools/core';
-import type { TargetPlatform } from '@ai-tools/core';
+import type { ToolManifest } from '@aitools/core';
+import { ToolManifestSchema, PLATFORM_SPECS } from '@aitools/core';
+import type { TargetPlatform } from '@aitools/core';
 import { parseSkillFrontmatter, analyzeCompat } from './compat.js';
 
-const MANIFEST_FILE = 'ai-tools.manifest.json';
+const MANIFEST_FILE = 'aitools.manifest.json';
 
 interface PublishOptions {
   manifest?: string;
@@ -34,14 +34,14 @@ interface PublishOptions {
 }
 
 /**
- * ai-tools publish [options]
+ * aitools publish [options]
  *
- * Reads ai-tools.manifest.json (or the file given by --manifest), reads all
+ * Reads aitools.manifest.json (or the file given by --manifest), reads all
  * declared source files from disk, and publishes the package to the primary
  * configured registry (or the one given by --registry).
  *
  * File layout expected on disk (relative to the manifest file):
- *   ai-tools.manifest.json
+ *   aitools.manifest.json
  *   skill.md           <- manifest.files[0].src
  *   assets/icon.png    <- manifest.files[1].src
  */
@@ -72,7 +72,7 @@ export function createPublishCommand(): Command {
       if (!fs.existsSync(manifestPath)) {
         console.error(
           chalk.red(`No manifest found at ${manifestPath}`),
-          `\n  Run ${chalk.cyan('ai-tools publish --manifest <path>')} to specify a different file.`,
+          `\n  Run ${chalk.cyan('aitools publish --manifest <path>')} to specify a different file.`,
         );
         process.exit(1);
       }
@@ -170,8 +170,8 @@ export function createPublishCommand(): Command {
       if (!registryConfig) {
         console.error(
           chalk.red('No registry configured.'),
-          `\n  Add one with: ${chalk.cyan('ai-tools registry add <name> <url>')}`,
-          `\n  Or pass:      ${chalk.cyan('ai-tools publish --registry <url>')}`,
+          `\n  Add one with: ${chalk.cyan('aitools registry add <name> <url>')}`,
+          `\n  Or pass:      ${chalk.cyan('aitools publish --registry <url>')}`,
         );
         process.exit(1);
       }
@@ -193,7 +193,7 @@ export function createPublishCommand(): Command {
         const code = (err as NodeJS.ErrnoException).code;
         let message: string;
         if (code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'ETIMEDOUT') {
-          message = `Registry server not reachable at ${registryConfig.url}\n  Check the server is running or update the URL with: ${chalk.cyan('ai-tools config list')}`;
+          message = `Registry server not reachable at ${registryConfig.url}\n  Check the server is running or update the URL with: ${chalk.cyan('aitools config list')}`;
         } else {
           message = err instanceof Error
             ? (err.message || err.constructor.name || String(err))

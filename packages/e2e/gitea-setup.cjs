@@ -14,7 +14,7 @@ const GITEA_REPO_NAME = process.env['GITEA_REPO_NAME'] ?? 'tools-registry';
 const GIT_REGISTRY_NAME = process.env['GIT_REGISTRY_NAME'] ?? 'e2e-git-registry';
 const STATE_FILE =
   process.env['GIT_REGISTRY_STATE_FILE'] ??
-  path.join(os.tmpdir(), 'ai-tools-e2e-git-registry.json');
+  path.join(os.tmpdir(), 'aitools-e2e-git-registry.json');
 
 function basicAuthHeader(user, pass) {
   return `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`;
@@ -86,7 +86,7 @@ function runGit(args, cwd, extraEnv = {}) {
 }
 
 function seedRegistryTree(cloneUrl) {
-  const parentDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-gitea-seed-'));
+  const parentDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-gitea-seed-'));
   const workDir = path.join(parentDir, 'repo');
   runGit(['clone', cloneUrl, 'repo'], parentDir);
   runGit(['config', 'user.email', GITEA_ADMIN_EMAIL], workDir);

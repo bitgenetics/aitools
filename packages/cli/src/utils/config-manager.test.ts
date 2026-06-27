@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -15,12 +15,12 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ConfigCascade } from '@ai-tools/core';
+import { ConfigCascade } from '@aitools/core';
 import { ConfigManager, detectPlatformFromEnv } from '../utils/config-manager.js';
 
 describe('ConfigManager.getDefaultScope', () => {
   it('returns "project" when no config files are present', () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-cm-'));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cm-'));
     try {
       expect(new ConfigManager(tmp).getDefaultScope()).toBe('project');
     } finally {
@@ -29,10 +29,10 @@ describe('ConfigManager.getDefaultScope', () => {
   });
 
   it('returns the scope set in the project config', () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-cm-'));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cm-'));
     try {
       fs.writeFileSync(
-        path.join(tmp, 'ai-tools.config.json'),
+        path.join(tmp, 'aitools.config.json'),
         JSON.stringify({ defaultScope: 'user' }),
         'utf8',
       );
@@ -48,7 +48,7 @@ describe('ConfigManager.resolveInstallPath', () => {
   let manager: ConfigManager;
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-cm-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cm-'));
     manager = new ConfigManager(tmp);
   });
 
@@ -75,7 +75,7 @@ describe('ConfigManager.resolveInstallPath', () => {
   it('honours an installPaths override from the config file', () => {
     const customPath = path.join(tmp, 'custom-skills');
     fs.writeFileSync(
-      path.join(tmp, 'ai-tools.config.json'),
+      path.join(tmp, 'aitools.config.json'),
       JSON.stringify({ installPaths: { 'project.skill': customPath } }),
       'utf8',
     );
@@ -89,10 +89,10 @@ describe('ConfigManager.getRegistries', () => {
   let resolveConfigSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-cm-'));
-    // Prevent the cascade from walking up into ancestor dirs (e.g. the real ~/ai-tools.config.json)
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cm-'));
+    // Prevent the cascade from walking up into ancestor dirs (e.g. the real ~/aitools.config.json)
     resolveConfigSpy = jest.spyOn(ConfigCascade, 'resolveConfigFiles')
-      .mockImplementation((cwd: string) => [path.join(cwd, 'ai-tools.config.json')]);
+      .mockImplementation((cwd: string) => [path.join(cwd, 'aitools.config.json')]);
   });
 
   afterEach(() => {
@@ -106,7 +106,7 @@ describe('ConfigManager.getRegistries', () => {
 
   it('sorts registries by priority ascending so lower numbers are queried first', () => {
     fs.writeFileSync(
-      path.join(tmp, 'ai-tools.config.json'),
+      path.join(tmp, 'aitools.config.json'),
       JSON.stringify({
         registries: [
           { name: 'low-priority', url: 'https://low.example.com', priority: 200 },
@@ -122,7 +122,7 @@ describe('ConfigManager.getRegistries', () => {
 
   it('treats registries without a priority as priority 100', () => {
     fs.writeFileSync(
-      path.join(tmp, 'ai-tools.config.json'),
+      path.join(tmp, 'aitools.config.json'),
       JSON.stringify({
         registries: [
           { name: 'no-priority', url: 'https://a.example.com' },
@@ -141,7 +141,7 @@ describe('detectPlatformFromEnv', () => {
   const savedEnv: Record<string, string | undefined> = {};
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-detect-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-detect-'));
     for (const key of ['VSCODE_PID', 'TERM_PROGRAM', 'CURSOR_TRACE_ID']) {
       savedEnv[key] = process.env[key];
       delete process.env[key];
@@ -198,14 +198,14 @@ describe('ConfigManager.detectedPlatform', () => {
   let resolveConfigSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-dp-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-dp-'));
     for (const key of ['VSCODE_PID', 'TERM_PROGRAM', 'CURSOR_TRACE_ID']) {
       savedEnv[key] = process.env[key];
       delete process.env[key];
     }
     // Isolate from ancestor/user configs so platform is never set by cascade
     resolveConfigSpy = jest.spyOn(ConfigCascade, 'resolveConfigFiles')
-      .mockImplementation((cwd: string) => [path.join(cwd, 'ai-tools.config.json')]);
+      .mockImplementation((cwd: string) => [path.join(cwd, 'aitools.config.json')]);
   });
 
   afterEach(() => {
@@ -219,7 +219,7 @@ describe('ConfigManager.detectedPlatform', () => {
 
   it('is undefined when platform is explicitly configured', () => {
     fs.writeFileSync(
-      path.join(tmp, 'ai-tools.config.json'),
+      path.join(tmp, 'aitools.config.json'),
       JSON.stringify({ platform: 'vscode' }),
       'utf8',
     );

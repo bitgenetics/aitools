@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -13,9 +13,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import { parseSkillFrontmatter, analyzeCompat, rewriteSkillFrontmatter } from './compat.js';
-import { PLATFORM_SPECS } from '@ai-tools/core';
+import { PLATFORM_SPECS } from '@aitools/core';
 
-// ── parseSkillFrontmatter ──────────────────────────────────────────────────
+// -- parseSkillFrontmatter --------------------------------------------------
 
 describe('parseSkillFrontmatter', () => {
   it('returns null when no YAML frontmatter block is present', () => {
@@ -71,7 +71,7 @@ describe('parseSkillFrontmatter', () => {
   });
 });
 
-// ── analyzeCompat ──────────────────────────────────────────────────────────
+// -- analyzeCompat ----------------------------------------------------------
 
 describe('analyzeCompat', () => {
   it('marks a supported category as supported', () => {
@@ -80,7 +80,7 @@ describe('analyzeCompat', () => {
   });
 
   it('marks an unsupported category as not supported', () => {
-    // universal platform only lists specific supported categories — use a
+    // universal platform only lists specific supported categories � use a
     // category that is not in any spec's list to trigger false
     const universalSpec = PLATFORM_SPECS['universal'];
     const unsupportedCategory = 'mcp-tool';

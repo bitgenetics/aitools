@@ -42,21 +42,21 @@
 
 ### Platform auto-detection — `detectPlatformFromEnv`
 **Constraint**: When no `platform` is set in any config file, `ConfigManager` calls `detectPlatformFromEnv(cwd)` to infer the platform from environment signals before falling back to `universal`. Detection order: `VSCODE_PID` env var → `TERM_PROGRAM=vscode` → `CURSOR_TRACE_ID` env var → `.vscode/` directory → `.cursor/` directory.  
-**Reason**: Added 2026-04-27. Prevents subagents from landing in `.agents/agents/` when the user is clearly running inside VS Code but hasn't explicitly set `platform: "vscode"` in `ai-tools.config.json`. When detected, `ConfigManager.detectedPlatform` is non-undefined and the `install` command prints a dim tip to pin the platform permanently.  
-**Do not change**: The priority order — env vars take precedence over filesystem signals, and VS Code beats Cursor in the env-var tier. Tests in `config-manager.test.ts` must spy on `ConfigCascade.resolveConfigFiles` to isolate from the user's real `~/ai-tools.config.json`.  
+**Reason**: Added 2026-04-27. Prevents subagents from landing in `.agents/agents/` when the user is clearly running inside VS Code but hasn't explicitly set `platform: "vscode"` in `aitools.config.json`. When detected, `ConfigManager.detectedPlatform` is non-undefined and the `install` command prints a dim tip to pin the platform permanently.  
+**Do not change**: The priority order — env vars take precedence over filesystem signals, and VS Code beats Cursor in the env-var tier. Tests in `config-manager.test.ts` must spy on `ConfigCascade.resolveConfigFiles` to isolate from the user's real `~/aitools.config.json`.  
 **Key files**: `packages/cli/src/utils/config-manager.ts`, `packages/cli/src/commands/install.ts`
 ---
 
 ### Registry publish endpoint is unauthenticated by default
 **Constraint**: When `publishToken` is not set in `ServerOptions`, the `POST /tools` endpoint accepts any publish request without authentication.  
-**Reason**: Simplifies local dev and first-run experience. Production deployments should always set `AI_TOOLS_PUBLISH_TOKEN`.  
+**Reason**: Simplifies local dev and first-run experience. Production deployments should always set `AITOOLS_PUBLISH_TOKEN`.  
 **Do not change**: The unauthenticated default — it is intentional for development. Always set the token in production. The server logs a warning at startup if `logger: true` and no token is set.  
 **Key files**: `packages/server/src/app.ts`, `packages/server/src/routes/tools.ts`
 
 ---
 
 ### Cache uses universal `.agents/` layout internally
-**Constraint**: `CacheManager` stores extracted tool files at `~/.ai-tools/cache/<name>/<version>/.agents/<dest>`. The `.agents/` directory always uses the universal path convention, regardless of the active platform.  
+**Constraint**: `CacheManager` stores extracted tool files at `~/.aitools/cache/<name>/<version>/.agents/<dest>`. The `.agents/` directory always uses the universal path convention, regardless of the active platform.  
 **Reason**: The cache is platform-agnostic. Platform adaptation happens at copy-time in `Installer.installFiles`, not at cache-time.  
 **Do not change**: The cache directory structure. Changing it would invalidate all existing cached tools.  
 **Key files**: `packages/cli/src/utils/cache-manager.ts`
@@ -79,8 +79,8 @@
 
 ---
 
-### E2E config isolation via `AI_TOOLS_CONFIG_ROOT` — 2026-06-26 `d7f8fa0`
-**Constraint**: E2e tests set a temp `HOME`/`USERPROFILE` and `AI_TOOLS_CONFIG_ROOT` so config cascade does not walk into the developer's real `~/ai-tools.config.json` (especially on Windows).  
+### E2E config isolation via `AITOOLS_CONFIG_ROOT` — 2026-06-26 `d7f8fa0`
+**Constraint**: E2e tests set a temp `HOME`/`USERPROFILE` and `AITOOLS_CONFIG_ROOT` so config cascade does not walk into the developer's real `~/aitools.config.json` (especially on Windows).  
 **Reason**: Leaked user `platform` or registry config caused flaky e2e failures.  
 **Do not change**: Any new e2e suite helpers should use `packages/e2e/src/test-env.ts` rather than assuming a clean real home directory.  
 **Key files**: `packages/e2e/src/test-env.ts`, `packages/core/src/config/cascade.ts`

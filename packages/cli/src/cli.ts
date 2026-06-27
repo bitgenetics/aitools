@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 // Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
@@ -31,7 +31,7 @@ const program = new Command();
 
 program
   .name('aitools')
-  .description('Package manager for ai-tools: skills, subagents, prompts, and MCP tools')
+  .description('AITools — package manager for AI skills, subagents, prompts, and MCP tools')
   .version('0.1.0');
 
 program.addCommand(createInitCommand());

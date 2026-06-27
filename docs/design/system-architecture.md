@@ -13,10 +13,10 @@ The project is organized as a monorepo with four packages:
 ```
 ai-tools/
 ├── packages/
-│   ├── @ai-tools/core/      # Pure library: types, schemas, utilities
-│   ├── @ai-tools/cli/       # CLI binary (aitools command)
-│   ├── @ai-tools/server/    # Registry API (Fastify HTTP server)
-│   └── @ai-tools/e2e/       # Docker-based end-to-end tests
+│   ├── @aitools/core/      # Pure library: types, schemas, utilities
+│   ├── @aitools/cli/       # CLI binary (aitools command)
+│   ├── @aitools/server/    # Registry API (Fastify HTTP server)
+│   └── @aitools/e2e/       # Docker-based end-to-end tests
 ├── docs/
 └── sandbox/                 # Local testing sandbox
 ```
@@ -25,9 +25,9 @@ ai-tools/
 
 ```mermaid
 graph LR
-    core["@ai-tools/core<br/>Types · Schemas · Config · Lock · Platform specs"]
-    cli["@ai-tools/cli<br/>CLI binary (ai-tools)"]
-    server["@ai-tools/server<br/>Registry API (Fastify)"]
+    core["@aitools/core<br/>Types · Schemas · Config · Lock · Platform specs"]
+    cli["@aitools/cli<br/>CLI binary (aitools)"]
+    server["@aitools/server<br/>Registry API (Fastify)"]
 
     core --> cli
     core --> server
@@ -38,7 +38,7 @@ graph LR
 ```
 
 **Key Design Decisions:**
-- `@ai-tools/core` has **no runtime dependencies** on cli or server
+- `@aitools/core` has **no runtime dependencies** on cli or server
 - Both `cli` and `server` depend on `core` for types and schemas
 - This separation enables independent testing and deployment of each package
 
@@ -52,21 +52,21 @@ graph LR
 graph TD
     dev["Developer<br/>Workstation"]
 
-    subgraph cli_process["ai-tools CLI Process"]
+    subgraph cli_process["aitools CLI Process"]
         cli["Commander<br/>command parser"]
         cfg["ConfigCascade<br/>config merge<br/>project→home"]
         adp["PlatformAdapter<br/>path resolver"]
         inst["Installer<br/>file writer"]
-        cache["CacheManager<br/>~/.ai-tools/cache/"]
+        cache["CacheManager<br/>~/.aitools/cache/"]
     end
 
     subgraph fs["Local File System"]
         project_files[".agents/skills/<br/>.vscode/mcp.json<br/>etc."]
-        lock["ai-tools-lock.json"]
-        config_files["ai-tools.config.json<br/>(project → home cascade)"]
+        lock["aitools-lock.json"]
+        config_files["aitools.config.json<br/>(project → home cascade)"]
     end
 
-    subgraph private_registry["Private Registry<br/>(@ai-tools/server)"]
+    subgraph private_registry["Private Registry<br/>(@aitools/server)"]
         api["Fastify HTTP API"]
         store["ToolStore<br/>(file-based)"]
         data["dataDir/<br/><name>/<version>/"]
@@ -111,7 +111,7 @@ The CLI dispatches to `HttpRegistryClient` or `GitRegistryClient` based on `regi
 ```mermaid
 sequenceDiagram
     participant Dev as Developer
-    participant CLI as ai-tools CLI
+    participant CLI as aitools CLI
     participant Config as ConfigCascade
     participant Registry as Registry Server
     participant Cache as CacheManager
@@ -127,7 +127,7 @@ sequenceDiagram
     CLI->>Cache: Store tarball
     Cache-->>CLI: Cache hit/miss response
     CLI->>FS: Copy files to .agents/skills/
-    CLI->>CLI: Update ai-tools-lock.json
+    CLI->>CLI: Update aitools-lock.json
     CLI-->>Dev: Installation complete
 ```
 
@@ -136,7 +136,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant Dev as Developer
-    participant CLI as ai-tools CLI
+    participant CLI as aitools CLI
     participant Registry as Registry Server
     participant Store as ToolStore
 
@@ -161,17 +161,17 @@ Project Root → Parent Directories → User Home → System (env)
 
 ### Config Files
 
-1. **`ai-tools.config.json`** (project root)
+1. **`aitools.config.json`** (project root)
    - Registry URLs
    - Default platform
    - Authentication tokens
 
-2. **`~/ai-tools.config.json`** (user home)
+2. **`~/aitools.config.json`** (user home)
    - Global registry URLs
    - Default settings
 
 3. **Environment Variables** (server only)
-   - `AI_TOOLS_PUBLISH_TOKEN`, `AI_TOOLS_PUBLISHER_TOKENS`
+   - `AITOOLS_PUBLISH_TOKEN`, `AITOOLS_PUBLISHER_TOKENS`
    - `REGISTRY_ACCESS`, `UPSTREAMS`, `DATABASE_URL`
 
 ### Merge Strategy
@@ -201,7 +201,7 @@ The system supports multiple target platforms through a **platform adapter** pat
 | **Universal** | `.agents/skills/` | `.agents/skills/` |
 | **VS Code** | `.agents/skills/` | `~/.copilot/skills/` |
 | **Claude** | `.claude/skills/` | `~/.claude/skills/` |
-| **Cursor** | `.agents/skills/` | `~/.ai-tools/tools/skills/` |
+| **Cursor** | `.agents/skills/` | `~/.aitools/tools/skills/` |
 | **Windsurf** | `.windsurf/skills/` | `~/.windsurf/skills/` |
 
 VS Code subagents install to `.github/agents/` (project) or `~/.copilot/agents/` (user).
@@ -209,7 +209,7 @@ VS Code subagents install to `.github/agents/` (project) or `~/.copilot/agents/`
 ### Platform Detection
 
 The system detects the active platform from:
-1. `ai-tools.config.json` → `platform` field
+1. `aitools.config.json` → `platform` field
 2. `ConfigManager.detectPlatformFromEnv()` — checks IDE env vars and `.vscode`/`.cursor` directories
 3. Default: `universal`
 
@@ -257,7 +257,7 @@ The system detects the active platform from:
 
 ### Caching Strategy
 
-- **Local Cache**: `~/.ai-tools/cache/` stores downloaded tarballs
+- **Local Cache**: `~/.aitools/cache/` stores downloaded tarballs
 - **Cache Hit Ratio**: Typical 80%+ for frequently used tools
 - **Cache Invalidation**: Re-download on version change; no dedicated `cache clean` command yet
 
@@ -272,7 +272,7 @@ The system detects the active platform from:
 ## Future Enhancements
 
 1. **Git Integration**: Install from git repositories
-2. **Version Pinning**: Pin specific versions in `ai-tools.json`
+2. **Version Pinning**: Pin specific versions in `aitools.json`
 3. **Peer Dependencies**: Resolve tool dependencies automatically
 4. **Plugin System**: Extend CLI with custom commands
 5. **Web UI**: Browser-based registry interface

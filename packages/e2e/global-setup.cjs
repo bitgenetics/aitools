@@ -7,7 +7,7 @@ const path = require('node:path');
 const { setupGiteaRegistry } = require('./gitea-setup.cjs');
 
 const REGISTRY_URL = (process.env['REGISTRY_URL'] ?? 'http://localhost:4873').replace(/\/$/, '');
-const STATE_FILE = path.join(os.tmpdir(), 'ai-tools-e2e-server-state.json');
+const STATE_FILE = path.join(os.tmpdir(), 'aitools-e2e-server-state.json');
 const REPO_ROOT = path.resolve(__dirname, '../..');
 const SERVER_ENTRY = path.join(REPO_ROOT, 'packages/server/dist/index.js');
 
@@ -44,11 +44,11 @@ async function ensureHttpRegistry() {
 
   if (!fs.existsSync(SERVER_ENTRY)) {
     throw new Error(
-      `Registry server not built at ${SERVER_ENTRY}. Run: npm run build -w @ai-tools/server`,
+      `Registry server not built at ${SERVER_ENTRY}. Run: npm run build -w @aitools/server`,
     );
   }
 
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-e2e-data-'));
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-e2e-data-'));
   const port = parsed.port || '4873';
 
   const child = spawn(process.execPath, [SERVER_ENTRY], {
@@ -56,7 +56,7 @@ async function ensureHttpRegistry() {
       ...process.env,
       PORT: port,
       HOST: '127.0.0.1',
-      AI_TOOLS_DATA_DIR: dataDir,
+      AITOOLS_DATA_DIR: dataDir,
       AUTH_BACKEND: 'simple',
       REGISTRY_ACCESS: 'private',
     },
@@ -77,7 +77,7 @@ async function ensureHttpRegistry() {
   const state = { started: true, pid: child.pid, dataDir };
   fs.writeFileSync(STATE_FILE, JSON.stringify(state));
 
-  global.__AI_TOOLS_E2E_SERVER__ = child;
+  global.__AITOOLS_E2E_SERVER__ = child;
 }
 
 /** @returns {Promise<void>} */

@@ -4,7 +4,7 @@
 
 ## Overview
 
-The ai-tools registry server is built with **Fastify** and exposes a REST API for tool discovery, publishing, and org management. A separate HTML portal serves browse and admin UI routes.
+The AITools registry server is built with **Fastify** and exposes a REST API for tool discovery, publishing, and org management. A separate HTML portal serves browse and admin UI routes.
 
 Default listen address: `http://localhost:4873`
 
@@ -31,7 +31,7 @@ The server uses pluggable `IAuthProvider` implementations (see `packages/server/
 
 | Backend | When used | Notes |
 |---------|-----------|-------|
-| **SimpleAuthProvider** | Default local/dev | Static tokens via `AI_TOOLS_PUBLISH_TOKEN`, `AI_TOOLS_PUBLISHER_TOKENS`, or `AI_TOOLS_ADMIN_TOKEN` |
+| **SimpleAuthProvider** | Default local/dev | Static tokens via `AITOOLS_PUBLISH_TOKEN`, `AITOOLS_PUBLISHER_TOKENS`, or `AITOOLS_ADMIN_TOKEN` |
 | **DatabaseAuthProvider** | `DATABASE_URL` set + user management enabled | Users, org tokens, and admin tokens stored in PostgreSQL |
 | **OidcAuthProvider** | Stub | Not yet implemented |
 
@@ -299,13 +299,13 @@ See `packages/server/.env.example` for the full list. Key variables:
 |----------|---------|
 | `PORT` | Listen port (default 4873) |
 | `HOST` | Bind address (default 0.0.0.0) |
-| `AI_TOOLS_DATA_DIR` | Tool storage directory |
+| `AITOOLS_DATA_DIR` | Tool storage directory |
 | `REGISTRY_ACCESS` | `private` or `public` |
 | `UPSTREAMS` | Comma-separated `name=url` upstream registries |
 | `DATABASE_URL` | PostgreSQL for user/auth (optional) |
-| `AI_TOOLS_PUBLISH_TOKEN` | Single static publish token |
-| `AI_TOOLS_PUBLISHER_TOKENS` | JSON map of token → `{ userId, orgs }` |
-| `AI_TOOLS_ADMIN_TOKEN` | Admin portal token |
+| `AITOOLS_PUBLISH_TOKEN` | Single static publish token |
+| `AITOOLS_PUBLISHER_TOKENS` | JSON map of token → `{ userId, orgs }` |
+| `AITOOLS_ADMIN_TOKEN` | Admin portal token |
 | `CORS_ORIGINS` | Comma-separated allowed origins |
 
 ---

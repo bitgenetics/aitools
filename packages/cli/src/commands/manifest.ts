@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -19,9 +19,9 @@ import { stdin as input, stdout as output } from 'node:process';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import semver from 'semver';
-import { ToolManifestSchema } from '@ai-tools/core';
+import { ToolManifestSchema } from '@aitools/core';
 
-const PUBLISH_MANIFEST_FILE = 'ai-tools.manifest.json';
+const PUBLISH_MANIFEST_FILE = 'aitools.manifest.json';
 
 type Category = 'skill' | 'subagent' | 'prompt' | 'mcp-tool';
 
@@ -43,14 +43,14 @@ const SKIP_FILES = new Set([
   'CODE_OF_CONDUCT.md',
   'SECURITY.md',
   'NOTICE', 'NOTICE.md',
-  'ai-tools.manifest.json',
+  'aitools.manifest.json',
   'README.md', 'readme.md',
 ]);
 
 /**
  * Directories that should never be traversed during auto-detection.
  * We use an explicit blocklist (not a blanket 'starts with .' rule) so that
- * directories like .github, .agents, .claude, and .cursor are traversed —
+ * directories like .github, .agents, .claude, and .cursor are traversed �
  * they are valid locations for tool content files.
  */
 const SKIP_DIRS = new Set([
@@ -102,7 +102,7 @@ function detectFiles(root: string, exts: string[], dir: string = root): string[]
 }
 
 /**
- * Returns the set of top-level "skill folders" — directories that directly
+ * Returns the set of top-level "skill folders" � directories that directly
  * contain at least one file matching the given extensions.  Each entry holds
  * the folder path (relative to root) and all files within it (recursive).
  */
@@ -134,7 +134,7 @@ function detectSkillFolders(
     });
 
     if (dir !== root && hasDirectFiles) {
-      // This is a skill folder — collect all its files recursively and stop descending.
+      // This is a skill folder � collect all its files recursively and stop descending.
       const files = detectFiles(root, exts, dir);
       if (files.length > 0) {
         results.push({ folder: path.relative(root, dir).replace(/\\/g, '/'), files });
@@ -142,7 +142,7 @@ function detectSkillFolders(
       return;
     }
 
-    // No direct files here — descend into subdirectories.
+    // No direct files here � descend into subdirectories.
     for (const entry of entries) {
       const abs = path.join(dir, entry);
       try {
@@ -165,7 +165,7 @@ function parseFileEntry(entry: string): { src: string; dest: string } {
   return { src: entry.slice(0, sep), dest: entry.slice(sep + 1) };
 }
 
-// ── Shared manifest write + print ─────────────────────────────────────────────
+// -- Shared manifest write + print ---------------------------------------------
 
 type ManifestInput = {
   name: string;
@@ -186,20 +186,20 @@ function writeAndPrintManifest(outPath: string, manifest: ManifestInput): void {
     console.error(chalk.red('Manifest validation failed:'));
     for (const issue of parsed.error.issues) {
       const field = issue.path.join('.') || 'root';
-      console.error(`  ${chalk.red('✗')} ${chalk.bold(field)}: ${issue.message}`);
+      console.error(`  ${chalk.red('?')} ${chalk.bold(field)}: ${issue.message}`);
     }
     console.error(chalk.dim('  Fix the issues above and try again.'));
     process.exit(1);
   }
 
   fs.writeFileSync(outPath, JSON.stringify(parsed.data, null, 2) + '\n', 'utf8');
-  console.log(chalk.green(`\n  ✔ Created ${PUBLISH_MANIFEST_FILE}`));
+  console.log(chalk.green(`\n  ? Created ${PUBLISH_MANIFEST_FILE}`));
   console.log(`  name:     ${chalk.cyan(parsed.data.name)}`);
   console.log(`  version:  ${chalk.cyan(parsed.data.version)}`);
   console.log(`  category: ${chalk.cyan(parsed.data.category)}`);
   console.log(`  files (${parsed.data.files.length}):`);
   for (const f of parsed.data.files) {
-    console.log(`    ${chalk.dim(f.src)} → ${f.dest}`);
+    console.log(`    ${chalk.dim(f.src)} ? ${f.dest}`);
   }
   if (parsed.data.keywords?.length) {
     console.log(`  keywords: ${chalk.dim(parsed.data.keywords.join(', '))}`);
@@ -207,10 +207,10 @@ function writeAndPrintManifest(outPath: string, manifest: ManifestInput): void {
   if (parsed.data.tags?.length) {
     console.log(`  tags:     ${chalk.dim(parsed.data.tags.join(', '))}`);
   }
-  console.log(chalk.dim(`\n  Edit ${PUBLISH_MANIFEST_FILE} if needed, then run: ai-tools publish`));
+  console.log(chalk.dim(`\n  Edit ${PUBLISH_MANIFEST_FILE} if needed, then run: aitools publish`));
 }
 
-// ── manifest init ─────────────────────────────────────────────────────────────
+// -- manifest init -------------------------------------------------------------
 
 interface ManifestInitOptions {
   name?: string;
@@ -228,7 +228,7 @@ interface ManifestInitOptions {
 
 function createManifestInitCommand(): Command {
   return new Command('init')
-    .description('Create an ai-tools.manifest.json for publishing to a registry')
+    .description('Create an aitools.manifest.json for publishing to a registry')
     .option('--name <name>', 'Package name')
     .option('--version <version>', 'Package version')
     .option('--description <text>', 'Short description of the tool')
@@ -285,7 +285,7 @@ async function initNonInteractive(
       files = detected.map((f) => ({ src: f, dest: f }));
     } else {
       files = [{ src: `${name}.md`, dest: `${name}.md` }];
-      console.log(chalk.dim('  Note: no matching files found — using placeholder filename'));
+      console.log(chalk.dim('  Note: no matching files found � using placeholder filename'));
     }
   }
 
@@ -314,7 +314,7 @@ async function initInteractive(
 ): Promise<void> {
   const rl = createInterface({ input, output, terminal: true });
 
-  /** Prompt with an optional default shown in parentheses. Empty answer → default. */
+  /** Prompt with an optional default shown in parentheses. Empty answer ? default. */
   const ask = async (question: string, def?: string): Promise<string> => {
     const hint = def !== undefined ? chalk.dim(` (${def || 'none'})`) : '';
     const ans = (await rl.question(`  ${question}${hint}: `)).trim();
@@ -338,7 +338,7 @@ async function initInteractive(
     const keywordsRaw = await ask('keywords, comma-separated', options.keywords ?? '');
     const tagsRaw = await ask('tags, comma-separated', options.tags ?? '');
 
-    // ── File resolution ────────────────────────────────────────────────────
+    // -- File resolution ----------------------------------------------------
     let files: Array<{ src: string; dest: string }>;
 
     if (options.file && options.file.length > 0) {
@@ -395,18 +395,18 @@ async function initInteractive(
   }
 }
 
-// ── manifest validate ─────────────────────────────────────────────────────────
+// -- manifest validate ---------------------------------------------------------
 
 function createManifestValidateCommand(): Command {
   return new Command('validate')
-    .description('Validate an existing ai-tools.manifest.json against the schema')
+    .description('Validate an existing aitools.manifest.json against the schema')
     .action(() => {
       const cwd = process.cwd();
       const manifestPath = path.join(cwd, PUBLISH_MANIFEST_FILE);
 
       if (!fs.existsSync(manifestPath)) {
         console.error(chalk.red(`No ${PUBLISH_MANIFEST_FILE} found.`));
-        console.error(chalk.dim('Run: ai-tools manifest init'));
+        console.error(chalk.dim('Run: aitools manifest init'));
         process.exit(1);
       }
 
@@ -414,7 +414,7 @@ function createManifestValidateCommand(): Command {
       try {
         raw = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
       } catch {
-        console.error(chalk.red('Failed to parse JSON — check for syntax errors.'));
+        console.error(chalk.red('Failed to parse JSON � check for syntax errors.'));
         process.exit(1);
       }
 
@@ -423,18 +423,18 @@ function createManifestValidateCommand(): Command {
       const parsed = ToolManifestSchema.safeParse(raw);
 
       if (!parsed.success) {
-        console.error(chalk.red('  ✗ Schema validation failed:\n'));
+        console.error(chalk.red('  ? Schema validation failed:\n'));
         for (const issue of parsed.error.issues) {
           const field = issue.path.join('.') || 'root';
-          console.error(`    ${chalk.red('✗')} ${chalk.bold(field)}: ${issue.message}`);
+          console.error(`    ${chalk.red('?')} ${chalk.bold(field)}: ${issue.message}`);
         }
         process.exit(1);
       }
 
-      console.log(`  ${chalk.green('✔')} Schema valid`);
-      console.log(`  ${chalk.green('✔')} name:     ${chalk.cyan(parsed.data.name)}`);
-      console.log(`  ${chalk.green('✔')} version:  ${chalk.cyan(parsed.data.version)}`);
-      console.log(`  ${chalk.green('✔')} category: ${chalk.cyan(parsed.data.category)}`);
+      console.log(`  ${chalk.green('?')} Schema valid`);
+      console.log(`  ${chalk.green('?')} name:     ${chalk.cyan(parsed.data.name)}`);
+      console.log(`  ${chalk.green('?')} version:  ${chalk.cyan(parsed.data.version)}`);
+      console.log(`  ${chalk.green('?')} category: ${chalk.cyan(parsed.data.category)}`);
 
       // Check that declared src files actually exist on disk
       let missingCount = 0;
@@ -442,9 +442,9 @@ function createManifestValidateCommand(): Command {
       for (const file of parsed.data.files) {
         const exists = fs.existsSync(path.join(cwd, file.src));
         if (exists) {
-          console.log(`    ${chalk.green('✔')} ${file.src}`);
+          console.log(`    ${chalk.green('?')} ${file.src}`);
         } else {
-          console.log(`    ${chalk.red('✗')} ${file.src} ${chalk.red('— not found on disk')}`);
+          console.log(`    ${chalk.red('?')} ${file.src} ${chalk.red('� not found on disk')}`);
           missingCount++;
         }
       }
@@ -460,13 +460,13 @@ function createManifestValidateCommand(): Command {
     });
 }
 
-// ── manifest bump ─────────────────────────────────────────────────────────────
+// -- manifest bump -------------------------------------------------------------
 
 type BumpType = 'major' | 'minor' | 'patch';
 
 function createManifestBumpCommand(): Command {
   return new Command('bump')
-    .description('Increment the version in ai-tools.manifest.json')
+    .description('Increment the version in aitools.manifest.json')
     .argument('<release>', 'Release type: patch | minor | major, or an explicit version like 1.2.3')
     .action((release: string) => {
       const cwd = process.cwd();
@@ -474,7 +474,7 @@ function createManifestBumpCommand(): Command {
 
       if (!fs.existsSync(manifestPath)) {
         console.error(chalk.red(`No ${PUBLISH_MANIFEST_FILE} found.`));
-        console.error(chalk.dim('Run: ai-tools manifest init'));
+        console.error(chalk.dim('Run: aitools manifest init'));
         process.exit(1);
       }
 
@@ -519,12 +519,12 @@ function createManifestBumpCommand(): Command {
 
       manifest['version'] = next;
       fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
-      console.log(`${chalk.dim(current)} → ${chalk.green(next)}`);
+      console.log(`${chalk.dim(current)} ? ${chalk.green(next)}`);
     });
 }
 
 
-// ── manifest update ──────────────────────────────────────────────────
+// -- manifest update --------------------------------------------------
 
 interface ManifestUpdateOptions {
   name?: string;
@@ -540,7 +540,7 @@ interface ManifestUpdateOptions {
 
 function createManifestUpdateCommand(): Command {
   return new Command('update')
-    .description('Update fields in an existing ai-tools.manifest.json interactively')
+    .description('Update fields in an existing aitools.manifest.json interactively')
     .option('--name <name>', 'New package name')
     .option('--description <text>', 'New description')
     .option('--category <category>', 'New category: skill | subagent | prompt | mcp-tool')
@@ -559,7 +559,7 @@ function createManifestUpdateCommand(): Command {
 
       if (!fs.existsSync(manifestPath)) {
         console.error(chalk.red(`No ${PUBLISH_MANIFEST_FILE} found.`));
-        console.error(chalk.dim('Run: ai-tools manifest init'));
+        console.error(chalk.dim('Run: aitools manifest init'));
         process.exit(1);
       }
 
@@ -614,7 +614,7 @@ async function updateNonInteractive(
   }
 
   writeAndPrintManifest(manifestPath, updated as ManifestInput);
-  console.log(chalk.dim(`\n  Tip: run ai-tools manifest validate to verify all declared files exist.`));
+  console.log(chalk.dim(`\n  Tip: run aitools manifest validate to verify all declared files exist.`));
 }
 
 async function updateInteractive(
@@ -684,18 +684,18 @@ async function updateInteractive(
     if (platforms.length > 0) updated['platforms'] = platforms; else delete updated['platforms'];
 
     writeAndPrintManifest(manifestPath, updated as ManifestInput);
-    console.log(chalk.dim(`\n  Tip: run ai-tools manifest validate to verify all declared files exist.`));
+    console.log(chalk.dim(`\n  Tip: run aitools manifest validate to verify all declared files exist.`));
   } catch (err) {
     rl.close();
     throw err;
   }
 }
 
-// ── Command export ────────────────────────────────────────────────────────────
+// -- Command export ------------------------------------------------------------
 
 export function createManifestCommand(): Command {
   const cmd = new Command('manifest').description(
-    'Manage the tool publish manifest (ai-tools.manifest.json)',
+    'Manage the tool publish manifest (aitools.manifest.json)',
   );
   cmd.addCommand(createManifestInitCommand());
   cmd.addCommand(createManifestValidateCommand());

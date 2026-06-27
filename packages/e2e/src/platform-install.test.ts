@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -18,7 +18,7 @@
  * Verifies that setting a platform via config causes tools (skills, subagents,
  * prompts) to install into the correct platform-specific directory.
  *
- * Also verifies that multi-platform file entries are resolved correctly —
+ * Also verifies that multi-platform file entries are resolved correctly ?
  * only the matching platform file (or fallback generic) is installed.
  */
 
@@ -55,9 +55,9 @@ async function publishTool(
 }
 
 function makeProjectDir(platform: string): string {
-  const tmp = makeE2eProjectDir('ai-tools-plat-e2e-');
+  const tmp = makeE2eProjectDir('aitools-plat-e2e-');
   fs.writeFileSync(
-    path.join(tmp, 'ai-tools.config.json'),
+    path.join(tmp, 'aitools.config.json'),
     JSON.stringify({
       platform,
       registries: [{ name: 'e2e', url: REGISTRY_URL, priority: 1 }],
@@ -94,7 +94,7 @@ const EXPECTED_DIRS: Record<string, Record<string, string>> = {
 };
 
 // ---------------------------------------------------------------------------
-// Fixtures — one per category
+// Fixtures ? one per category
 // ---------------------------------------------------------------------------
 
 const FIXTURES = {

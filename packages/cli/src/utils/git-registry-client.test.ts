@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { GitRegistryConfig, ToolManifest } from '@ai-tools/core';
+import type { GitRegistryConfig, ToolManifest } from '@aitools/core';
 import {
   createGitRegistryClient,
   gitCacheDir,

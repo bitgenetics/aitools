@@ -17,6 +17,7 @@ import bcrypt from 'bcrypt';
 import type { Pool } from 'pg';
 import type { PublisherAuthResult } from '../auth/publisher-auth.js';
 import type { IncomingHttpHeaders } from 'node:http';
+import { readOrgHeader } from '../env.js';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -204,9 +205,8 @@ export class UserStore {
     const resolved = await this.resolveToken(rawToken);
     if (!resolved) return { ok: false, statusCode: 401, error: 'Unauthorized' };
 
-    // Honor x-ai-tools-org header if the token covers that org
-    const requestedOrg =
-      typeof headers['x-ai-tools-org'] === 'string' ? headers['x-ai-tools-org'].trim() : '';
+    // Honor x-aitools-org header when the token covers that org.
+    const requestedOrg = readOrgHeader(headers) ?? '';
 
     if (requestedOrg && requestedOrg !== resolved.org) {
       return {

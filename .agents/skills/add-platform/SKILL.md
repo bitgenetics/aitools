@@ -2,7 +2,7 @@
 name: add-platform
 description: >-
   Use this skill when adding support for a new AI tool platform (IDE or agent)
-  to the ai-tools project. Use when asked to support a new platform, add a new
+  to the AITools project. Use when asked to support a new platform, add a new
   adapter, or wire in a new target IDE — even if the user just says "add support
   for <platform name>".
 metadata:
@@ -10,7 +10,7 @@ metadata:
 ---
 
 Adding a platform requires changes across two packages in a specific order:
-`@ai-tools/core` (type definition) → `@ai-tools/cli` (adapter class + registration).
+`@aitools/core` (type definition) → `@aitools/cli` (adapter class + registration).
 Build core first — cli imports from it.
 
 ## Steps
@@ -57,8 +57,8 @@ const ADAPTERS: Record<TargetPlatform, PlatformAdapter> = {
 ### 4. Build in dependency order
 
 ```bash
-npm run build -w @ai-tools/core
-npm run build -w @ai-tools/cli
+npm run build -w @aitools/core
+npm run build -w @aitools/cli
 ```
 
 Run `npx tsc --noEmit -p packages/cli/tsconfig.json` to confirm no type errors before the full build if you want a faster check.
@@ -77,7 +77,7 @@ aitools publish
 
 ## Gotchas
 
-- **Build order is mandatory.** If you build cli before core, TypeScript will error because `@ai-tools/core` won't have the new platform literal yet.
+- **Build order is mandatory.** If you build cli before core, TypeScript will error because `@aitools/core` won't have the new platform literal yet.
 - **ADAPTERS key must be the exact string from `TargetPlatform`.** A typo compiles fine but `getAdapter('<platform>')` returns `undefined` at runtime.
 - **All imports in cli use `.js` extensions** even though source files are `.ts`. This is Node16 ESM resolution — do not omit the extension or use `.ts`.
 - **Check the platform's actual skill directories before setting paths.** Platforms often support multiple discovery directories. Prefer `.agents/skills/` when the platform supports the agentskills.io standard.
@@ -88,5 +88,5 @@ aitools publish
 - [ ] `packages/cli/src/adapters/<platform>.ts` — adapter class created
 - [ ] `packages/cli/src/adapters/index.ts` — import, export, ADAPTERS entry added
 - [ ] `tools/create-ai-tool/references/platform-paths.md` — install path tables updated
-- [ ] Build succeeds: `npm run build -w @ai-tools/core && npm run build -w @ai-tools/cli`
+- [ ] Build succeeds: `npm run build -w @aitools/core && npm run build -w @aitools/cli`
 - [ ] `create-ai-tool` republished with bumped version

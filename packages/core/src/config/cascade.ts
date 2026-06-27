@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -18,11 +18,11 @@ import path from 'node:path';
 import type { AiToolsConfig, RegistryConfig } from '../types/config.js';
 import { AiToolsConfigSchema } from '../schema/config-schema.js';
 
-const CONFIG_FILENAME = 'ai-tools.config.json';
+export const CONFIG_FILENAME = 'aitools.config.json';
 
 /**
- * Config cascade — mirrors npm's .npmrc lookup:
- *   project root → each parent directory → user home → system (process.env)
+ * Config cascade ? mirrors npm's .npmrc lookup:
+ *   project root ? each parent directory ? user home ? system (process.env)
  *
  * Lower-level files win. Arrays (like registries) are merged with lower-level
  * entries prepended so they are queried first.
@@ -41,10 +41,10 @@ export class ConfigCascade {
     return ConfigCascade.merge(layers);
   }
 
-  /** Return ordered list of config file paths (project → home). */
+  /** Return ordered list of config file paths (project ? home). */
   static resolveConfigFiles(cwd: string): string[] {
     const paths: string[] = [];
-    const configRoot = process.env['AI_TOOLS_CONFIG_ROOT'];
+    const configRoot = process.env['AITOOLS_CONFIG_ROOT'];
 
     // Walk up from cwd to filesystem root (or an optional boundary for tests)
     let dir = path.resolve(cwd);
@@ -74,7 +74,7 @@ export class ConfigCascade {
       const result = AiToolsConfigSchema.safeParse(parsed);
       if (!result.success) {
         process.stderr.write(
-          `[ai-tools] Warning: invalid config at ${filePath}: ${result.error.message}\n`,
+          `[aitools] Warning: invalid config at ${filePath}: ${result.error.message}\n`,
         );
         return null;
       }
@@ -93,7 +93,7 @@ export class ConfigCascade {
     let result = '';
     let i = 0;
     while (i < src.length) {
-      // Inside a string — copy verbatim until closing quote
+      // Inside a string ? copy verbatim until closing quote
       if (src[i] === '"') {
         result += src[i++];
         while (i < src.length) {

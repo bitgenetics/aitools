@@ -7,7 +7,7 @@
 # run so tests always start with an empty registry.
 #
 # Services:
-#   test-registry — HTTP Fastify registry (@ai-tools/server)
+#   test-registry — HTTP Fastify registry (@aitools/server)
 #   gitea-init    — one-shot CLI bootstrap (migrate + admin user) for Gitea
 #   gitea         — Git hosting for git-registry e2e tests
 #   e2e           — Jest test runner (starts after dependencies are healthy)
@@ -26,7 +26,7 @@ services:
     environment:
       PORT: "4873"
       HOST: "0.0.0.0"
-      AI_TOOLS_DATA_DIR: /data
+      AITOOLS_DATA_DIR: /data
     healthcheck:
       test:
         - CMD
@@ -102,7 +102,7 @@ services:
       GITEA_ADMIN_PASSWORD: "e2e-test-pass"
       GITEA_REPO_NAME: "tools-registry"
       PATH: "/app/packages/cli/node_modules/.bin:/app/node_modules/.bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      AI_TOOLS_CLI: "node /app/packages/cli/dist/cli.js"
+      AITOOLS_CLI: "node /app/packages/cli/dist/cli.js"
     depends_on:
       test-registry:
         condition: service_healthy

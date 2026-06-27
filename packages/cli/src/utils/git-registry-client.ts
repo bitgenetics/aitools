@@ -18,7 +18,7 @@ import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import semver from 'semver';
-import type { ToolManifest, GitRegistryConfig } from '@ai-tools/core';
+import type { ToolManifest, GitRegistryConfig } from '@aitools/core';
 import type { RegistryClient, SearchResult, PublishResult, DownloadResult } from './registry-client.js';
 
 /** Convert a scoped package name like "@scope/name" to a safe directory name. */
@@ -49,7 +49,7 @@ function registryRoot(config: GitRegistryConfig): string {
 }
 
 export function gitCacheDir(config: GitRegistryConfig): string {
-  return path.join(os.homedir(), '.ai-tools', 'git-cache', config.name);
+  return path.join(os.homedir(), '.aitools', 'git-cache', config.name);
 }
 
 function toolDir(config: GitRegistryConfig, cloneRoot: string, name: string): string {
@@ -183,7 +183,7 @@ function resolveLatestVersion(config: GitRegistryConfig, cloneRoot: string, name
 
 /**
  * Git-backed registry client.
- * Reads and writes tool data via a local clone under ~/.ai-tools/git-cache/.
+ * Reads and writes tool data via a local clone under ~/.aitools/git-cache/.
  */
 export function createGitRegistryClient(config: GitRegistryConfig): RegistryClient {
   return {

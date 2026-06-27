@@ -27,10 +27,10 @@ export function startTokenCleanup(pool: Pool): () => void {
         `DELETE FROM auth_tokens WHERE expires_at IS NOT NULL AND expires_at < now()`,
       );
       if (result.rowCount && result.rowCount > 0) {
-        console.log(`[ai-tools] Cleaned up ${result.rowCount} expired auth token(s).`);
+        console.log(`[aitools] Cleaned up ${result.rowCount} expired auth token(s).`);
       }
     } catch (err) {
-      console.error('[ai-tools] Token cleanup failed:', err);
+      console.error('[aitools] Token cleanup failed:', err);
     }
   };
 

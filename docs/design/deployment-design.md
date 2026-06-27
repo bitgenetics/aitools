@@ -2,7 +2,7 @@
 
 ## Overview
 
-The ai-tools ecosystem supports multiple deployment scenarios:
+The AITools ecosystem supports multiple deployment scenarios:
 
 1. **Local dev registry**: Docker Compose with optional PostgreSQL for auth
 2. **E2E test registry**: Ephemeral registry via `docker-compose.e2e.yml`
@@ -39,7 +39,7 @@ services:
     env_file: [packages/server/.env]
     environment:
       PORT: "4873"
-      AI_TOOLS_DATA_DIR: /data
+      AITOOLS_DATA_DIR: /data
     depends_on:
       postgres: { condition: service_healthy }
     volumes: [registry-data:/data]
@@ -59,12 +59,12 @@ See `packages/server/.env.example`. Key variables:
 ```bash
 PORT=4873
 HOST=0.0.0.0
-AI_TOOLS_DATA_DIR=./data
+AITOOLS_DATA_DIR=./data
 REGISTRY_ACCESS=private          # or public
 DATABASE_URL=postgresql://...    # optional, enables user auth
-AI_TOOLS_PUBLISH_TOKEN=...       # static publish token
-AI_TOOLS_PUBLISHER_TOKENS=...    # JSON map of token → { userId, orgs }
-AI_TOOLS_ADMIN_TOKEN=...         # admin portal access
+AITOOLS_PUBLISH_TOKEN=...       # static publish token
+AITOOLS_PUBLISHER_TOKENS=...    # JSON map of token → { userId, orgs }
+AITOOLS_ADMIN_TOKEN=...         # admin portal access
 UPSTREAMS=public=https://...     # comma-separated name=url pairs
 CORS_ORIGINS=https://...         # comma-separated allowed origins
 ```
@@ -107,7 +107,7 @@ services:
       - REGISTRY_ACCESS=private
       - JWT_SECRET=${JWT_SECRET}
       - DATABASE_URL=postgresql://user:pass@postgres:5432/ai-tools-primary
-      - UPSTREAMS='[{"name":"public","url":"https://registry.ai-tools.io"}]'
+      - UPSTREAMS='[{"name":"public","url":"https://registry.aitools.io"}]'
     depends_on:
       - postgres
     volumes:
@@ -157,7 +157,7 @@ volumes:
 ### Registry Chain Configuration
 
 ```typescript
-// ai-tools.config.json
+// aitools.config.json
 {
   "registries": [
     {
@@ -345,11 +345,11 @@ metadata:
 spec:
   tls:
   - hosts:
-    - registry.ai-tools.io
-    - registry.staging.ai-tools.io
+    - registry.aitools.io
+    - registry.staging.aitools.io
     secretName: registry-tls
   rules:
-  - host: registry.ai-tools.io
+  - host: registry.aitools.io
     http:
       paths:
       - path: /
@@ -383,14 +383,14 @@ ingress:
   annotations:
     kubernetes.io/ingress.class: nginx
   hosts:
-    - host: registry.ai-tools.io
+    - host: registry.aitools.io
       paths:
         - path: /
           pathType: Prefix
   tls:
     - secretName: registry-tls
       hosts:
-        - registry.ai-tools.io
+        - registry.aitools.io
 
 resources:
   requests:
@@ -760,7 +760,7 @@ Each platform has its own MCP config location:
 
 When installing an MCP tool:
 
-1. CLI reads `ai-tools.json`
+1. CLI reads `aitools.json`
 2. Installer validates manifest with `ToolManifestSchema`
 3. Installer resolves MCP config path via adapter
 4. If config exists, merge new server entry
@@ -778,7 +778,7 @@ MCP servers are registered in the platform's MCP config:
       "command": "node",
       "args": ["./dist/index.js"],
       "env": {
-        "AI_TOOLS_REGISTRY_URL": "http://localhost:4873"
+        "AITOOLS_REGISTRY_URL": "http://localhost:4873"
       }
     }
   }

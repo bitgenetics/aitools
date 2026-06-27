@@ -23,7 +23,7 @@
  * Required environment variables:
  *   OIDC_ISSUER          — e.g. "https://yourapp.auth0.com/"
  *   OIDC_AUDIENCE        — API identifier / audience claim
- *   OIDC_ADMIN_ROLE      — role claim value that grants admin access (default: "ai-tools-admin")
+ *   OIDC_ADMIN_ROLE      — role claim value that grants admin access (default: "aitools-admin")
  *   OIDC_ORG_CLAIM       — JWT claim that carries the org name (default: "org")
  *
  * Token flow:
@@ -50,7 +50,7 @@
  *   constructor(
  *     private readonly issuer: string,
  *     private readonly audience: string,
- *     private readonly adminRole: string = 'ai-tools-admin',
+ *     private readonly adminRole: string = 'aitools-admin',
  *     private readonly orgClaim: string = 'org',
  *   ) {
  *     this.jwks = createRemoteJWKSet(new URL(`${issuer}.well-known/jwks.json`));
@@ -101,7 +101,7 @@ export class OidcAuthProvider implements IAuthProvider {
   constructor(
     private readonly issuer: string,
     private readonly audience: string,
-    private readonly adminRole: string = 'ai-tools-admin',
+    private readonly adminRole: string = 'aitools-admin',
     private readonly orgClaim: string = 'org',
   ) {}
 

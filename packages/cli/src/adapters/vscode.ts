@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -15,7 +15,7 @@
 import os from 'node:os';
 import path from 'node:path';
 import type { PlatformAdapter } from './types.js';
-import type { ToolCategory, InstallScope } from '@ai-tools/core';
+import type { ToolCategory, InstallScope } from '@aitools/core';
 
 /**
  * VS Code / GitHub Copilot adapter.
@@ -25,16 +25,16 @@ import type { ToolCategory, InstallScope } from '@ai-tools/core';
  * cross-IDE location rather than a VS Code-specific subdirectory.
  *
  * Project scope paths:
- *   skill    → .agents/skills/   (Agent Skills spec — universal)
- *   subagent → .github/agents/   (VS Code custom agents — docs: https://code.visualstudio.com/docs/copilot/customization/custom-agents)
- *   prompt   → .agents/prompts/
- *   mcp      → .vscode/mcp.json  (VS Code-specific)
+ *   skill    ? .agents/skills/   (Agent Skills spec � universal)
+ *   subagent ? .github/agents/   (VS Code custom agents � docs: https://code.visualstudio.com/docs/copilot/customization/custom-agents)
+ *   prompt   ? .agents/prompts/
+ *   mcp      ? .vscode/mcp.json  (VS Code-specific)
  *
  * User scope paths:
- *   skill    → ~/.copilot/skills/
- *   subagent → ~/.copilot/agents/
- *   prompt   → ~/.copilot/prompts/
- *   mcp      → ~/.vscode/mcp.json
+ *   skill    ? ~/.copilot/skills/
+ *   subagent ? ~/.copilot/agents/
+ *   prompt   ? ~/.copilot/prompts/
+ *   mcp      ? ~/.vscode/mcp.json
  */
 export class VsCodeAdapter implements PlatformAdapter {
   readonly platform = 'vscode' as const;

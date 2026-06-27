@@ -1,6 +1,6 @@
 # System Architecture
 
-ai-tools is a package manager for AI tools — skills, subagents, prompts, and MCP servers —
+AITools is a package manager for AI tools — skills, subagents, prompts, and MCP servers —
 modelled closely on npm. It is composed of three packages in a monorepo, each with a distinct
 responsibility.
 
@@ -10,16 +10,16 @@ responsibility.
 
 ```mermaid
 graph LR
-    core["@ai-tools/core<br/>Types · Schemas · Config · Lock · Platform specs"]
-    cli["@ai-tools/cli<br/>CLI binary (ai-tools)"]
-    server["@ai-tools/server<br/>Registry API (Fastify)"]
+    core["@aitools/core<br/>Types · Schemas · Config · Lock · Platform specs"]
+    cli["@aitools/cli<br/>CLI binary (aitools)"]
+    server["@aitools/server<br/>Registry API (Fastify)"]
 
     core --> cli
     core --> server
 ```
 
-`@ai-tools/core` has no runtime dependencies on the other two packages.
-`@ai-tools/cli` and `@ai-tools/server` both depend on `core` for types and schemas.
+`@aitools/core` has no runtime dependencies on the other two packages.
+`@aitools/cli` and `@aitools/server` both depend on `core` for types and schemas.
 
 ---
 
@@ -33,21 +33,21 @@ tarball downloads to upstream registries.
 graph TD
     dev["Developer<br/>Workstation"]
 
-    subgraph cli_process["ai-tools CLI process"]
+    subgraph cli_process["aitools CLI process"]
         cli["Commander<br/>command parser"]
         cfg["ConfigCascade<br/>config merge"]
         adp["PlatformAdapter<br/>path resolver"]
         inst["Installer<br/>file writer"]
-        cache["CacheManager<br/>~/.ai-tools/cache/"]
+        cache["CacheManager<br/>~/.aitools/cache/"]
     end
 
     subgraph fs["Local File System"]
         project_files[".agents/skills/<br/>.vscode/mcp.json<br/>etc."]
-        lock["ai-tools-lock.json"]
-        config_files["ai-tools.config.json<br/>(project → home cascade)"]
+        lock["aitools-lock.json"]
+        config_files["aitools.config.json<br/>(project → home cascade)"]
     end
 
-    subgraph private_registry["Private Registry (@ai-tools/server)"]
+    subgraph private_registry["Private Registry (@aitools/server)"]
         api["Fastify HTTP API"]
         store["ToolStore<br/>(file-based)"]
         data["dataDir/<br/><name>/<version>/"]
@@ -75,13 +75,13 @@ graph TD
 
 ## Package internals
 
-### @ai-tools/core
+### @aitools/core
 
 Pure library — no CLI, no HTTP server. Imported by both `cli` and `server`.
 
 ```mermaid
 graph LR
-    subgraph core["@ai-tools/core"]
+    subgraph core["@aitools/core"]
         types["types/<br/>ToolManifest · AiToolsConfig<br/>AiToolsLock · TargetPlatform"]
         schema["schema/<br/>Zod validators<br/>(ToolManifestSchema<br/>AiToolsConfigSchema)"]
         config["config/<br/>ConfigCascade<br/>(project→home merge)"]
@@ -97,13 +97,13 @@ graph LR
     types --> platforms
 ```
 
-### @ai-tools/cli
+### @aitools/cli
 
-The `ai-tools` binary. Commands are thin orchestrators that delegate to utility classes.
+The `aitools` binary. Commands are thin orchestrators that delegate to utility classes.
 
 ```mermaid
 graph LR
-    subgraph cli["@ai-tools/cli"]
+    subgraph cli["@aitools/cli"]
         entry["cli.ts<br/>(Commander entry)"]
         commands["commands/<br/>install · uninstall · update<br/>search · find · list<br/>init · publish · manifest<br/>registry · config · compat"]
         adapters["adapters/<br/>PlatformAdapter per IDE<br/>(vscode · cursor · claude<br/>windsurf · universal)"]
@@ -116,13 +116,13 @@ graph LR
     utils --> adapters
 ```
 
-### @ai-tools/server
+### @aitools/server
 
 Fastify HTTP registry. Stateless per-request — all state is in the file system.
 
 ```mermaid
 graph LR
-    subgraph server["@ai-tools/server"]
+    subgraph server["@aitools/server"]
         app["app.ts<br/>buildApp() factory"]
         tools_route["routes/tools.ts<br/>GET/POST/PATCH /api/tools"]
         registry_route["routes/registry.ts<br/>GET /upstream · /health · /proxy/search"]
@@ -158,9 +158,9 @@ win. Registry arrays are merged with project registries prepended (highest prior
 
 ```mermaid
 flowchart TB
-    home["~/ai-tools.config.json<br/>(user defaults)"]
-    parent["…/parent/ai-tools.config.json<br/>(intermediate dirs)"]
-    project["./ai-tools.config.json<br/>(project root)"]
+    home["~/aitools.config.json<br/>(user defaults)"]
+    parent["…/parent/aitools.config.json<br/>(intermediate dirs)"]
+    project["./aitools.config.json<br/>(project root)"]
     merged["Merged AiToolsConfig<br/>(platform · defaultScope<br/>registries · installPaths)"]
 
     home --> parent --> project --> merged

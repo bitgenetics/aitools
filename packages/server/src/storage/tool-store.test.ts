@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { ToolStore, ToolStoreError } from '../storage/tool-store.js';
-import type { ToolManifest } from '@ai-tools/core';
+import type { ToolManifest } from '@aitools/core';
 
 const BASE_MANIFEST: ToolManifest = {
   name: 'my-skill',
@@ -224,7 +224,7 @@ describe('ToolStore', () => {
     it('owner-level flag overrides per-version manifest private field', async () => {
       // Publish a second version with private: true in the manifest
       await store.publish({ ...BASE_MANIFEST, version: '2.0.0', private: true }, BASE_FILES, actor);
-      // Set owner-level to false — should override manifest
+      // Set owner-level to false � should override manifest
       await store.setPrivacy('my-skill', false, actor);
       const stored = await store.get('my-skill', '2.0.0');
       expect(stored?.manifest.private).toBe(false);

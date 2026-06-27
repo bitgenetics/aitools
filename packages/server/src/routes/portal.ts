@@ -133,7 +133,7 @@ function renderSkillDetailHtml(toolName: string): string {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Skill Details - ${escapedName}</title>
-    <meta name="description" content="View details for ${escapedName} — an ai-tools registry skill." />
+    <meta name="description" content="View details for ${escapedName} — an AITools registry skill." />
     <style>
       :root {
         --bg: #f2efe7;
@@ -328,7 +328,7 @@ const ADMIN_LOGIN_HTML = `<!doctype html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Admin Login — ai-tools</title>
+    <title>Admin Login — AITools</title>
     <style>
       :root {
         --bg: #f2efe7;
@@ -445,7 +445,7 @@ const ADMIN_LOGIN_HTML = `<!doctype html>
     <div class="card">
       <div class="logo">🔐</div>
       <h1>Admin Login</h1>
-      <p class="tagline">ai-tools registry administration</p>
+      <p class="tagline">AITools registry administration</p>
 
       <form method="POST" action="/admin/login" autocomplete="off">
         <label for="token">Admin Token</label>
@@ -471,7 +471,7 @@ const ADMIN_PORTAL_HTML = `<!doctype html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ai-tools Admin Portal</title>
+    <title>AITools Admin Portal</title>
     <style>
       :root {
         --bg: #f2efe7;
@@ -999,8 +999,8 @@ const PORTAL_HTML = `<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ai-tools Registry</title>
-  <meta name="description" content="ai-tools registry — browse, search, and publish AI tools and skills for your AI development workflow." />
+  <title>AITools Registry</title>
+  <meta name="description" content="AITools registry — browse, search, and publish AI tools and skills for your AI development workflow." />
   <style>
     :root {
       --bg: #f2efe7;
@@ -1347,7 +1347,7 @@ const PORTAL_HTML = `<!doctype html>
               <button class="btn btn-teal btn-sm" id="copyTokBtn">Copy</button>
             </div>
             <p class="txt-sm txt-soft mt-8">
-              CLI usage: <code>ai-tools config registry add &lt;name&gt; &lt;url&gt; --token &lt;TOKEN&gt;</code>
+              CLI usage: <code>aitools config registry add &lt;name&gt; &lt;url&gt; --token &lt;TOKEN&gt;</code>
             </p>
           </div>
 
@@ -1389,9 +1389,9 @@ const PORTAL_HTML = `<!doctype html>
   </main>
 
   <script>
-    var TOK_KEY  = 'ai-tools.portal.token';
-    var ORG_KEY  = 'ai-tools.portal.org';
-    var USER_KEY = 'ai-tools.portal.username';
+    var TOK_KEY  = 'aitools.portal.token';
+    var ORG_KEY  = 'aitools.portal.org';
+    var USER_KEY = 'aitools.portal.username';
     var authToken    = localStorage.getItem(TOK_KEY)  || '';
     var authOrg      = localStorage.getItem(ORG_KEY)  || '';
     var authUsername = localStorage.getItem(USER_KEY) || '';
@@ -1421,7 +1421,7 @@ const PORTAL_HTML = `<!doctype html>
       opts = opts || {};
       var headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
       if (authToken && !('Authorization' in (opts.headers || {}))) headers['Authorization'] = 'Bearer ' + authToken;
-      if (authOrg && !('x-ai-tools-org' in (opts.headers || {})))  headers['x-ai-tools-org'] = authOrg;
+      if (authOrg && !('x-aitools-org' in (opts.headers || {})))  headers['x-aitools-org'] = authOrg;
       return fetch(path, Object.assign({}, opts, { headers: headers })).then(function(res) {
         return res.text().then(function(text) {
           var body; try { body = JSON.parse(text); } catch(e) { body = text; }

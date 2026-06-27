@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -18,8 +18,8 @@ import path from 'node:path';
 import { Installer } from '../utils/installer.js';
 import { ConfigManager } from '../utils/config-manager.js';
 import { CacheManager } from '../utils/cache-manager.js';
-import { writeLockFile, upsertLockEntry, emptyLock } from '@ai-tools/core';
-import type { LockEntry, ToolManifest } from '@ai-tools/core';
+import { writeLockFile, upsertLockEntry, emptyLock } from '@aitools/core';
+import type { LockEntry, ToolManifest } from '@aitools/core';
 
 const FIXED_DATE = '2024-01-01T00:00:00.000Z';
 
@@ -47,7 +47,7 @@ describe('Installer.uninstall', () => {
   let installer: Installer;
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-installer-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-installer-'));
     installer = new Installer(new ConfigManager(tmp), tmp);
   });
 
@@ -104,8 +104,8 @@ describe('Installer.install', () => {
   let installer: Installer;
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-installer-'));
-    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-cache-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-installer-'));
+    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cache-'));
     installer = new Installer(new ConfigManager(tmp), tmp, new CacheManager(cacheTmp));
   });
 
@@ -151,7 +151,7 @@ describe('Installer.install', () => {
 
 describe('Installer.getLock', () => {
   it('returns an empty lock when no lock file exists', () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-installer-'));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-installer-'));
     try {
       const installer = new Installer(new ConfigManager(tmp), tmp);
       expect(installer.getLock()).toEqual({ lockfileVersion: 1, tools: {} });
@@ -167,8 +167,8 @@ describe('Installer.install (cache behaviour)', () => {
   let cacheTmp: string;
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-installer-'));
-    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-cache-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-installer-'));
+    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cache-'));
   });
 
   afterEach(() => {
@@ -238,7 +238,7 @@ describe('Installer.install (mcp-tool)', () => {
   let installer: Installer;
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-mcp-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-mcp-'));
     installer = new Installer(new ConfigManager(tmp), tmp);
   });
 
@@ -298,7 +298,7 @@ describe('Installer.uninstall (mcp-tool)', () => {
   let installer: Installer;
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-mcp-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-mcp-'));
     installer = new Installer(new ConfigManager(tmp), tmp);
   });
 
@@ -378,10 +378,10 @@ describe('Installer.install (platform-aware file selection)', () => {
   }
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-platform-'));
-    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-cache-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-platform-'));
+    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cache-'));
     fs.writeFileSync(
-      path.join(tmp, 'ai-tools.config.json'),
+      path.join(tmp, 'aitools.config.json'),
       JSON.stringify({ platform: 'vscode' }),
       'utf8',
     );
@@ -481,8 +481,8 @@ describe('Installer.install (manifest platforms guard)', () => {
   }
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-plat-guard-'));
-    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-cache-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-plat-guard-'));
+    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cache-'));
   });
 
   afterEach(() => {
@@ -492,7 +492,7 @@ describe('Installer.install (manifest platforms guard)', () => {
 
   it('installs when manifest.platforms includes the active platform', async () => {
     fs.writeFileSync(
-      path.join(tmp, 'ai-tools.config.json'),
+      path.join(tmp, 'aitools.config.json'),
       JSON.stringify({ platform: 'vscode' }),
       'utf8',
     );
@@ -510,7 +510,7 @@ describe('Installer.install (manifest platforms guard)', () => {
 
   it('installs when manifest.platforms includes universal', async () => {
     fs.writeFileSync(
-      path.join(tmp, 'ai-tools.config.json'),
+      path.join(tmp, 'aitools.config.json'),
       JSON.stringify({ platform: 'claude' }),
       'utf8',
     );
@@ -528,7 +528,7 @@ describe('Installer.install (manifest platforms guard)', () => {
 
   it('throws when manifest.platforms does not include the active platform', async () => {
     fs.writeFileSync(
-      path.join(tmp, 'ai-tools.config.json'),
+      path.join(tmp, 'aitools.config.json'),
       JSON.stringify({ platform: 'claude' }),
       'utf8',
     );
@@ -548,7 +548,7 @@ describe('Installer.install (manifest platforms guard)', () => {
 
   it('installs when manifest.platforms is omitted (no restriction)', async () => {
     fs.writeFileSync(
-      path.join(tmp, 'ai-tools.config.json'),
+      path.join(tmp, 'aitools.config.json'),
       JSON.stringify({ platform: 'cursor' }),
       'utf8',
     );

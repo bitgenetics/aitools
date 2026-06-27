@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -15,13 +15,13 @@
 import path from 'node:path';
 import crypto from 'node:crypto';
 import semver from 'semver';
-import type { ToolManifest } from '@ai-tools/core';
+import type { ToolManifest } from '@aitools/core';
 import type { IStorageProvider } from '../providers/storage/types.js';
 import { LocalStorageProvider } from '../providers/storage/local.js';
 
 export interface StoredTool {
   manifest: ToolManifest;
-  /** Map of file path → file content (used to serve tarballs). */
+  /** Map of file path ? file content (used to serve tarballs). */
   files: Record<string, string>;
   publishedAt: string;
 }
@@ -278,7 +278,7 @@ export class ToolStore {
     }
   }
 
-  // ── Private helpers ──────────────────────────────────────────────────────
+  // -- Private helpers ------------------------------------------------------
 
   private toolPath(name: string): string {
     return sanitizeName(name);
@@ -304,7 +304,7 @@ export class ToolStore {
 
 /**
  * Convert a scoped package name like "@scope/name" to a safe directory name.
- * "@scope/name" → "@scope__name"
+ * "@scope/name" ? "@scope__name"
  */
 function sanitizeName(name: string): string {
   return name.replace('/', '__');

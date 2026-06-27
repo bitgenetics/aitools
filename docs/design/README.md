@@ -1,6 +1,6 @@
 # Design Documentation
 
-Welcome to the **ai-tools** design documentation. This folder contains comprehensive architectural and technical design documents for the ai-tools ecosystem.
+Welcome to **AITools** design documentation. This folder contains comprehensive architectural and technical design documents for the AITools ecosystem.
 
 ---
 
@@ -63,7 +63,7 @@ Welcome to the **ai-tools** design documentation. This folder contains comprehen
 
 ### 2. System Architecture
 
-**Purpose**: Understand the overall structure and components of the ai-tools ecosystem.
+**Purpose**: Understand the overall structure and components of the AITools ecosystem.
 
 **Key Topics**:
 - Package dependency graph
@@ -77,9 +77,9 @@ Welcome to the **ai-tools** design documentation. This folder contains comprehen
 **Architecture Highlights**:
 ```
 packages/
-├── @ai-tools/core/      # Library (types, schemas, utilities)
-├── @ai-tools/cli/       # CLI binary
-└── @ai-tools/server/    # Registry API server
+├── @aitools/core/      # Library (types, schemas, utilities)
+├── @aitools/cli/       # CLI binary
+└── @aitools/server/    # Registry API server
 ```
 
 **Audience**: Architects, developers, system designers
@@ -228,9 +228,9 @@ packages/
 ```
 ai-tools/
 ├── packages/
-│   ├── @ai-tools/core/      # Library
-│   ├── @ai-tools/cli/       # CLI
-│   └── @ai-tools/server/    # Server
+│   ├── @aitools/core/      # Library
+│   ├── @aitools/cli/       # CLI
+│   └── @aitools/server/    # Server
 └── docs/design/             # This folder
 ```
 
@@ -244,7 +244,7 @@ aitools install my-skill@1.2.0
 aitools search "python skill"
 
 # Publish a tool
-aitools publish --manifest ai-tools.manifest.json
+aitools publish --manifest aitools.manifest.json
 
 # List installed tools
 aitools list
@@ -263,9 +263,9 @@ aitools list
 
 | File | Purpose | Location |
 |------|---------|----------|
-| `ai-tools.json` | Project dependencies | Project root |
-| `ai-tools.config.json` | Registry and platform config | Project root |
-| `ai-tools-lock.json` | Installation records | Project root |
+| `aitools.json` | Project dependencies | Project root |
+| `aitools.config.json` | Registry and platform config | Project root |
+| `aitools-lock.json` | Installation records | Project root |
 
 ---
 
@@ -344,7 +344,7 @@ If you have feedback or suggestions for improving this documentation:
 
 ### 1. System Architecture
 
-**Purpose**: Understand the overall structure and components of the ai-tools ecosystem.
+**Purpose**: Understand the overall structure and components of the AITools ecosystem.
 
 **Key Topics**:
 - Package dependency graph (core, cli, server)
@@ -362,7 +362,7 @@ If you have feedback or suggestions for improving this documentation:
 
 ### 2. Data Model
 
-**Purpose**: Understand the data structures, schemas, and relationships in the ai-tools ecosystem.
+**Purpose**: Understand the data structures, schemas, and relationships in the AITools ecosystem.
 
 **Key Topics**:
 - Tool manifest structure
@@ -425,9 +425,9 @@ If you have feedback or suggestions for improving this documentation:
 ```
 ai-tools/
 ├── packages/
-│   ├── @ai-tools/core/      # Library: types, schemas, utilities
-│   ├── @ai-tools/cli/       # CLI binary
-│   └── @ai-tools/server/    # Registry API server
+│   ├── @aitools/core/      # Library: types, schemas, utilities
+│   ├── @aitools/cli/       # CLI binary
+│   └── @aitools/server/    # Registry API server
 ├── docs/design/             # This folder
 ├── e2e/                     # End-to-end tests
 └── sandbox/                 # Testing sandbox
@@ -443,16 +443,16 @@ aitools install my-skill@1.2.0
 aitools search "python skill"
 
 # Publish a tool
-aitools publish --manifest ai-tools.manifest.json
+aitools publish --manifest aitools.manifest.json
 
 # List installed tools
 aitools list
 
 # Update a tool
-ai-tools update my-skill
+aitools update my-skill
 
 # Uninstall a tool
-ai-tools uninstall my-skill
+aitools uninstall my-skill
 ```
 
 ### Registry Endpoints
@@ -470,10 +470,10 @@ ai-tools uninstall my-skill
 
 | File | Purpose | Location |
 |------|---------|----------|
-| `ai-tools.json` | Project dependencies | Project root |
-| `ai-tools.config.json` | Registry and platform config | Project root |
-| `ai-tools-lock.json` | Installation records | Project root |
-| `~/ai-tools.config.json` | User-level config | User home |
+| `aitools.json` | Project dependencies | Project root |
+| `aitools.config.json` | Registry and platform config | Project root |
+| `aitools-lock.json` | Installation records | Project root |
+| `~/aitools.config.json` | User-level config | User home |
 
 ---
 
@@ -519,7 +519,7 @@ docker build -t ai-tools/registry:latest .
 kubectl apply -f k8s/registry-deployment.yaml
 
 # Access registry
-https://registry.ai-tools.io
+https://registry.aitools.io
 ```
 
 ---
@@ -605,4 +605,4 @@ If you have feedback or suggestions for improving this documentation, please:
 
 ## License
 
-This documentation is licensed under the same license as the ai-tools project.
+This documentation is licensed under the same license as the AITools project.

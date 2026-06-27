@@ -1,4 +1,4 @@
-# Maintaining ai-tools
+# Maintaining AITools
 
 This document covers ongoing maintenance tasks for contributors and project owners.
 
@@ -7,11 +7,10 @@ This document covers ongoing maintenance tasks for contributors and project owne
 ## Repository layout
 
 ```
-aitools/
 ├── packages/
-│   ├── core/     @ai-tools/core   — shared types, schemas, config, lock utilities, platform specs
-│   ├── cli/      @ai-tools/cli    — the `aitools` CLI binary
-│   └── server/   @ai-tools/server — self-hosted registry (Fastify)
+│   ├── core/     @aitools/core   — shared types, schemas, config, lock utilities, platform specs
+│   ├── cli/      @aitools/cli    — the `aitools` CLI binary
+│   └── server/   @aitools/server — self-hosted registry (Fastify)
 ├── tools/
 │   └── create-ai-tool/            — skill published to the registry; teaches agents to author tools
 ├── .agents/
@@ -41,13 +40,13 @@ Build order is mandatory — `core` must compile before `cli` or `server`.
 ```bash
 npm install                          # install all workspace dependencies
 npm run build                        # builds core → cli → server in order
-npm run build -w @ai-tools/core      # rebuild only core
-npm run build -w @ai-tools/cli       # rebuild only cli (requires core already built)
-npm run build -w @ai-tools/server    # rebuild only server
+npm run build -w @aitools/core      # rebuild only core
+npm run build -w @aitools/cli       # rebuild only cli (requires core already built)
+npm run build -w @aitools/server    # rebuild only server
 ```
 
 The CLI binary is globally linked during development via `npm link` from `packages/cli`.
-Rebuilding `@ai-tools/cli` is enough to update the global `aitools` command.
+Rebuilding `@aitools/cli` is enough to update the global `aitools` command.
 
 ---
 
@@ -57,13 +56,13 @@ Rebuilding `@ai-tools/cli` is enough to update the global `aitools` command.
 
 ```bash
 npm test                              # run all workspaces (core + cli + server)
-npm test -w @ai-tools/core            # single package
-npm test -w @ai-tools/cli
-npm test -w @ai-tools/server
+npm test -w @aitools/core            # single package
+npm test -w @aitools/cli
+npm test -w @aitools/server
 npm test -- --coverage                # emit coverage report to /coverage
 ```
 
-Coverage floors: **≥ 80% statements / branches / functions** on `@ai-tools/core` and `@ai-tools/cli`.
+Coverage floors: **≥ 80% statements / branches / functions** on `@aitools/core` and `@aitools/cli`.
 Server route handlers are integration-tested via Fastify `inject()` — no real HTTP port.
 
 See `AGENTS.md` for the full testing ruleset (what to test, what to skip, naming conventions).
@@ -87,14 +86,14 @@ starting, so repeated runs always get a clean registry and the publish tests alw
 1. Build the packages that need to be current:
 
    ```bash
-   npm run build -w @ai-tools/core
-   npm run build -w @ai-tools/cli
+   npm run build -w @aitools/core
+   npm run build -w @aitools/cli
    ```
 
 2. Start a fresh registry server in one terminal:
 
    ```bash
-   $env:AI_TOOLS_DATA_DIR = "$env:TEMP\ai-tools-e2e-data"
+   $env:AITOOLS_DATA_DIR = "$env:TEMP\aitools-e2e-data"
    $env:PORT = "4873"
    $env:HOST = "127.0.0.1"
    node packages/server/dist/index.js
@@ -103,7 +102,7 @@ starting, so repeated runs always get a clean registry and the publish tests alw
    On macOS/Linux:
 
    ```bash
-   AI_TOOLS_DATA_DIR=/tmp/ai-tools-e2e-data PORT=4873 HOST=127.0.0.1 \
+   AITOOLS_DATA_DIR=/tmp/aitools-e2e-data PORT=4873 HOST=127.0.0.1 \
      node packages/server/dist/index.js
    ```
 
@@ -112,18 +111,18 @@ starting, so repeated runs always get a clean registry and the publish tests alw
    ```bash
    # PowerShell
    $env:REGISTRY_URL = "http://localhost:4873"
-   $env:AI_TOOLS_CLI = "node $PWD/packages/cli/dist/cli.js"
-   npm test -w @ai-tools/e2e
+   $env:AITOOLS_CLI = "node $PWD/packages/cli/dist/cli.js"
+   npm test -w @aitools/e2e
 
    # bash
    REGISTRY_URL=http://localhost:4873 \
-   AI_TOOLS_CLI="node $(pwd)/packages/cli/dist/cli.js" \
-   npm test -w @ai-tools/e2e
+   AITOOLS_CLI="node $(pwd)/packages/cli/dist/cli.js" \
+   npm test -w @aitools/e2e
    ```
 
 > **Note:** Re-running against the same local server instance causes 409 conflicts on the
-> publish tests because registry data persists. Delete `$env:TEMP\ai-tools-e2e-data`
-> (or `/tmp/ai-tools-e2e-data`) and restart the server before re-running.
+> publish tests because registry data persists. Delete `$env:TEMP\aitools-e2e-data`
+> (or `/tmp/aitools-e2e-data`) and restart the server before re-running.
 
 ---
 
@@ -134,7 +133,7 @@ Follow the `.agents/skills/add-cli-command/SKILL.md` skill. Summary:
 1. Create `packages/cli/src/commands/<name>.ts` — export `create<Name>Command(): Command`
 2. Register in `packages/cli/src/cli.ts` — import + `program.addCommand(...)`
 3. Write `packages/cli/src/commands/<name>.test.ts`
-4. `npm run build -w @ai-tools/cli` + smoke-test with `aitools <name> --help`
+4. `npm run build -w @aitools/cli` + smoke-test with `aitools <name> --help`
 
 All local imports use `.js` extensions (Node16 ESM). See the skill for utility reuse table
 and gotchas.
@@ -150,7 +149,7 @@ Follow the `.agents/skills/add-platform/SKILL.md` skill. Summary:
 3. Register in `packages/cli/src/adapters/index.ts` (import, export, `ADAPTERS` entry)
 4. **Add a `PlatformSpec` data file** in `packages/core/src/platforms/<platform>.ts` — export the spec and add it to `PLATFORM_SPECS` in `packages/core/src/platforms/index.ts`
 5. Export the new spec from `packages/core/src/index.ts`
-6. Build: `npm run build -w @ai-tools/core && npm run build -w @ai-tools/cli`
+6. Build: `npm run build -w @aitools/core && npm run build -w @aitools/cli`
 7. Update `tools/create-ai-tool/references/platform-paths.md` with the new platform's install paths
 8. Bump and republish `tools/create-ai-tool`
 
@@ -193,7 +192,7 @@ packages/core/src/platforms/windsurf.ts   → https://docs.windsurf.com/windsurf
 After updating any spec, rebuild core and run the compat command against a known tool to sanity-check output:
 
 ```bash
-npm run build -w @ai-tools/core
+npm run build -w @aitools/core
 cd tools/create-ai-tool
 aitools compat
 ```
@@ -202,7 +201,7 @@ aitools compat
 
 ## Publishing tools to the registry
 
-The `tools/` directory contains tools that are published to the ai-tools registry and usable by anyone.
+The `tools/` directory contains tools that are published to the aitools registry and usable by anyone.
 
 ### Routine publish workflow
 
@@ -224,10 +223,10 @@ aitools publish                 # publish to configured registry
 
 ## Registry server
 
-The `@ai-tools/server` package is a self-hosted Fastify registry. Start it locally for development:
+The `@aitools/server` package is a self-hosted Fastify registry. Start it locally for development:
 
 ```bash
-AI_TOOLS_DATA_DIR=./packages/e2e/fixtures node packages/server/dist/index.js
+AITOOLS_DATA_DIR=./packages/e2e/fixtures node packages/server/dist/index.js
 ```
 
 For a full local stack with PostgreSQL, copy `.env.example` to `.env` and run:
@@ -244,12 +243,12 @@ Key environment variables:
 |---|---|---|
 | `PORT` | `4873` | Port to listen on |
 | `HOST` | `0.0.0.0` | Host to bind |
-| `AI_TOOLS_DATA_DIR` | (required) | Directory where tool tarballs are stored |
+| `AITOOLS_DATA_DIR` | (required) | Directory where tool tarballs are stored |
 | `AUTH_BACKEND` | `simple` | `simple`, `database`, or `oidc` |
 | `DATABASE_URL` | | Postgres connection string (required when `AUTH_BACKEND=database`) |
 | `REGISTRY_ACCESS` | `private` | `private` or `public` |
-| `AI_TOOLS_ADMIN_TOKEN` | | Admin portal Bearer token |
-| `AI_TOOLS_PUBLISHER_TOKENS` | | Multi-user token map JSON |
+| `AITOOLS_ADMIN_TOKEN` | | Admin portal Bearer token |
+| `AITOOLS_PUBLISHER_TOKENS` | | Multi-user token map JSON |
 | `CORS_ORIGINS` | _(deny all)_ | Comma-separated allowed origins |
 | `LOG_LEVEL` | `info` | Pino log level |
 | `UPSTREAMS` | | Comma-separated `name=url` upstream pairs |
@@ -257,7 +256,7 @@ Key environment variables:
 
 See `.env.example` for the full reference.
 
-Published tool data lives under `AI_TOOLS_DATA_DIR/tools/<name>/<version>/`. Do not edit these files manually — use the registry API or `aitools publish`.
+Published tool data lives under `AITOOLS_DATA_DIR/tools/<name>/<version>/`. Do not edit these files manually — use the registry API or `aitools publish`.
 
 ---
 
@@ -286,7 +285,7 @@ Keep these skills up to date when the patterns they describe change. After editi
 
 ## Dependency management
 
-- Keep `@ai-tools/core` dependency-free where possible — it is imported by both `cli` and `server`.
+- Keep `@aitools/core` dependency-free where possible — it is imported by both `cli` and `server`.
 - `commander`, `chalk`, `ora`, `semver` are CLI-only dependencies — do not add them to `core`.
 - `fastify`, `zod` are used in `server` and `core` respectively — check the package's `package.json` before importing a new library.
 - After adding a dependency, rebuild the affected package and run its tests.

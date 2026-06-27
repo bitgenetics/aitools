@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -23,7 +23,7 @@ import {
   readManifest,
   writeManifest,
   upsertToolDependency,
-} from '@ai-tools/core';
+} from '@aitools/core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { SKILL_MD, MANIFEST_REFERENCE_MD, PLATFORM_PATHS_MD } from '../bundled/create-ai-tool.js';
 
@@ -45,11 +45,11 @@ interface DevInitOptions {
 }
 
 /**
- * ai-tools dev-init
+ * aitools dev-init
  *
  * Installs the bundled create-ai-tool skill directly from the CLI package,
  * without requiring a registry. This gives AI agents in the project the
- * instructions they need to create and publish their own ai-tools packages.
+ * instructions they need to create and publish their own AITools packages.
  */
 export function createDevInitCommand(): Command {
   return new Command('dev-init')
@@ -100,7 +100,7 @@ export function createDevInitCommand(): Command {
       const updatedLock = upsertLockEntry(lock, BUNDLED_NAME, lockEntry);
       writeLockFile(cwd, updatedLock);
 
-      // Update ai-tools.json (devTools)
+      // Update aitools.json (devTools)
       const manifest = readManifest(cwd) ?? {};
       const updatedManifest = upsertToolDependency(
         manifest,
@@ -110,15 +110,15 @@ export function createDevInitCommand(): Command {
       );
       writeManifest(cwd, updatedManifest);
 
-      console.log(chalk.green(`✔ Installed ${BUNDLED_NAME}@${BUNDLED_VERSION} (${writtenFiles.length} file(s))`));
+      console.log(chalk.green(`? Installed ${BUNDLED_NAME}@${BUNDLED_VERSION} (${writtenFiles.length} file(s))`));
       for (const f of writtenFiles) {
         console.log(chalk.dim(`  -> ${f}`));
       }
 
       if (configManager.getPlatform() === 'universal') {
         console.log(
-          chalk.yellow('\n  Tip: no platform configured — files were installed to .agents/') +
-            chalk.dim('\n  Run: ai-tools config set platform vscode  (or claude|cursor|windsurf)'),
+          chalk.yellow('\n  Tip: no platform configured � files were installed to .agents/') +
+            chalk.dim('\n  Run: aitools config set platform vscode  (or claude|cursor|windsurf)'),
         );
       }
     });

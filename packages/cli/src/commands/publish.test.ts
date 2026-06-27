@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -43,11 +43,11 @@ describe('publish command', () => {
   const originalCwd = process.cwd();
 
   beforeEach(() => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-publish-'));
-    fs.writeFileSync(path.join(tmp, 'ai-tools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-publish-'));
+    fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
     fs.writeFileSync(path.join(tmp, 'skill.md'), '# Skill', 'utf8');
     fs.writeFileSync(
-      path.join(tmp, 'ai-tools.config.json'),
+      path.join(tmp, 'aitools.config.json'),
       JSON.stringify({ registries: [{ name: 'test', url: 'http://registry.example.com' }] }),
       'utf8',
     );
@@ -68,7 +68,7 @@ describe('publish command', () => {
   });
 
   it('exits with 1 when manifest file does not exist', async () => {
-    fs.unlinkSync(path.join(tmp, 'ai-tools.manifest.json'));
+    fs.unlinkSync(path.join(tmp, 'aitools.manifest.json'));
     jest.spyOn(console, 'error').mockImplementation(() => {});
     const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
       throw new Error(`process.exit(${code})`);
@@ -81,7 +81,7 @@ describe('publish command', () => {
   });
 
   it('exits with 1 when manifest fails schema validation', async () => {
-    fs.writeFileSync(path.join(tmp, 'ai-tools.manifest.json'), JSON.stringify({ name: 'bad' }), 'utf8');
+    fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify({ name: 'bad' }), 'utf8');
     jest.spyOn(console, 'error').mockImplementation(() => {});
     const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
       throw new Error(`process.exit(${code})`);
@@ -134,7 +134,7 @@ describe('publish command', () => {
 
   it('with --strict exits 1 when skill file has compat issues', async () => {
     // Write a skill file with a frontmatter field that has known compat issues
-    // The exact field doesn't matter here — we just need the command to parse a .md skill
+    // The exact field doesn't matter here � we just need the command to parse a .md skill
     // and trigger the compat check. The VALID_MANIFEST declares 'skill.md'.
     fs.writeFileSync(
       path.join(tmp, 'skill.md'),
@@ -151,7 +151,7 @@ describe('publish command', () => {
     });
     try {
       await createPublishCommand().parseAsync(['--strict'], { from: 'user' });
-      // No compat issues for this field — publish succeeded
+      // No compat issues for this field � publish succeeded
       expect(mockPublish).toHaveBeenCalledTimes(1);
     } catch (err) {
       // process.exit(1) thrown by --strict blocking

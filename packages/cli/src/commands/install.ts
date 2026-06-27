@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -20,8 +20,8 @@ import {
   readManifest,
   writeManifest,
   upsertToolDependency,
-} from '@ai-tools/core';
-import type { InstallScope } from '@ai-tools/core';
+} from '@aitools/core';
+import type { InstallScope } from '@aitools/core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { createRegistryClient } from '../utils/registry-client.js';
 import { Installer } from '../utils/installer.js';
@@ -33,15 +33,15 @@ interface InstallOptions {
 }
 
 /**
- * ai-tools install [name[@version]] [options]
+ * aitools install [name[@version]] [options]
  *
- * With a name: resolves the tool from the registry, installs it, and saves to ai-tools.json.
- * Without a name: installs all tools listed in ai-tools.json (like `npm install`).
+ * With a name: resolves the tool from the registry, installs it, and saves to aitools.json.
+ * Without a name: installs all tools listed in aitools.json (like `npm install`).
  */
 export function createInstallCommand(): Command {
   return new Command('install')
     .alias('i')
-    .description('Install an ai-tool package or all packages listed in ai-tools.json')
+    .description('Install an AITools package or all packages listed in aitools.json')
     .argument('[package]', 'Package name with optional version, e.g. my-skill or my-skill@1.2.0')
     .option('-s, --scope <scope>', 'Install scope: project or user', 'project')
     .option('-D, --dev', 'Save as a devTool dependency')
@@ -72,7 +72,7 @@ async function installSingle(
   const registries = configManager.getRegistries();
 
   if (registries.length === 0) {
-    console.error(chalk.red('No registries configured. Add one with: ai-tools registry add <url>'));
+    console.error(chalk.red('No registries configured. Add one with: aitools registry add <url>'));
     process.exit(1);
   }
 
@@ -116,21 +116,21 @@ async function installSingle(
   if (configManager.getPlatform() === 'universal') {
     console.log(
       chalk.yellow('\n  Tip: no platform configured -- files were installed to .agents/') +
-      chalk.dim('\n  Run: ai-tools config set platform vscode  (or claude|cursor|windsurf)'),
+      chalk.dim('\n  Run: aitools config set platform vscode  (or claude|cursor|windsurf)'),
     );
   } else if (configManager.detectedPlatform) {
     console.log(
       chalk.dim(`\n  Auto-detected platform: ${configManager.detectedPlatform}`) +
-      chalk.dim(`\n  Pin it permanently: ai-tools config set platform ${configManager.detectedPlatform}`),
+      chalk.dim(`\n  Pin it permanently: aitools config set platform ${configManager.detectedPlatform}`),
     );
   }
 
-  // Update ai-tools.json
+  // Update aitools.json
   const existing = readManifest(cwd) ?? {};
   const versionRange = `^${manifest.version}`;
   const updated = upsertToolDependency(existing, name, versionRange, options.dev ?? false);
   writeManifest(cwd, updated);
-  console.log(chalk.dim(`  Saved to ai-tools.json`));
+  console.log(chalk.dim(`  Saved to aitools.json`));
 }
 
 async function installAll(
@@ -141,7 +141,7 @@ async function installAll(
 ): Promise<void> {
   const manifest = readManifest(cwd);
   if (!manifest) {
-    console.error(chalk.red('No ai-tools.json found. Run: ai-tools init'));
+    console.error(chalk.red('No aitools.json found. Run: aitools init'));
     process.exit(1);
   }
 
@@ -152,7 +152,7 @@ async function installAll(
 
   const toolNames = Object.keys(allTools);
   if (toolNames.length === 0) {
-    console.log(chalk.yellow('No tools listed in ai-tools.json.'));
+    console.log(chalk.yellow('No tools listed in aitools.json.'));
     return;
   }
 
@@ -166,7 +166,7 @@ async function installAll(
 
     // Skip if already installed at a satisfying version
     if (locked && semver.satisfies(locked.version, range)) {
-      console.log(chalk.dim(`  ${name}@${locked.version} � already satisfied`));
+      console.log(chalk.dim(`  ${name}@${locked.version} ? already satisfied`));
       continue;
     }
 

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -20,11 +20,11 @@ import {
   PLATFORM_SPECS,
   isSpecStale,
   ToolManifestSchema,
-} from '@ai-tools/core';
-import type { PlatformSpec, FieldSupport } from '@ai-tools/core';
-import type { TargetPlatform } from '@ai-tools/core';
+} from '@aitools/core';
+import type { PlatformSpec, FieldSupport } from '@aitools/core';
+import type { TargetPlatform } from '@aitools/core';
 
-const MANIFEST_FILE = 'ai-tools.manifest.json';
+const MANIFEST_FILE = 'aitools.manifest.json';
 
 interface CompatOptions {
   platform?: string;
@@ -32,8 +32,8 @@ interface CompatOptions {
   fix?: boolean;
 }
 
-// ── Minimal YAML frontmatter parser ───────────────────────────────────────
-// Supports scalar string and boolean values only — sufficient for SKILL.md.
+// -- Minimal YAML frontmatter parser ---------------------------------------
+// Supports scalar string and boolean values only � sufficient for SKILL.md.
 
 export function parseSkillFrontmatter(content: string): Record<string, string | boolean> | null {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
@@ -47,7 +47,7 @@ export function parseSkillFrontmatter(content: string): Record<string, string | 
     const raw = line.slice(colonIdx + 1).trim();
     if (raw === 'true') result[key] = true;
     else if (raw === 'false') result[key] = false;
-    else if (raw.startsWith('>-') || raw === '') continue; // multi-line — skip for now
+    else if (raw.startsWith('>-') || raw === '') continue; // multi-line � skip for now
     else result[key] = raw.replace(/^['"]|['"]$/g, '');
   }
   return result;
@@ -77,7 +77,7 @@ export function rewriteSkillFrontmatter(content: string, fieldsToRemove: Set<str
 }
 
 
-// ── Compatibility analysis ─────────────────────────────────────────────────
+// -- Compatibility analysis -------------------------------------------------
 
 export interface FieldIssue {
   field: string;
@@ -107,7 +107,7 @@ export function analyzeCompat(
       for (const field of Object.keys(skillFields)) {
         const fieldSpec = spec.skillFrontmatter[field];
         if (!fieldSpec) {
-          // Field not in spec data — unknown
+          // Field not in spec data � unknown
           fieldIssues.push({ field, support: 'unknown', note: 'Not in platform spec data' });
         } else if (fieldSpec.support !== 'supported') {
           fieldIssues.push({ field, support: fieldSpec.support, note: fieldSpec.note });
@@ -119,23 +119,23 @@ export function analyzeCompat(
   });
 }
 
-// ── Output formatting ──────────────────────────────────────────────────────
+// -- Output formatting ------------------------------------------------------
 
 function supportIcon(support: FieldSupport): string {
   switch (support) {
-    case 'supported':   return chalk.green('✔');
-    case 'ignored':     return chalk.yellow('⚠');
-    case 'unsupported': return chalk.red('✖');
+    case 'supported':   return chalk.green('?');
+    case 'ignored':     return chalk.yellow('?');
+    case 'unsupported': return chalk.red('?');
     case 'unknown':     return chalk.dim('?');
   }
 }
 
 function overallIcon(result: PlatformResult): string {
-  if (!result.categorySupported) return chalk.red('✖');
+  if (!result.categorySupported) return chalk.red('?');
   if (result.stale) return chalk.dim('?');
-  if (result.fieldIssues.some((i) => i.support === 'unsupported')) return chalk.red('✖');
-  if (result.fieldIssues.some((i) => i.support === 'ignored' || i.support === 'unknown')) return chalk.yellow('⚠');
-  return chalk.green('✔');
+  if (result.fieldIssues.some((i) => i.support === 'unsupported')) return chalk.red('?');
+  if (result.fieldIssues.some((i) => i.support === 'ignored' || i.support === 'unknown')) return chalk.yellow('?');
+  return chalk.green('?');
 }
 
 function overallLabel(result: PlatformResult): string {
@@ -150,7 +150,7 @@ function overallLabel(result: PlatformResult): string {
   return parts.join('; ');
 }
 
-// ── Command ────────────────────────────────────────────────────────────────
+// -- Command ----------------------------------------------------------------
 
 export function createCompatCommand(): Command {
   return new Command('compat')
@@ -179,7 +179,7 @@ export function createCompatCommand(): Command {
 
       const parsed = ToolManifestSchema.safeParse(raw);
       if (!parsed.success) {
-        console.error(chalk.red('Manifest validation failed — run `aitools manifest validate` first'));
+        console.error(chalk.red('Manifest validation failed � run `aitools manifest validate` first'));
         process.exit(1);
       }
 
@@ -214,7 +214,7 @@ export function createCompatCommand(): Command {
 
       const results = analyzeCompat(skillFields, manifest.category, targetPlatforms);
 
-      // ── Print results ────────────────────────────────────────────────────
+      // -- Print results ----------------------------------------------------
       console.log(`\n  ${chalk.bold('Compatibility:')} ${chalk.cyan(manifest.name)}@${manifest.version}\n`);
       console.log(`  ${chalk.dim('category:')} ${manifest.category}`);
 
@@ -232,13 +232,13 @@ export function createCompatCommand(): Command {
 
         for (const issue of result.fieldIssues) {
           const fi = supportIcon(issue.support);
-          const notePart = issue.note ? chalk.dim(` — ${issue.note}`) : '';
+          const notePart = issue.note ? chalk.dim(` � ${issue.note}`) : '';
           console.log(`      ${fi} ${chalk.dim(issue.field)}${notePart}`);
         }
 
         if (result.stale) {
           console.log(
-            `      ${chalk.dim('!')} ${chalk.dim(`Spec last verified ${result.spec.lastVerified} — re-verify at ${result.spec.docsUrl}`)}`,
+            `      ${chalk.dim('!')} ${chalk.dim(`Spec last verified ${result.spec.lastVerified} � re-verify at ${result.spec.docsUrl}`)}`,
           );
         }
       }
@@ -253,7 +253,7 @@ export function createCompatCommand(): Command {
         console.log(`  ${chalk.green('All platforms compatible.')}\n`);
       } else {
         console.log(
-          `  ${chalk.yellow('⚠')} ${chalk.yellow('Compatibility issues found.')} ` +
+          `  ${chalk.yellow('?')} ${chalk.yellow('Compatibility issues found.')} ` +
           chalk.dim('Use --platform to check a specific platform.\n'),
         );
       }

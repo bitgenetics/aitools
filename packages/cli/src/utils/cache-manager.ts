@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -16,14 +16,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import type { ToolManifest } from '@ai-tools/core';
+import type { ToolManifest } from '@aitools/core';
 
 /**
- * Manages the local tool cache at ~/.ai-tools/cache/.
+ * Manages the local tool cache at ~/.aitools/cache/.
  *
  * Each cached tool is stored at:
- *   <base>/<name>/<version>/.agents/<file.dest>   ← universal representation
- *   <base>/<name>/<version>/cache-metadata.json   ← integrity + timestamps
+ *   <base>/<name>/<version>/.agents/<file.dest>   ? universal representation
+ *   <base>/<name>/<version>/cache-metadata.json   ? integrity + timestamps
  *
  * The .agents/ sub-directory mirrors the tool's universal file layout so it
  * can be copied to any platform destination without re-downloading.
@@ -47,14 +47,14 @@ export interface CacheEntry {
 }
 
 export class CacheManager {
-  /** Root of the cache — exposed so callers can display or clean it. */
+  /** Root of the cache � exposed so callers can display or clean it. */
   readonly base: string;
 
-  constructor(base: string = path.join(os.homedir(), '.ai-tools', 'cache')) {
+  constructor(base: string = path.join(os.homedir(), '.aitools', 'cache')) {
     this.base = base;
   }
 
-  // ── Paths ─────────────────────────────────────────────────────────────────
+  // -- Paths -----------------------------------------------------------------
 
   /** Absolute path to the versioned cache entry directory. */
   entryDir(name: string, version: string): string {
@@ -66,7 +66,7 @@ export class CacheManager {
     return path.join(this.entryDir(name, version), '.agents');
   }
 
-  // ── Queries ───────────────────────────────────────────────────────────────
+  // -- Queries ---------------------------------------------------------------
 
   /** Returns true when a valid cache entry exists for this name + version. */
   has(name: string, version: string): boolean {
@@ -75,7 +75,7 @@ export class CacheManager {
 
   /**
    * Returns the stored metadata for a cached entry.
-   * Throws if the entry is not present — call `has()` first.
+   * Throws if the entry is not present � call `has()` first.
    */
   getMetadata(name: string, version: string): CacheMetadata {
     const metaPath = path.join(this.entryDir(name, version), 'cache-metadata.json');
@@ -85,7 +85,7 @@ export class CacheManager {
     return JSON.parse(fs.readFileSync(metaPath, 'utf8')) as CacheMetadata;
   }
 
-  // ── Mutations ─────────────────────────────────────────────────────────────
+  // -- Mutations -------------------------------------------------------------
 
   /**
    * Extract a tarball into the cache and write metadata.
@@ -145,9 +145,9 @@ export class CacheManager {
 
   /**
    * Remove cached entries.
-   * - `clear()` — clears the entire cache
-   * - `clear(name)` — removes all versions of a tool
-   * - `clear(name, version)` — removes one specific version
+   * - `clear()` � clears the entire cache
+   * - `clear(name)` � removes all versions of a tool
+   * - `clear(name, version)` � removes one specific version
    */
   clear(name?: string, version?: string): void {
     const target =
@@ -161,7 +161,7 @@ export class CacheManager {
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────
+// -- Helpers ---------------------------------------------------------------
 
 function sha256(buf: Buffer): string {
   return 'sha256-' + crypto.createHash('sha256').update(buf).digest('base64');
@@ -169,7 +169,7 @@ function sha256(buf: Buffer): string {
 
 /**
  * Convert a package name to a safe filesystem path segment.
- * @scope/name → scope/name  (removes leading @)
+ * @scope/name ? scope/name  (removes leading @)
  */
 function safeName(name: string): string {
   return name.replace(/^@/, '');

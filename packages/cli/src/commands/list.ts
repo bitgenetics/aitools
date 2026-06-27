@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -18,14 +18,14 @@ import { ConfigManager } from '../utils/config-manager.js';
 import { Installer } from '../utils/installer.js';
 
 /**
- * ai-tools list
+ * aitools list
  *
- * Lists all tools recorded in the ai-tools-lock.json.
+ * Lists all tools recorded in the aitools-lock.json.
  */
 export function createListCommand(): Command {
   return new Command('list')
     .alias('ls')
-    .description('List installed ai-tool packages')
+    .description('List installed AITools packages')
     .option('--json', 'Output raw JSON')
     .action((options: { json?: boolean }) => {
       const cwd = process.cwd();
@@ -41,7 +41,7 @@ export function createListCommand(): Command {
       }
 
       if (tools.length === 0) {
-        console.log(chalk.yellow('No tools installed. Run: ai-tools install <name>'));
+        console.log(chalk.yellow('No tools installed. Run: aitools install <name>'));
         return;
       }
 

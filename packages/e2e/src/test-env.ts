@@ -16,7 +16,7 @@
  * Shared e2e test environment helpers.
  *
  * Uses an isolated HOME/USERPROFILE so tests do not inherit the developer's
- * ai-tools.config.json. The registry server is started by global-setup.cjs
+ * aitools.config.json. The registry server is started by global-setup.cjs
  * when REGISTRY_URL points at localhost and nothing is listening yet.
  */
 import { execSync, spawnSync } from 'node:child_process';
@@ -28,7 +28,7 @@ export const REGISTRY_URL = (process.env['REGISTRY_URL'] ?? 'http://localhost:48
 
 const GIT_REGISTRY_STATE_FILE =
   process.env['GIT_REGISTRY_STATE_FILE'] ??
-  path.join(os.tmpdir(), 'ai-tools-e2e-git-registry.json');
+  path.join(os.tmpdir(), 'aitools-e2e-git-registry.json');
 
 export interface GitRegistryRemote {
   url: string;
@@ -38,13 +38,13 @@ export interface GitRegistryRemote {
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const DEFAULT_CLI = `node ${path.join(REPO_ROOT, 'packages/cli/dist/cli.js')}`;
-const CLI = process.env['AI_TOOLS_CLI'] ?? DEFAULT_CLI;
+const CLI = process.env['AITOOLS_CLI'] ?? DEFAULT_CLI;
 
 /** Empty home directory — prevents user-level config from affecting e2e runs. */
-export const E2E_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-e2e-home-'));
+export const E2E_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-e2e-home-'));
 
 /** Create a project directory under E2E_HOME so config cascade does not walk into the real user profile. */
-export function makeE2eProjectDir(prefix = 'ai-tools-e2e-'): string {
+export function makeE2eProjectDir(prefix = 'aitools-e2e-'): string {
   return fs.mkdtempSync(path.join(E2E_HOME, prefix));
 }
 
@@ -61,7 +61,7 @@ export function isolatedEnv(): NodeJS.ProcessEnv {
     ...process.env,
     HOME: E2E_HOME,
     USERPROFILE: E2E_HOME,
-    AI_TOOLS_CONFIG_ROOT: E2E_HOME,
+    AITOOLS_CONFIG_ROOT: E2E_HOME,
   };
 }
 
@@ -131,7 +131,7 @@ export async function publishFixture(name: string, version: string): Promise<voi
 }
 
 export function initBareGitRegistry(): { barePath: string; tmpRoot: string } {
-  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-git-e2e-root-'));
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-git-e2e-root-'));
   const barePath = path.join(tmpRoot, 'registry.git');
   const workPath = path.join(tmpRoot, 'work');
 

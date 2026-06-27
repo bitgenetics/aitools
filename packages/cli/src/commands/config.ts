@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -18,11 +18,11 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { ConfigCascade } from '@ai-tools/core';
-import type { AiToolsConfig } from '@ai-tools/core';
+import { ConfigCascade } from '@aitools/core';
+import type { AiToolsConfig } from '@aitools/core';
 import { ConfigManager } from '../utils/config-manager.js';
 
-const CONFIG_FILE = 'ai-tools.config.json';
+const CONFIG_FILE = 'aitools.config.json';
 
 // Keys the user can get/set via the CLI (registries are managed by `registry` subcommand)
 const SCALAR_KEYS = ['defaultScope', 'platform'] as const;
@@ -51,7 +51,7 @@ function parseKey(key: string): { type: 'scalar'; field: ScalarKey } | { type: '
 
 
 const CONFIG_TEMPLATE = `{
-  // Target platform — controls install directory layout.
+  // Target platform � controls install directory layout.
   // Allowed: vscode | claude | cursor | windsurf
   // "platform": "vscode",
 
@@ -78,9 +78,9 @@ const CONFIG_TEMPLATE = `{
 `;
 
 export function createConfigCommand(): Command {
-  const cmd = new Command('config').description('Read and write ai-tools configuration');
+  const cmd = new Command('config').description('Read and write aitools configuration');
 
-  // ── config list ────────────────────────────────────────────────────────────
+  // -- config list ------------------------------------------------------------
   cmd
     .command('list')
     .alias('ls')
@@ -114,11 +114,11 @@ export function createConfigCommand(): Command {
 
       if (!anyFound) {
         console.log(chalk.dim('No config files found.'));
-        console.log(chalk.dim(`  Create one with: ai-tools config set <key> <value>`));
+        console.log(chalk.dim(`  Create one with: aitools config set <key> <value>`));
       }
     });
 
-  // ── config get ─────────────────────────────────────────────────────────────
+  // -- config get -------------------------------------------------------------
   cmd
     .command('get <key>')
     .description(
@@ -149,7 +149,7 @@ export function createConfigCommand(): Command {
       }
     });
 
-  // ── config set ─────────────────────────────────────────────────────────────
+  // -- config set -------------------------------------------------------------
   cmd
     .command('set <key> <value>')
     .description(
@@ -195,7 +195,7 @@ export function createConfigCommand(): Command {
       }
     });
 
-  // ── config unset ───────────────────────────────────────────────────────────
+  // -- config unset -----------------------------------------------------------
   cmd
     .command('unset <key>')
     .description('Remove a config key from the project or user config')
@@ -214,7 +214,7 @@ export function createConfigCommand(): Command {
         : path.join(process.cwd(), CONFIG_FILE);
 
       if (!fs.existsSync(filePath)) {
-        console.log(chalk.dim(`No config file at ${filePath} — nothing to unset.`));
+        console.log(chalk.dim(`No config file at ${filePath} � nothing to unset.`));
         return;
       }
 
@@ -235,7 +235,7 @@ export function createConfigCommand(): Command {
     });
 
 
-  // ── config edit ────────────────────────────────────────────────────────────
+  // -- config edit ------------------------------------------------------------
   cmd
     .command('edit')
     .description('Open the config file in your editor ($VISUAL, $EDITOR, or code)')
@@ -279,7 +279,7 @@ interface EditorCommand {
 
 /**
  * Resolve the editor to open a file with. Priority:
- *   $VISUAL → $EDITOR → code (VS Code) → platform fallback
+ *   $VISUAL ? $EDITOR ? code (VS Code) ? platform fallback
  */
 function resolveEditor(): EditorCommand | null {
   // Honour $VISUAL / $EDITOR
@@ -310,7 +310,7 @@ function printConfig(cfg: AiToolsConfig): void {
     if (k === 'registries') {
       console.log(`  ${chalk.cyan('registries')}:`);
       for (const r of v as Array<{ name: string; url: string; priority?: number }>) {
-        console.log(`    ${chalk.green(r.name)} → ${r.url}${r.priority !== undefined ? chalk.dim(` (priority ${r.priority})`) : ''}`);
+        console.log(`    ${chalk.green(r.name)} ? ${r.url}${r.priority !== undefined ? chalk.dim(` (priority ${r.priority})`) : ''}`);
       }
     } else if (k === 'installPaths') {
       console.log(`  ${chalk.cyan('installPaths')}:`);

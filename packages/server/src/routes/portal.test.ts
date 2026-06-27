@@ -35,7 +35,7 @@ describe('Portal routes', () => {
     const res = await app.inject({ method: 'GET', url: '/' });
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toContain('text/html');
-    expect(res.body).toContain('ai-tools Registry');
+    expect(res.body).toContain('AITools Registry');
   });
 
   it('serves skill details page HTML at /portal/skills/:name', async () => {
