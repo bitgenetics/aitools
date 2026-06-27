@@ -73,6 +73,39 @@ describe('registry command', () => {
       const reg = written?.find((r: { name: string }) => r.name === 'my-reg');
       expect(reg?.url).toBe('http://new.example.com');
     });
+
+    it('adds a git registry with branch and path options', () => {
+      const mock = makeMockConfigManager([]);
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createRegistryCommand().parse(
+        [
+          'add',
+          'git@github.com:org/registry.git',
+          '--name',
+          'team-tools',
+          '--type',
+          'git',
+          '--read-branch',
+          'main',
+          '--publish-branch',
+          'releases',
+          '--path',
+          'packages/registry/',
+        ],
+        { from: 'user' },
+      );
+      const written = mock._getWrittenRegistries();
+      expect(written).toContainEqual(
+        expect.objectContaining({
+          type: 'git',
+          name: 'team-tools',
+          url: 'git@github.com:org/registry.git',
+          readBranch: 'main',
+          publishBranch: 'releases',
+          path: 'packages/registry/',
+        }),
+      );
+    });
   });
 
   describe('remove subcommand', () => {

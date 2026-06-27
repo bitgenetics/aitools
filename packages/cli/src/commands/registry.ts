@@ -15,7 +15,18 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { ConfigManager } from '../utils/config-manager.js';
-import type { RegistryConfig } from '@ai-tools/core';
+import { RegistryConfigSchema } from '@ai-tools/core';
+import type { RegistryConfig, GitRegistryConfig, HttpRegistryConfig } from '@ai-tools/core';
+
+function defaultRegistryName(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    const sshMatch = url.match(/^git@([^:]+):/);
+    if (sshMatch) return sshMatch[1]!;
+    return url.replace(/[^a-zA-Z0-9-_]/g, '-').slice(0, 32) || 'registry';
+  }
+}
 
 /**
  * ai-tools registry
@@ -41,11 +52,19 @@ export function createRegistryCommand(): Command {
 
       console.log(chalk.bold('\nConfigured registries\n'));
       for (const reg of registries) {
-        console.log(`  ${chalk.green(reg.name)}  ${chalk.dim(reg.url)}`);
+        const typeLabel = reg.type === 'git' ? chalk.cyan('git') : chalk.blue('http');
+        console.log(`  ${chalk.green(reg.name)}  ${typeLabel}  ${chalk.dim(reg.url)}`);
         if (reg.priority !== undefined) {
           console.log(chalk.dim(`    priority: ${reg.priority}`));
         }
-        if (reg.auth) {
+        if (reg.type === 'git') {
+          const gitReg = reg as GitRegistryConfig;
+          console.log(chalk.dim(`    read branch: ${gitReg.readBranch ?? 'main'}`));
+          console.log(chalk.dim(`    publish branch: ${gitReg.publishBranch ?? gitReg.readBranch ?? 'main'}`));
+          if (gitReg.path) {
+            console.log(chalk.dim(`    path: ${gitReg.path}`));
+          }
+        } else if ('auth' in reg && reg.auth) {
           console.log(chalk.dim(`    auth: ${reg.auth.type}`));
         }
       }
@@ -57,28 +76,67 @@ export function createRegistryCommand(): Command {
     .description('Add a registry to the project or user config')
     .option('-n, --name <name>', 'Registry name (defaults to hostname)')
     .option('-p, --priority <priority>', 'Priority (lower = higher priority)', '100')
-    .option('--token <token>', 'Bearer token for authentication')
+    .option('-t, --type <type>', 'Registry type: http or git', 'http')
+    .option('--read-branch <branch>', 'Git registry read branch (default: main)')
+    .option('--publish-branch <branch>', 'Git registry publish branch (default: read branch)')
+    .option('--path <path>', 'Path inside git repo where tools are stored (default: registry/)')
+    .option('--token <token>', 'Bearer token for HTTP registry authentication')
     .option('-g, --global', 'Write to user-level config (~/.ai-tools.config.json)')
-    .action((url: string, options: { name?: string; priority?: string; token?: string; global?: boolean }) => {
+    .action((
+      url: string,
+      options: {
+        name?: string;
+        priority?: string;
+        type?: string;
+        readBranch?: string;
+        publishBranch?: string;
+        path?: string;
+        token?: string;
+        global?: boolean;
+      },
+    ) => {
       const cwd = process.cwd();
       const configManager = new ConfigManager(cwd);
 
-      let registryName = options.name;
-      if (!registryName) {
-        try {
-          registryName = new URL(url).hostname;
-        } catch {
-          console.error(chalk.red(`Invalid URL: ${url}`));
-          process.exit(1);
-        }
+      const registryType = (options.type ?? 'http').toLowerCase();
+      if (registryType !== 'http' && registryType !== 'git') {
+        console.error(chalk.red(`Invalid registry type: ${options.type}. Use "http" or "git".`));
+        process.exit(1);
       }
 
-      const newRegistry: RegistryConfig = {
-        name: registryName,
-        url,
-        priority: parseInt(options.priority ?? '100', 10),
-        ...(options.token ? { auth: { type: 'bearer', token: options.token } } : {}),
-      };
+      const registryName = options.name ?? defaultRegistryName(url);
+
+      let newRegistry: RegistryConfig;
+      if (registryType === 'git') {
+        if (options.token) {
+          console.error(chalk.red('Git registries use system git credentials; --token is not supported.'));
+          process.exit(1);
+        }
+        newRegistry = {
+          type: 'git',
+          name: registryName,
+          url,
+          priority: parseInt(options.priority ?? '100', 10),
+          ...(options.readBranch ? { readBranch: options.readBranch } : {}),
+          ...(options.publishBranch ? { publishBranch: options.publishBranch } : {}),
+          ...(options.path ? { path: options.path } : {}),
+        } satisfies GitRegistryConfig;
+      } else {
+        newRegistry = {
+          type: 'http',
+          name: registryName,
+          url,
+          priority: parseInt(options.priority ?? '100', 10),
+          ...(options.token ? { auth: { type: 'bearer' as const, token: options.token } } : {}),
+        } satisfies HttpRegistryConfig;
+      }
+
+      const parsed = RegistryConfigSchema.safeParse(newRegistry);
+      if (!parsed.success) {
+        console.error(chalk.red(`Invalid registry config: ${parsed.error.message}`));
+        process.exit(1);
+      }
+      newRegistry = parsed.data;
 
       const existing = configManager.get();
       const registries = [...(existing.registries ?? [])];

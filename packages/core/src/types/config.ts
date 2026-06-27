@@ -14,18 +14,44 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import type { InstallScope, TargetPlatform } from './tool.js';
 
-/**
- * Configuration for a single registry endpoint.
- * Registries are queried in priority order (lowest number = highest priority).
- */
-export interface RegistryConfig {
+/** Shared fields for all registry types. */
+interface RegistryConfigBase {
   /** Human-readable name, used to reference this registry from the CLI. */
   name: string;
-  /** Base URL of the registry server. */
+  /** Registry endpoint URL (HTTP base URL or git remote URL). */
   url: string;
   /** Lower numbers are queried first. Defaults to 100. */
   priority?: number;
+}
+
+/**
+ * HTTP Fastify registry endpoint.
+ * When `type` is omitted in config files it is treated as HTTP for backward compatibility.
+ */
+export interface HttpRegistryConfig extends RegistryConfigBase {
+  type?: 'http';
   auth?: RegistryAuth;
+}
+
+/**
+ * Git-backed registry — tools are stored in a cloned repo under `path`.
+ * Authentication is delegated to the system git credential helper.
+ */
+export interface GitRegistryConfig extends RegistryConfigBase {
+  type: 'git';
+  /** Branch used for install, search, and read operations. Defaults to `main`. */
+  readBranch?: string;
+  /** Branch used for publish operations. Defaults to `readBranch`. */
+  publishBranch?: string;
+  /** Directory inside the repo where tools are stored. Defaults to `registry/`. */
+  path?: string;
+}
+
+/** Configuration for a single registry endpoint. */
+export type RegistryConfig = HttpRegistryConfig | GitRegistryConfig;
+
+export function isGitRegistryConfig(config: RegistryConfig): config is GitRegistryConfig {
+  return config.type === 'git';
 }
 
 export interface RegistryAuth {

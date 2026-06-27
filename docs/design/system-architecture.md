@@ -98,6 +98,9 @@ graph TD
 1. **Single Registry**: Developer CLI connects to one private registry server
 2. **Chained Registries**: Multiple registries form a chain for load balancing and failover
 3. **Public + Private**: Public registry for discovery, private for publishing
+4. **Git-backed Registry**: No HTTP server — tools live in a git repo; CLI clones locally and uses system git credentials
+
+The CLI dispatches to `HttpRegistryClient` or `GitRegistryClient` based on `registries[].type` in config (`http` is the default when `type` is omitted).
 
 ---
 

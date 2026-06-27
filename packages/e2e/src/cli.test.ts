@@ -25,49 +25,18 @@
  * either installed globally or set AI_TOOLS_CLI accordingly.
  */
 
-import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-
-const REGISTRY_URL = (process.env['REGISTRY_URL'] ?? 'http://localhost:4873').replace(/\/$/, '');
-
-/** The CLI invocation — supports overriding with AI_TOOLS_CLI env var. */
-const CLI = process.env['AI_TOOLS_CLI'] ?? 'aitools';
-
-function run(args: string, cwd?: string): string {
-  return execSync(`${CLI} ${args}`, {
-    cwd,
-    encoding: 'utf8',
-    env: { ...process.env },
-    // Let the test time out if the child hangs; execSync default is inherited
-  }).trim();
-}
-
-/** Publish a minimal tool fixture to the registry over HTTP so CLI tests can find it. */
-async function publishFixture(name: string, version: string): Promise<void> {
-  const manifest = {
-    name,
-    version,
-    description: `CLI e2e fixture: ${name}`,
-    category: 'skill',
-    scope: 'user',
-    platform: 'universal',
-    author: 'e2e',
-    license: 'MIT',
-    files: [{ src: 'index.md', dest: `${name}.md` }],
-  };
-
-  const res = await fetch(`${REGISTRY_URL}/api/tools`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ manifest, files: { 'index.md': `# ${name}` } }),
-  });
-
-  if (!res.ok && res.status !== 409) {
-    throw new Error(`Failed to publish fixture ${name}@${version}: ${res.status}`);
-  }
-}
+import {
+  REGISTRY_URL,
+  getGitRegistryRemote,
+  initGitRegistry,
+  makeE2eProjectDir,
+  publishFixture,
+  rmTmpDir,
+  run,
+} from './test-env.js';
 
 // ---------------------------------------------------------------------------
 
@@ -110,7 +79,7 @@ describe('aitools install', () => {
   });
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-e2e-'));
+    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
     // Write a minimal project config pointing at our test registry
     fs.writeFileSync(
       path.join(tmpDir, 'ai-tools.config.json'),
@@ -121,7 +90,7 @@ describe('aitools install', () => {
   });
 
   afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true });
+    rmTmpDir(tmpDir);
   });
 
   it('installs a tool from the registry into a project directory', () => {
@@ -148,11 +117,11 @@ describe('aitools init', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-e2e-'));
+    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
   });
 
   afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true });
+    rmTmpDir(tmpDir);
   });
 
   it('creates ai-tools.json with the directory name as project name', () => {
@@ -199,7 +168,7 @@ describe('aitools list', () => {
   });
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-e2e-'));
+    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
     fs.writeFileSync(
       path.join(tmpDir, 'ai-tools.config.json'),
       JSON.stringify({
@@ -209,7 +178,7 @@ describe('aitools list', () => {
   });
 
   afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true });
+    rmTmpDir(tmpDir);
   });
 
   it('reports no tools when nothing is installed', () => {
@@ -242,7 +211,7 @@ describe('aitools uninstall', () => {
   });
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-e2e-'));
+    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
     fs.writeFileSync(
       path.join(tmpDir, 'ai-tools.config.json'),
       JSON.stringify({
@@ -252,7 +221,7 @@ describe('aitools uninstall', () => {
   });
 
   afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true });
+    rmTmpDir(tmpDir);
   });
 
   it('removes the tool from the lock file', () => {
@@ -289,7 +258,7 @@ describe('aitools update', () => {
   });
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-e2e-'));
+    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
     fs.writeFileSync(
       path.join(tmpDir, 'ai-tools.config.json'),
       JSON.stringify({
@@ -299,7 +268,7 @@ describe('aitools update', () => {
   });
 
   afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true });
+    rmTmpDir(tmpDir);
   });
 
   it('exits non-zero when ai-tools.json is missing', () => {
@@ -344,11 +313,11 @@ describe('aitools manifest bump', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-e2e-'));
+    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
   });
 
   afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true });
+    rmTmpDir(tmpDir);
   });
 
   function writeManifest(version: string): void {
@@ -406,11 +375,11 @@ describe('aitools manifest validate', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-e2e-'));
+    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
   });
 
   afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true });
+    rmTmpDir(tmpDir);
   });
 
   it('succeeds for a valid manifest with all source files present', () => {
@@ -455,11 +424,11 @@ describe('aitools publish', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-e2e-'));
+    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
   });
 
   afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true });
+    rmTmpDir(tmpDir);
   });
 
   it('--dry-run shows what would be published without uploading', () => {
@@ -509,11 +478,11 @@ describe('aitools registry', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-e2e-'));
+    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
   });
 
   afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true });
+    rmTmpDir(tmpDir);
   });
 
   it('adds a registry to the project config', () => {
@@ -555,11 +524,11 @@ describe('aitools config', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-e2e-'));
+    tmpDir = makeE2eProjectDir('ai-tools-e2e-');
   });
 
   afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true });
+    rmTmpDir(tmpDir);
   });
 
   it('sets a scalar config key and writes it to project config', () => {
@@ -590,5 +559,121 @@ describe('aitools config', () => {
 
   it('exits non-zero for an invalid platform value', () => {
     expect(() => run('config set platform invalid-ide', tmpDir)).toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('aitools git registry', () => {
+  const fixtureName = 'cli-e2e-git-fixture';
+  let gitRegName: string;
+  let gitRegistryUrl: string;
+  let gitRoot: string | null;
+  let tmpDir: string;
+  let usingGitea = false;
+
+  beforeAll(() => {
+    const gitRegistry = initGitRegistry();
+    gitRegistryUrl = gitRegistry.url;
+    gitRoot = gitRegistry.tmpRoot;
+    gitRegName = gitRegistry.name;
+    usingGitea = getGitRegistryRemote()?.provider === 'gitea';
+  });
+
+  afterAll(() => {
+    const cache = path.join(os.homedir(), '.ai-tools', 'git-cache', gitRegName);
+    if (fs.existsSync(cache)) {
+      fs.rmSync(cache, { recursive: true, force: true });
+    }
+    if (gitRoot && fs.existsSync(gitRoot)) {
+      fs.rmSync(gitRoot, { recursive: true, force: true });
+    }
+  });
+
+  beforeEach(() => {
+    tmpDir = makeE2eProjectDir('ai-tools-git-e2e-');
+    fs.writeFileSync(
+      path.join(tmpDir, 'ai-tools.config.json'),
+      JSON.stringify({
+        registries: [
+          {
+            type: 'git',
+            name: gitRegName,
+            url: gitRegistryUrl,
+            readBranch: 'main',
+            publishBranch: 'main',
+            priority: 1,
+          },
+        ],
+      }),
+    );
+  });
+
+  afterEach(() => {
+    rmTmpDir(tmpDir);
+  });
+
+  it('publishes and installs a tool through a git registry', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'ai-tools.manifest.json'),
+      JSON.stringify({
+        name: fixtureName,
+        version: '1.0.0',
+        description: 'Git registry e2e fixture',
+        category: 'skill',
+        files: [{ src: 'index.md', dest: `${fixtureName}.md` }],
+      }),
+    );
+    fs.writeFileSync(path.join(tmpDir, 'index.md'), `# ${fixtureName}`);
+
+    run('publish', tmpDir);
+    run(`install ${fixtureName} --scope project`, tmpDir);
+
+    const lockPath = path.join(tmpDir, 'ai-tools-lock.json');
+    expect(fs.existsSync(lockPath)).toBe(true);
+    const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8')) as {
+      tools: Record<string, unknown>;
+    };
+    expect(lock.tools).toHaveProperty(fixtureName);
+  });
+
+  it('finds a published tool via search', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'ai-tools.manifest.json'),
+      JSON.stringify({
+        name: `${fixtureName}-search`,
+        version: '1.0.0',
+        description: 'Git registry search fixture',
+        category: 'skill',
+        files: [{ src: 'index.md', dest: `${fixtureName}-search.md` }],
+      }),
+    );
+    fs.writeFileSync(path.join(tmpDir, 'index.md'), '# search fixture');
+
+    run('publish', tmpDir);
+    const out = run(`search ${fixtureName}-search`, tmpDir);
+    expect(out).toContain(`${fixtureName}-search`);
+  });
+
+  it('adds a git registry via registry add', () => {
+    const regDir = makeE2eProjectDir('ai-tools-git-reg-add-');
+    try {
+      run(
+        `registry add "${gitRegistryUrl.replace(/\\/g, '/')}" --name git-added --type=git --read-branch=main --path=registry/`,
+        regDir,
+      );
+      const cfg = JSON.parse(
+        fs.readFileSync(path.join(regDir, 'ai-tools.config.json'), 'utf8'),
+      ) as { registries: Array<{ type: string; name: string; url: string }> };
+      const added = cfg.registries.find((r) => r.name === 'git-added');
+      expect(added?.type).toBe('git');
+      if (usingGitea) {
+        expect(added?.url).toContain('tools-registry');
+      } else {
+        expect(added?.url).toContain('registry.git');
+      }
+    } finally {
+      fs.rmSync(regDir, { recursive: true, force: true });
+    }
   });
 });

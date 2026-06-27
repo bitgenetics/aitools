@@ -3,6 +3,11 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   testMatch: ['<rootDir>/src/**/*.test.ts'],
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+  },
+  globalSetup: '<rootDir>/global-setup.cjs',
+  globalTeardown: '<rootDir>/global-teardown.cjs',
   globals: {
     'ts-jest': {
       tsconfig: '<rootDir>/tsconfig.json',

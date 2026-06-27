@@ -224,6 +224,33 @@ aitools registry add http://curated.corp:4873 --name curated --token $READ_TOKEN
 
 This gives you supply-chain control: nothing reaches developer machines without being either authored internally or vetted through your review process.
 
+#### Git-backed registry (no HTTP server)
+
+For small teams or solo devs who already use git, you can point `aitools` at a **git repository** instead of running `@ai-tools/server`. The CLI clones the repo locally (cached under `~/.ai-tools/git-cache/<name>/`) and reads/writes tool packages from a `registry/` directory inside it.
+
+Authentication uses whatever credentials your system `git` already has — SSH keys, credential manager, or CI tokens. No bearer token config is needed.
+
+```bash
+# Add a git registry (read and publish both use main by default)
+aitools registry add git@github.com:myorg/ai-tools-registry.git \
+  --name team-tools --type git --global
+
+# Separate read and publish branches
+aitools registry add https://github.com/myorg/ai-tools-registry.git \
+  --name team-tools --type git \
+  --read-branch main --publish-branch releases \
+  --path registry/ --global
+```
+
+**GitHub Actions (private repo):** configure git credentials before calling `aitools`:
+
+```yaml
+- run: git config --global url."https://x-access-token:${{ secrets.REGISTRY_TOKEN }}@github.com".insteadOf "https://github.com"
+- run: aitools install @scope/my-tool
+```
+
+Git registries chain with HTTP registries the same way — set `priority` to control query order.
+
 ---
 
 ## CLI Reference
@@ -239,6 +266,7 @@ This gives you supply-chain control: nothing reaches developer machines without 
 | `aitools list` | List tools recorded in the lock file |
 | `aitools registry list` | Show configured registries |
 | `aitools registry add <url>` | Add a registry to the project config |
+| `aitools registry add <url> --type git` | Add a git-backed registry |
 | `aitools registry add <url> --global` | Add a registry to the user config |
 | `aitools registry remove <name>` | Remove a registry |
 | `aitools config list` | Show all config files and their values |
@@ -451,10 +479,20 @@ The file supports JSONC (comments allowed):
   // Registry endpoints. Lower priority number = queried first.
   "registries": [
     {
+      "type": "http",
       "name": "my-private",
       "url": "https://registry.example.com",
       "priority": 1,
       "auth": { "type": "bearer", "token": "..." }
+    },
+    {
+      "type": "git",
+      "name": "team-tools",
+      "url": "git@github.com:myorg/ai-tools-registry.git",
+      "readBranch": "main",
+      "publishBranch": "main",
+      "path": "registry/",
+      "priority": 2
     }
   ],
 
@@ -778,6 +816,16 @@ npm run test:e2e:down     # remove containers and volumes manually
 ```
 
 Requires Docker with the default (Linux) engine. The script tears down any previous volumes before starting, so repeated runs always get a clean registry.
+
+Docker e2e spins up three backing services:
+
+| Service | Role |
+|---------|------|
+| `test-registry` | HTTP registry (`@ai-tools/server`) |
+| `gitea-init` + `gitea` | Real Git remote for git-registry publish/install/search tests |
+| `e2e` | Jest runner |
+
+Git registry tests use Gitea when `GITEA_URL` is set (Docker). Locally they fall back to a temporary bare repository.
 
 **Option B — local server**
 

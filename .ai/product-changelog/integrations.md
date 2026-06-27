@@ -19,9 +19,16 @@
 ---
 
 ### `RegistryClient` (cli) ↔ `@ai-tools/server` REST API
-**How they connect**: `createRegistryClient(config)` returns an object wrapping Node's `http`/`https` modules. It calls `GET /tools/:name/:version` (manifest), `GET /tools/:name/:version/tarball` (download), `GET /search?q=` (search), `POST /tools` (publish). Auth is sent as `Bearer` or `Basic` via the `Authorization` header.  
+**How they connect**: `createRegistryClient(config)` dispatches on `config.type`. HTTP clients call `GET /tools/:name/:version`, `GET /tools/:name/:version/tarball`, `GET /search?q=`, `POST /tools`. Auth is sent as `Bearer` or `Basic` via the `Authorization` header.  
 **Key files**: `packages/cli/src/utils/registry-client.ts` (client), `packages/server/src/routes/tools.ts` (server)  
 **Gotchas**: The server returns non-JSON on some errors (Fastify default error bodies). `RegistryClient` wraps `JSON.parse` in a try-catch and re-throws with a descriptive message. On ECONNREFUSED/ENOTFOUND/ETIMEDOUT the `publish` command shows the registry URL and a "server not reachable" message.
+
+---
+
+### `GitRegistryClient` (cli) ↔ git remote
+**How they connect**: When `registries[].type === "git"`, `createGitRegistryClient()` clones/fetches the remote into `~/.ai-tools/git-cache/<name>/`, reads `registry/<tool>/<version>/manifest.json` and `tool.json`, and publishes via `git add/commit/push` (with `pull --rebase` on push conflict). No HTTP calls — auth comes from the system git credential helper.  
+**Key files**: `packages/cli/src/utils/git-registry-client.ts`, `packages/core/src/types/config.ts` (`GitRegistryConfig`)  
+**Gotchas**: Git search is local substring matching over manifests (no server-side AI search). `listVersions` walks semver directories on disk. Lock file `resolved` may be a git remote URL, not an HTTP tarball URL.
 
 ---
 

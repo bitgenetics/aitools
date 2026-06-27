@@ -24,6 +24,7 @@
 
 ## Recent Changes
 
+- **2026-06-26** — Git registry mode: `aitools registry add --type git` with local clone cache, publish/install/search — see `architecture.md`, `features.md`, `integrations.md`
 - **2026-06-15** `907cce7` — CLI shebang moved to line 1 (copyright header follows) — fixes `tsc` TS18026 — see `constraints.md`
 - **2026-06-15** `21e553f` — Design docs (`docs/design/`) rewritten to match implemented API, storage, and auth — see `architecture.md`
 - **2026-06-15** `21e553f` — Experimental-software disclaimer added to `readme.md` — see `constraints.md`
@@ -35,4 +36,4 @@
 ---
 
 <!-- Last SHA: 907cce7 -->
-<!-- Last updated: 2026-06-15 -->
+<!-- Last updated: 2026-06-26 -->

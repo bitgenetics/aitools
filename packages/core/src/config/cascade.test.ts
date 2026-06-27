@@ -225,4 +225,25 @@ describe('ConfigCascade.resolveConfigFiles', () => {
     const projIndex = files.findIndex((f) => f.includes('myproject'));
     expect(homeIndex).toBeLessThan(projIndex);
   });
+
+  it('stops walking at AI_TOOLS_CONFIG_ROOT when set', () => {
+    const root = path.join(os.tmpdir(), 'config-root-boundary');
+    const project = path.join(root, 'nested', 'project');
+    const previousRoot = process.env['AI_TOOLS_CONFIG_ROOT'];
+    process.env['AI_TOOLS_CONFIG_ROOT'] = root;
+    try {
+      const files = ConfigCascade.resolveConfigFiles(project);
+      const homeConfig = path.join(os.homedir(), 'ai-tools.config.json');
+      const walkedFiles = files.filter((f) => f !== homeConfig);
+      expect(walkedFiles.every((f) => f.startsWith(root))).toBe(true);
+      expect(walkedFiles).toEqual([
+        path.join(root, 'ai-tools.config.json'),
+        path.join(root, 'nested', 'ai-tools.config.json'),
+        path.join(project, 'ai-tools.config.json'),
+      ]);
+    } finally {
+      if (previousRoot === undefined) delete process.env['AI_TOOLS_CONFIG_ROOT'];
+      else process.env['AI_TOOLS_CONFIG_ROOT'] = previousRoot;
+    }
+  });
 });

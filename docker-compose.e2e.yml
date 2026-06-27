@@ -6,9 +6,17 @@
 # The -V flag (--renew-anon-volumes) ensures the /data volume is fresh each
 # run so tests always start with an empty registry.
 #
-# The `registry` service starts first.  The health-check polls /health every
-# 2 s; `e2e` only starts once registry is healthy.  docker compose exits with
-# the e2e container's exit code, so CI can use it as a pass/fail gate.
+# Services:
+#   test-registry — HTTP Fastify registry (@ai-tools/server)
+#   gitea-init    — one-shot CLI bootstrap (migrate + admin user) for Gitea
+#   gitea         — Git hosting for git-registry e2e tests
+#   e2e           — Jest test runner (starts after dependencies are healthy)
+#
+# Git registry tests use Gitea when GITEA_URL is set (Docker). Locally they
+# fall back to a temporary bare repository.
+
+volumes:
+  gitea-data:
 
 services:
   test-registry:
@@ -30,15 +38,75 @@ services:
       retries: 15
       start_period: 5s
 
+  gitea-init:
+    image: gitea/gitea:1.22.6
+    volumes:
+      - gitea-data:/data
+      - ./packages/e2e/gitea/bootstrap.sh:/bootstrap.sh:ro
+    environment:
+      USER_UID: "1000"
+      USER_GID: "1000"
+      GITEA__database__DB_TYPE: sqlite3
+      GITEA__database__PATH: /data/gitea/gitea.db
+      GITEA__server__DOMAIN: gitea
+      GITEA__server__HTTP_PORT: "3000"
+      GITEA__server__ROOT_URL: http://gitea:3000/
+      GITEA__security__INSTALL_LOCK: "true"
+      GITEA__service__DISABLE_REGISTRATION: "true"
+      GITEA_ADMIN_USER: e2e
+      GITEA_ADMIN_PASSWORD: e2e-test-pass
+      GITEA_ADMIN_EMAIL: e2e@test.com
+    entrypoint: ["/usr/bin/entrypoint"]
+    command:
+      - /bin/bash
+      - -c
+      - tr -d '\r' < /bootstrap.sh | /bin/bash
+
+  gitea:
+    image: gitea/gitea:1.22.6
+    volumes:
+      - gitea-data:/data
+    environment:
+      USER_UID: "1000"
+      USER_GID: "1000"
+      GITEA__database__DB_TYPE: sqlite3
+      GITEA__database__PATH: /data/gitea/gitea.db
+      GITEA__server__DOMAIN: gitea
+      GITEA__server__HTTP_PORT: "3000"
+      GITEA__server__ROOT_URL: http://gitea:3000/
+      GITEA__security__INSTALL_LOCK: "true"
+      GITEA__service__DISABLE_REGISTRATION: "true"
+    depends_on:
+      gitea-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -q
+        - --spider
+        - http://localhost:3000/api/healthz
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
   e2e:
     build:
       context: .
       dockerfile: e2e/Dockerfile
     environment:
       REGISTRY_URL: "http://test-registry:4873"
-      # Expose CLI binary via PATH inside the container
+      GITEA_URL: "http://gitea:3000"
+      GITEA_ADMIN_USER: "e2e"
+      GITEA_ADMIN_PASSWORD: "e2e-test-pass"
+      GITEA_REPO_NAME: "tools-registry"
       PATH: "/app/packages/cli/node_modules/.bin:/app/node_modules/.bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       AI_TOOLS_CLI: "node /app/packages/cli/dist/cli.js"
     depends_on:
       test-registry:
+        condition: service_healthy
+      gitea-init:
+        condition: service_completed_successfully
+      gitea:
         condition: service_healthy

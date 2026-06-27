@@ -14,8 +14,9 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import https from 'node:https';
 import http from 'node:http';
-import type { ToolManifest } from '@ai-tools/core';
-import type { RegistryConfig } from '@ai-tools/core';
+import type { ToolManifest, RegistryConfig, GitRegistryConfig, HttpRegistryConfig } from '@ai-tools/core';
+import { isGitRegistryConfig } from '@ai-tools/core';
+import { createGitRegistryClient } from './git-registry-client.js';
 
 export interface SearchResult {
   name: string;
@@ -51,7 +52,7 @@ export interface RegistryClient {
  * HTTP client for a single registry endpoint.
  * All requests include the Authorization header when auth is configured.
  */
-export function createRegistryClient(config: RegistryConfig): RegistryClient {
+export function createHttpRegistryClient(config: HttpRegistryConfig): RegistryClient {
   const base = config.url.replace(/\/$/, '');
 
   function buildHeaders(): Record<string, string> {
@@ -176,4 +177,15 @@ export function createRegistryClient(config: RegistryConfig): RegistryClient {
       });
     },
   };
+}
+
+/**
+ * Create a registry client for the given config.
+ * Dispatches to HTTP or git implementation based on `config.type`.
+ */
+export function createRegistryClient(config: RegistryConfig): RegistryClient {
+  if (isGitRegistryConfig(config)) {
+    return createGitRegistryClient(config);
+  }
+  return createHttpRegistryClient(config);
 }

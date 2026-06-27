@@ -44,11 +44,13 @@ export class ConfigCascade {
   /** Return ordered list of config file paths (project → home). */
   static resolveConfigFiles(cwd: string): string[] {
     const paths: string[] = [];
+    const configRoot = process.env['AI_TOOLS_CONFIG_ROOT'];
 
-    // Walk up from cwd to filesystem root
+    // Walk up from cwd to filesystem root (or an optional boundary for tests)
     let dir = path.resolve(cwd);
     while (true) {
       paths.push(path.join(dir, CONFIG_FILENAME));
+      if (configRoot && path.resolve(dir) === path.resolve(configRoot)) break;
       const parent = path.dirname(dir);
       if (parent === dir) break;
       dir = parent;

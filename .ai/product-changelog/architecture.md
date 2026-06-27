@@ -20,7 +20,13 @@
 
 ---
 
-### Cascading config (project → home), mirroring .npmrc — 2026-04-26 `d0b6f60`
+### Git-backed registry mode — 2026-06-26
+**What**: Registries can be `type: "git"` — tool packages are stored in a git repo under `registry/<tool>/<version>/` (`manifest.json` + `tool.json`). The CLI maintains a local clone at `~/.ai-tools/git-cache/<name>/` and delegates auth to system git.  
+**Why**: Small teams and solo devs often already have a private git repo; this avoids hosting `@ai-tools/server` while still supporting install/search/publish through the same CLI commands.  
+**Impact**: `RegistryConfig` is a discriminated union (`http` | `git`). `createRegistryClient()` dispatches to `HttpRegistryClient` or `GitRegistryClient`. Configs without `type` remain HTTP for backward compatibility.  
+**Key files**: `packages/cli/src/utils/git-registry-client.ts`, `packages/core/src/schema/config-schema.ts`, `packages/cli/src/commands/registry.ts`
+
+---
 **What**: `ConfigCascade.load()` walks from `cwd` up to the filesystem root, then the user home, reading `ai-tools.config.json` at each level. Lower-level files win; arrays (registries) are merged with lower-level entries prepended.  
 **Why**: Users need project-level overrides (platform, registry) without touching a global config. Mirrors the mental model of `.npmrc`.  
 **Impact**: Project-level config always beats home config. Never mutate the merged result — reload after writes.  

@@ -11,6 +11,7 @@ COPY packages/e2e/package.json packages/e2e/
 
 # Install all workspace deps — root devDependencies include typescript, which is
 # required by the build step. Scoping to individual workspaces would skip root deps.
+RUN apk add --no-cache git
 RUN npm ci --ignore-scripts
 
 COPY tsconfig.base.json ./

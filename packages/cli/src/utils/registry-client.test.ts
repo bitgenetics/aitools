@@ -285,4 +285,29 @@ describe('createRegistryClient', () => {
       await expect(client().getManifest('my-skill', '1.0.0')).rejects.toThrow();
     });
   });
+
+  describe('createRegistryClient dispatch', () => {
+    it('uses the HTTP client when type is http', async () => {
+      server.setResponse(200, MANIFEST);
+      const httpClient = createRegistryClient({ type: 'http', name: 'http-reg', url: server.url });
+      const manifest = await httpClient.getManifest('my-skill', '1.0.0');
+      expect(manifest.name).toBe(MANIFEST.name);
+    });
+
+    it('uses the HTTP client when type is omitted', async () => {
+      server.setResponse(200, MANIFEST);
+      const httpClient = createRegistryClient({ name: 'legacy-reg', url: server.url });
+      const manifest = await httpClient.getManifest('my-skill', '1.0.0');
+      expect(manifest.name).toBe(MANIFEST.name);
+    });
+
+    it('returns a git registry client when type is git', () => {
+      const gitClient = createRegistryClient({
+        type: 'git',
+        name: 'git-reg',
+        url: 'https://github.com/org/registry.git',
+      });
+      expect(gitClient.config.type).toBe('git');
+    });
+  });
 });

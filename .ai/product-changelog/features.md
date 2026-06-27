@@ -35,9 +35,9 @@
 
 ---
 
-### registry — 2026-04-26 `d0b6f60`
-**What**: `aitools registry add/remove/list` — manages the `registries` array in the project config. Validates URLs. `registry list` shows priority ordering.  
-**Key files**: `packages/cli/src/commands/registry.ts`
+### registry — 2026-04-26 `d0b6f60` (updated 2026-06-26)
+**What**: `aitools registry add/remove/list` — manages the `registries` array in config. Supports HTTP registries (default) and git-backed registries (`--type git`, `--read-branch`, `--publish-branch`, `--path`). Git registries use system git credentials; no bearer token.  
+**Key files**: `packages/cli/src/commands/registry.ts`, `packages/cli/src/utils/git-registry-client.ts`, `packages/core/src/schema/config-schema.ts`
 
 ---
 

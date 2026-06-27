@@ -12,7 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-import { RegistryAuthSchema } from '../schema/config-schema.js';
+import { RegistryAuthSchema, RegistryConfigSchema } from '../schema/config-schema.js';
 
 describe('RegistryAuthSchema — bearer', () => {
   it('accepts bearer auth with a token', () => {
@@ -41,5 +41,61 @@ describe('RegistryAuthSchema — basic', () => {
 
   it('rejects basic auth missing both username and password', () => {
     expect(RegistryAuthSchema.safeParse({ type: 'basic' }).success).toBe(false);
+  });
+});
+
+describe('RegistryConfigSchema — http', () => {
+  it('accepts an explicit http registry config', () => {
+    const result = RegistryConfigSchema.safeParse({
+      type: 'http',
+      name: 'team',
+      url: 'https://registry.example.com',
+      priority: 10,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('treats configs without type as http for backward compatibility', () => {
+    const result = RegistryConfigSchema.safeParse({
+      name: 'legacy',
+      url: 'https://registry.example.com',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.type).toBe('http');
+    }
+  });
+
+  it('rejects http registry configs with invalid URLs', () => {
+    expect(
+      RegistryConfigSchema.safeParse({ type: 'http', name: 'bad', url: 'not-a-url' }).success,
+    ).toBe(false);
+  });
+});
+
+describe('RegistryConfigSchema — git', () => {
+  it('accepts a git registry config with SSH URL', () => {
+    const result = RegistryConfigSchema.safeParse({
+      type: 'git',
+      name: 'team-tools',
+      url: 'git@github.com:org/registry.git',
+      readBranch: 'main',
+      publishBranch: 'releases',
+      path: 'registry/',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('applies default branch and path values for git registries', () => {
+    const result = RegistryConfigSchema.safeParse({
+      type: 'git',
+      name: 'team-tools',
+      url: 'https://github.com/org/registry.git',
+    });
+    expect(result.success).toBe(true);
+    if (result.success && result.data.type === 'git') {
+      expect(result.data.readBranch).toBe('main');
+      expect(result.data.path).toBe('registry/');
+    }
   });
 });

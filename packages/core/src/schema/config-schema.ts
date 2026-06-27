@@ -41,12 +41,34 @@ export const RegistryAuthSchema = z
 
 // ── Registry config ─────────────────────────────────────────────────────────
 
-export const RegistryConfigSchema = z.object({
+export const HttpRegistryConfigSchema = z.object({
+  type: z.literal('http'),
   name: z.string().min(1),
   url: z.string().url(),
   priority: z.number().int().min(0).optional(),
   auth: RegistryAuthSchema.optional(),
 });
+
+export const GitRegistryConfigSchema = z.object({
+  type: z.literal('git'),
+  name: z.string().min(1),
+  url: z.string().min(1),
+  readBranch: z.string().min(1).default('main'),
+  publishBranch: z.string().min(1).optional(),
+  path: z.string().min(1).default('registry/'),
+  priority: z.number().int().min(0).optional(),
+});
+
+/** Configs without `type` are treated as HTTP for backward compatibility. */
+export const RegistryConfigSchema = z.preprocess(
+  (val) => {
+    if (val && typeof val === 'object' && !Array.isArray(val) && !('type' in val)) {
+      return { ...(val as Record<string, unknown>), type: 'http' };
+    }
+    return val;
+  },
+  z.discriminatedUnion('type', [HttpRegistryConfigSchema, GitRegistryConfigSchema]),
+);
 
 // ── ai-tools.config.json ────────────────────────────────────────────────────
 
@@ -74,7 +96,8 @@ export const AiToolsManifestSchema = z.object({
 
 export const LockEntrySchema = z.object({
   version: z.string(),
-  resolved: z.string().url(),
+  /** HTTP tarball URL, git remote URL, or other registry-specific locator. */
+  resolved: z.string().min(1),
   integrity: z.string(),
   files: z.array(z.string()),
   installedAt: z.string().datetime(),

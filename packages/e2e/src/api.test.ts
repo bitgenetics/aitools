@@ -18,8 +18,10 @@
  * These run against a live registry server.  In CI the server is provided by
  * docker-compose (REGISTRY_URL=http://registry:4873).  Locally you can run:
  *
- *   npm run start -w @ai-tools/server &
- *   REGISTRY_URL=http://localhost:4873 npm test -w @ai-tools/e2e
+ *   npm test -w @ai-tools/e2e
+ *
+ * global-setup.cjs starts a local registry automatically when REGISTRY_URL
+ * points at localhost and nothing is listening yet.
  */
 
 const BASE = (process.env['REGISTRY_URL'] ?? 'http://localhost:4873').replace(/\/$/, '');

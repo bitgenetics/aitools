@@ -22,21 +22,10 @@
  * only the matching platform file (or fallback generic) is installed.
  */
 
-import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-
-const REGISTRY_URL = (process.env['REGISTRY_URL'] ?? 'http://localhost:4873').replace(/\/$/, '');
-const CLI = process.env['AI_TOOLS_CLI'] ?? 'aitools';
-
-function run(args: string, cwd?: string): string {
-  return execSync(`${CLI} ${args}`, {
-    cwd,
-    encoding: 'utf8',
-    env: { ...process.env },
-  }).trim();
-}
+import { REGISTRY_URL, makeE2eProjectDir, rmTmpDir, run } from './test-env.js';
 
 async function publishTool(
   name: string,
@@ -66,7 +55,7 @@ async function publishTool(
 }
 
 function makeProjectDir(platform: string): string {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-tools-plat-e2e-'));
+  const tmp = makeE2eProjectDir('ai-tools-plat-e2e-');
   fs.writeFileSync(
     path.join(tmp, 'ai-tools.config.json'),
     JSON.stringify({
@@ -180,7 +169,7 @@ describe('platform-aware install paths', () => {
       });
 
       afterEach(() => {
-        fs.rmSync(tmpDir, { recursive: true });
+        rmTmpDir(tmpDir);
       });
 
       for (const category of categories) {
@@ -216,7 +205,7 @@ describe('multi-platform file selection', () => {
       expect(fs.existsSync(installedFile)).toBe(true);
       expect(fs.readFileSync(installedFile, 'utf8')).toBe('# VS Code variant');
     } finally {
-      fs.rmSync(tmpDir, { recursive: true });
+      rmTmpDir(tmpDir);
     }
   });
 
@@ -233,7 +222,7 @@ describe('multi-platform file selection', () => {
       expect(fs.existsSync(installedFile)).toBe(true);
       expect(fs.readFileSync(installedFile, 'utf8')).toBe('# Claude variant');
     } finally {
-      fs.rmSync(tmpDir, { recursive: true });
+      rmTmpDir(tmpDir);
     }
   });
 
@@ -250,7 +239,7 @@ describe('multi-platform file selection', () => {
       expect(fs.existsSync(installedFile)).toBe(true);
       expect(fs.readFileSync(installedFile, 'utf8')).toBe('# Generic fallback');
     } finally {
-      fs.rmSync(tmpDir, { recursive: true });
+      rmTmpDir(tmpDir);
     }
   });
 
@@ -267,7 +256,7 @@ describe('multi-platform file selection', () => {
       expect(fs.existsSync(installedFile)).toBe(true);
       expect(fs.readFileSync(installedFile, 'utf8')).toBe('# Generic fallback');
     } finally {
-      fs.rmSync(tmpDir, { recursive: true });
+      rmTmpDir(tmpDir);
     }
   });
 });
@@ -315,7 +304,7 @@ describe('platform guard rejects incompatible tools', () => {
         run(`install ${incompatibleName}@2.0.0 --scope project`, tmpDir);
       }).not.toThrow();
     } finally {
-      fs.rmSync(tmpDir, { recursive: true });
+      rmTmpDir(tmpDir);
     }
   });
 
@@ -326,7 +315,7 @@ describe('platform guard rejects incompatible tools', () => {
         run(`install ${incompatibleName}@2.0.0 --scope project`, tmpDir);
       }).toThrow();
     } finally {
-      fs.rmSync(tmpDir, { recursive: true });
+      rmTmpDir(tmpDir);
     }
   });
 });

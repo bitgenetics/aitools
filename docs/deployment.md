@@ -1,5 +1,20 @@
 # Deployment Guide
 
+## Registry modes
+
+`aitools` supports two registry types:
+
+| Type | When to use | Auth |
+|------|-------------|------|
+| **HTTP** (`@ai-tools/server`) | Teams needing search API, admin portal, user accounts | Bearer token or DB-backed users |
+| **Git** | Small teams with an existing git repo; no server to host | System git credentials (SSH, credential manager, CI tokens) |
+
+Git registries store tools under `<path>/<tool-name>/<version>/` inside the repo (`manifest.json` + `tool.json`). The CLI maintains a local clone at `~/.ai-tools/git-cache/<registry-name>/`.
+
+See [readme.md](../readme.md#git-backed-registry-no-http-server) for `aitools registry add --type git` usage and CI setup.
+
+---
+
 ## Docker (single container, filesystem storage)
 
 The simplest production setup: one container backed by a local volume.
