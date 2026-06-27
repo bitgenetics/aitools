@@ -88,3 +88,15 @@
 **What**: `createStorageProvider(config?)` and `createAuthProvider(config?)` factory functions select a backend from env vars. Documented deployment modes: (1) local — `STORAGE_BACKEND=filesystem` + `AUTH_BACKEND=simple`; (2) dev — `STORAGE_BACKEND=filesystem` + `AUTH_BACKEND=database` + `DATABASE_URL`; (3) production — `STORAGE_BACKEND=azure|s3` + `AUTH_BACKEND=oidc`.
 **Key files**: `packages/server/src/providers/storage/index.ts`, `packages/server/src/providers/auth/index.ts`, `packages/server/src/index.ts`, `packages/server/.env.example`
 
+---
+
+### User auth API — 2026-06-15 `95123f3`
+**What**: When `DatabaseAuthProvider` + `UserStore` are active, the server exposes `POST /api/auth/register`, `POST /api/auth/login`, and token CRUD at `/api/auth/tokens`. Users get bearer tokens for publish/org operations.  
+**Key files**: `packages/server/src/routes/auth.ts`, `packages/server/src/storage/user-store.ts`, `packages/server/src/db/migrations.ts`
+
+---
+
+### HTML browse portal — 2026-06-15 `95123f3`
+**What**: Server serves an HTML tool browser at `GET /` and `GET /skills/:name` (not JSON API). Admin UI at `/admin` with session login (see Admin portal login entry). Cross-registry search via `GET /api/search/all`.  
+**Key files**: `packages/server/src/routes/portal.ts`, `packages/server/src/routes/registry-exploration.ts`
+

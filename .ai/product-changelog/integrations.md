@@ -32,10 +32,10 @@
 
 ---
 
-### `ToolStore` (server) ↔ disk
-**How they connect**: `ToolStore` manages all persistence for the registry server. Manifests are stored as JSON at `./data/<name>/<version>/manifest.json`. Tarballs at `./data/<name>/<version>/package.tgz`. `ToolStore.search(q)` does in-memory substring matching across all loaded manifests.  
-**Key files**: `packages/server/src/storage/tool-store.ts`  
-**Gotchas**: `ToolStore` loads all manifests into memory at startup. Large registries may need a database-backed store. The current implementation is suitable for team-scale private registries.
+### `ToolStore` (server) ↔ `IStorageProvider`
+**How they connect**: `ToolStore` persists manifests as `manifest.json` + `files.json` under `<dataDir>/<name>/<version>/`. Tarballs are synthesised on download as JSON arrays (not gzip). `search()` scans in-memory manifests loaded via the storage provider.  
+**Key files**: `packages/server/src/storage/tool-store.ts`, `packages/server/src/providers/storage/local.ts`  
+**Gotchas**: All store methods are `async`. Tool data is filesystem-backed by default — PostgreSQL is auth-only (`UserStore`), not tool storage.
 
 ---
 

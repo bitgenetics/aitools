@@ -13,12 +13,12 @@ argument-hint: "init | add-entry | read | prune"
 
 # Project Changelog Skill
 
-Maintains a structured folder at `./ai/product-changelog/` that gives any AI assistant instant, accurate awareness of the project's current state, key decisions, and architectural patterns — without requiring the AI to re-explore the entire codebase each session.
+Maintains a structured folder at `.ai/product-changelog/` that gives any AI assistant instant, accurate awareness of the project's current state, key decisions, and architectural patterns — without requiring the AI to re-explore the entire codebase each session.
 
 The folder structure keeps each concern in a separate file so the AI loads **only what is relevant** to the current task, minimising context cost.
 
 ```
-./ai/product-changelog/
+.ai/product-changelog/
 ├── index.md          ← Always read first: system overview + section map (keep < 80 lines)
 ├── architecture.md   ← ADR-style: major structural choices with rationale
 ├── features.md       ← Completed features with API surface & key files
@@ -47,7 +47,7 @@ The folder structure keeps each concern in a separate file so the AI loads **onl
 **At the start of any session that involves code changes**, read the index first:
 
 ```
-read_file ./ai/product-changelog/index.md
+read_file .ai/product-changelog/index.md
 ```
 
 The index contains a `Last SHA` marker — the git commit at the time of the last changelog update. Use it to surface unrecorded work:
@@ -75,7 +75,7 @@ When the project has no changelog yet:
 5. Fill the other files based on what you discover. Mark inferred entries clearly so the user can review.
 6. Ask the user to validate and fill any gaps.
 
-**Folder to create**: `./ai/product-changelog/`  
+**Folder to create**: `.ai/product-changelog/`  
 **Files to create**: `index.md`, `architecture.md`, `features.md`, `patterns.md`, `constraints.md`, `integrations.md`, `archived.md`
 
 Use the templates in [references/templates/](./references/templates/) for each file.

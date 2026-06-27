@@ -57,3 +57,27 @@
 **Why**: Previously storage paths were hardcoded to `fs` calls and auth logic was inlined in every route. This made it impossible to swap backends without touching all routes. Three concrete providers: `LocalStorageProvider`, `AzureStorageProvider` (stub), `S3StorageProvider` (stub). Three auth providers: `SimpleAuthProvider`, `DatabaseAuthProvider`, `OidcAuthProvider` (stub). Factory functions `createStorageProvider()` and `createAuthProvider()` read from env vars (`STORAGE_BACKEND`, `AUTH_BACKEND`).
 **Impact**: `ToolStore` and `OrgStore` are now async throughout. All route handlers receive `IAuthProvider` or sub-interfaces (`IPublisherAuth`, `IAdminAuth`). Legacy `ServerOptions` fields (`publishToken`, `adminToken`, `userStore`) still work via auto-construction of the appropriate provider. `startServer()` and `buildApp()` both exported from `app.ts`.
 **Key files**: `packages/server/src/providers/`, `packages/server/src/storage/tool-store.ts`, `packages/server/src/storage/org-store.ts`, `packages/server/src/app.ts`
+
+---
+
+### AGPL-3.0-or-later project license — 2026-06-15 `95123f3`
+**What**: The project is licensed under GNU Affero GPL v3.0 (`AGPL-3.0-or-later`). Root `LICENSE` plus a standard copyright header on every source file. All `package.json` files declare `"license": "AGPL-3.0-or-later"`.  
+**Why**: Copyleft protects network-hosted registry use (AGPL source-offer obligations). Copyright holder can still grant separate commercial/enterprise licenses alongside the public AGPL release.  
+**Impact**: External contributions are under AGPL. Do not relicense to MIT/permissive without explicit contributor agreements. Azure/OIDC enterprise docs describe optional dual-licensing, not a change to the public license.  
+**Key files**: `LICENSE`, `package.json`, `packages/*/package.json`
+
+---
+
+### GitHub Actions CI — 2026-06-15 `95123f3`
+**What**: Three workflows: `test.yml` (build core/cli/server + Jest with coverage on push/PR), `e2e.yml` (Docker Compose E2E gate), `docker.yml` (registry image build).  
+**Why**: Catch regressions before merge; E2E validates CLI against a live registry in CI.  
+**Impact**: PRs to `main` should pass unit tests locally (`npm test`) before push. Full E2E requires Docker (`npm run test:e2e`).  
+**Key files**: `.github/workflows/test.yml`, `.github/workflows/e2e.yml`, `.github/workflows/docker.yml`
+
+---
+
+### Design documentation aligned with implementation — 2026-06-15 `21e553f`
+**What**: Comprehensive `docs/design/` suite (API, data model, deployment, platform adapter, flows) updated to reflect actual behaviour: filesystem tool storage, bearer auth (not JWT), `aitools` binary name, four packages, real endpoint catalog.  
+**Why**: Original May 2026 docs described aspirational PostgreSQL/Redis/JWT architecture that was never implemented.  
+**Impact**: Prefer `docs/design/` over `readme.md` for API accuracy. `docs/setup-plans/github-azure.md` documents target Azure deployment; Azure Blob and OIDC providers remain stubs in code.  
+**Key files**: `docs/design/DESIGN-INDEX.md`, `docs/design/api-design.md`, `docs/deployment.md`, `docs/setup-plans/github-azure.md`

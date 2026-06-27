@@ -60,3 +60,19 @@
 **Reason**: The cache is platform-agnostic. Platform adaptation happens at copy-time in `Installer.installFiles`, not at cache-time.  
 **Do not change**: The cache directory structure. Changing it would invalidate all existing cached tools.  
 **Key files**: `packages/cli/src/utils/cache-manager.ts`
+
+---
+
+### CLI shebang must be the first line — 2026-06-15 `907cce7`
+**Constraint**: `packages/cli/src/cli.ts` must start with `#!/usr/bin/env node` on line 1. The AGPL copyright block follows on line 2+.  
+**Reason**: TypeScript rejects a shebang after comments (`TS18026: '#!' can only be used at the start of a file`).  
+**Do not change**: Do not move the shebang below the copyright header.  
+**Key files**: `packages/cli/src/cli.ts`
+
+---
+
+### Experimental software — no warranty — 2026-06-15 `21e553f`
+**Constraint**: `readme.md` states the project is experimental, APIs may change without notice, and there are no warranties — use at your own risk.  
+**Reason**: Pre-release project; sets expectations for adopters and employers evaluating internal use.  
+**Do not change**: Keep the disclaimer visible near the top of `readme.md` until a stable release is declared.  
+**Key files**: `readme.md`
