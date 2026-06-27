@@ -25,10 +25,17 @@
 
 ---
 
-### `GitRegistryClient` (cli) ↔ git remote
+### `GitRegistryClient` (cli) ↔ git remote — 2026-06-26 `d7f8fa0`
 **How they connect**: When `registries[].type === "git"`, `createGitRegistryClient()` clones/fetches the remote into `~/.ai-tools/git-cache/<name>/`, reads `registry/<tool>/<version>/manifest.json` and `tool.json`, and publishes via `git add/commit/push` (with `pull --rebase` on push conflict). No HTTP calls — auth comes from the system git credential helper.  
 **Key files**: `packages/cli/src/utils/git-registry-client.ts`, `packages/core/src/types/config.ts` (`GitRegistryConfig`)  
-**Gotchas**: Git search is local substring matching over manifests (no server-side AI search). `listVersions` walks semver directories on disk. Lock file `resolved` may be a git remote URL, not an HTTP tarball URL.
+**Gotchas**: Git search is local substring matching over manifests (no server-side AI search). `listVersions` walks semver directories on disk. Lock file `resolved` may be a git remote URL, not an HTTP tarball URL. Scoped package dirs use `@scope__name` (`/` → `__`).
+
+---
+
+### E2E global-setup ↔ Gitea + HTTP registry — 2026-06-26 `d7f8fa0`
+**How they connect**: Jest `globalSetup` ensures HTTP registry health (`REGISTRY_URL`), then when `GITEA_URL` is set calls `setupGiteaRegistry()` to create `tools-registry`, seed `registry/`, and write state to `/tmp/ai-tools-e2e-git-registry.json`. Tests read that via `getGitRegistryRemote()` / `initGitRegistry()` in `test-env.ts`.  
+**Key files**: `packages/e2e/global-setup.cjs`, `packages/e2e/gitea-setup.cjs`, `packages/e2e/src/test-env.ts`, `docker-compose.e2e.yml`  
+**Gotchas**: `gitea-init` must complete before `gitea` starts — do not revert to web-install bootstrap. E2e Dockerfile includes `git` for clone/push during setup.
 
 ---
 

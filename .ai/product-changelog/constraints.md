@@ -71,6 +71,30 @@
 
 ---
 
+### Git registry — no AI-assisted find, local search only — 2026-06-26 `d7f8fa0`
+**Constraint**: Git registries implement substring search over cloned manifests locally. `aitools find` (natural-language / AI-assisted search) is an HTTP registry feature only.  
+**Reason**: No server endpoint exists in git-backed mode; the registry is just files in a repo.  
+**Do not change**: Do not add HTTP fallbacks silently — document the limitation and keep search behaviour explicit per registry type.  
+**Key files**: `packages/cli/src/utils/git-registry-client.ts`, `readme.md` (#registry-types)
+
+---
+
+### E2E config isolation via `AI_TOOLS_CONFIG_ROOT` — 2026-06-26 `d7f8fa0`
+**Constraint**: E2e tests set a temp `HOME`/`USERPROFILE` and `AI_TOOLS_CONFIG_ROOT` so config cascade does not walk into the developer's real `~/ai-tools.config.json` (especially on Windows).  
+**Reason**: Leaked user `platform` or registry config caused flaky e2e failures.  
+**Do not change**: Any new e2e suite helpers should use `packages/e2e/src/test-env.ts` rather than assuming a clean real home directory.  
+**Key files**: `packages/e2e/src/test-env.ts`, `packages/core/src/config/cascade.ts`
+
+---
+
+### Gitea web install wizard unsuitable for automation — 2026-06-26 `d7f8fa0`
+**Constraint**: Do not bootstrap Gitea in CI/e2e via POST to the install page — use `gitea migrate` + `gitea admin user create` with `INSTALL_LOCK=true` instead.  
+**Reason**: Install POST triggers a fatal `MustInstalled()` race when `GITEA__security__INSTALL_LOCK=false` env vars are present; API never becomes available.  
+**Do not change**: Keep `gitea-init` as a one-shot CLI bootstrap sharing the `gitea-data` volume with the `gitea` service.  
+**Key files**: `packages/e2e/gitea/bootstrap.sh`, `docker-compose.e2e.yml`
+
+---
+
 ### Experimental software — no warranty — 2026-06-15 `21e553f`
 **Constraint**: `readme.md` states the project is experimental, APIs may change without notice, and there are no warranties — use at your own risk.  
 **Reason**: Pre-release project; sets expectations for adopters and employers evaluating internal use.  

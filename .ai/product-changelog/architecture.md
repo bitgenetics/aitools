@@ -20,14 +20,16 @@
 
 ---
 
-### Git-backed registry mode — 2026-06-26
+### Git-backed registry mode — 2026-06-26 `d7f8fa0`
 **What**: Registries can be `type: "git"` — tool packages are stored in a git repo under `registry/<tool>/<version>/` (`manifest.json` + `tool.json`). The CLI maintains a local clone at `~/.ai-tools/git-cache/<name>/` and delegates auth to system git.  
 **Why**: Small teams and solo devs often already have a private git repo; this avoids hosting `@ai-tools/server` while still supporting install/search/publish through the same CLI commands.  
-**Impact**: `RegistryConfig` is a discriminated union (`http` | `git`). `createRegistryClient()` dispatches to `HttpRegistryClient` or `GitRegistryClient`. Configs without `type` remain HTTP for backward compatibility.  
+**Impact**: `RegistryConfig` is a discriminated union (`http` | `git`). `createRegistryClient()` dispatches to `HttpRegistryClient` or `GitRegistryClient`. Configs without `type` remain HTTP for backward compatibility. Lock `resolved` accepts git remote URLs.  
 **Key files**: `packages/cli/src/utils/git-registry-client.ts`, `packages/core/src/schema/config-schema.ts`, `packages/cli/src/commands/registry.ts`
 
 ---
-**What**: `ConfigCascade.load()` walks from `cwd` up to the filesystem root, then the user home, reading `ai-tools.config.json` at each level. Lower-level files win; arrays (registries) are merged with lower-level entries prepended.  
+
+### Config cascade (home → project) — 2026-04-26 `d0b6f60` (updated `d7f8fa0`)
+**What**: `ConfigCascade.load()` walks from `cwd` up to the filesystem root, then the user home, reading `ai-tools.config.json` at each level. Lower-level files win; arrays (registries) are merged with lower-level entries prepended. `AI_TOOLS_CONFIG_ROOT` stops the upward walk at a boundary (used by e2e to isolate from the real user profile on Windows).  
 **Why**: Users need project-level overrides (platform, registry) without touching a global config. Mirrors the mental model of `.npmrc`.  
 **Impact**: Project-level config always beats home config. Never mutate the merged result — reload after writes.  
 **Key files**: `packages/core/src/config/cascade.ts`, `packages/core/src/types/config.ts`
@@ -50,11 +52,19 @@
 
 ---
 
-### Two Docker Compose files — persistent dev registry vs ephemeral E2E — 2026-04-26 `d0b6f60`
-**What**: `docker-compose.yml` runs a persistent local registry on port 4873 with a named volume. `docker-compose.e2e.yml` spins up an ephemeral `test-registry` (no port binding, no volume) plus the `e2e` service; tears down after each run.  
-**Why**: Mixing the dev registry with E2E tests caused port conflicts and state pollution between runs. Separating them makes each environment self-contained.  
-**Impact**: `npm run test:e2e` uses only `docker-compose.e2e.yml`. The dev registry is started manually with `docker compose up -d`.  
-**Key files**: `docker-compose.yml`, `docker-compose.e2e.yml`
+### Two Docker Compose files — persistent dev registry vs ephemeral E2E — 2026-04-26 `d0b6f60` (updated `d7f8fa0`)
+**What**: `docker-compose.yml` runs a persistent local registry on port 4873 with a named volume. `docker-compose.e2e.yml` runs `test-registry` (HTTP), `gitea-init` + `gitea` (git registry e2e), and the `e2e` Jest container; tears down volumes after each run.  
+**Why**: Mixing the dev registry with E2E tests caused port conflicts and state pollution. Git registry tests need a real remote — Gitea in Docker exercises publish/install/search against HTTP auth URLs.  
+**Impact**: `npm run test:e2e` uses only `docker-compose.e2e.yml`. Local e2e without Docker falls back to a bare repo; Docker sets `GITEA_URL` and bootstraps via `gitea-init`.  
+**Key files**: `docker-compose.yml`, `docker-compose.e2e.yml`, `packages/e2e/gitea/bootstrap.sh`, `packages/e2e/gitea-setup.cjs`
+
+---
+
+### Gitea e2e bootstrap via CLI migrate — 2026-06-26 `d7f8fa0`
+**What**: `gitea-init` one-shot container runs `gitea migrate` + `gitea admin user create` with `INSTALL_LOCK=true` on a shared volume before `gitea` web starts. Web install wizard is not used (it crashes mid-submit when env vars conflict).  
+**Why**: POST to Gitea's install page saves `app.ini` then fatals with `MustInstalled()`; the container never serves `/api/v1/version`. CLI bootstrap matches Gitea's documented unattended Docker pattern.  
+**Impact**: E2e global-setup only creates the `tools-registry` repo and seeds `registry/` — it assumes Gitea is already installed. Bootstrap script is piped through `tr -d '\r'` when mounted from Windows hosts.  
+**Key files**: `packages/e2e/gitea/bootstrap.sh`, `docker-compose.e2e.yml`, `packages/e2e/gitea-setup.cjs`
 
 ---
 

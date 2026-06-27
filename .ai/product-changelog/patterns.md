@@ -57,3 +57,11 @@
 **How**: `detectSkillFolders(root, exts)` finds subdirectories that **directly** contain at least one file matching `exts`. Returns `{ folder, files }[]` where `files` is the full recursive file list. The interactive prompt asks per folder, not per file.  
 **Example**: `packages/cli/src/commands/manifest.ts` — `initInteractive` function  
 **Do not**: Use the lower-level `detectFiles` in interactive mode — it returns individual files rather than logical skill units.
+
+---
+
+### `createRegistryClient()` factory dispatch — 2026-06-26 `d7f8fa0`
+**Used for**: All CLI commands that talk to a configured registry (install, search, publish, update).  
+**How**: `createRegistryClient(config)` checks `config.type === 'git'` (via `isGitRegistryConfig`) and returns `GitRegistryClient` or `HttpRegistryClient`. Both implement the shared `RegistryClient` interface. Omitting `type` in config defaults to HTTP.  
+**Example**: `packages/cli/src/utils/registry-client.ts`, `packages/cli/src/utils/git-registry-client.ts`  
+**Do not**: Branch on registry type inside command handlers — always go through the factory so HTTP and git stay interchangeable at the call site.

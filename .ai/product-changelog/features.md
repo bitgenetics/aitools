@@ -35,9 +35,21 @@
 
 ---
 
-### registry — 2026-04-26 `d0b6f60` (updated 2026-06-26)
-**What**: `aitools registry add/remove/list` — manages the `registries` array in config. Supports HTTP registries (default) and git-backed registries (`--type git`, `--read-branch`, `--publish-branch`, `--path`). Git registries use system git credentials; no bearer token.  
+### registry — 2026-04-26 `d0b6f60` (updated `d7f8fa0`)
+**What**: `aitools registry add/remove/list` — manages the `registries` array in config. Supports HTTP registries (default) and git-backed registries (`--type git`, `--read-branch`, `--publish-branch`, `--path`). Git registries use system git credentials; `--token` is rejected for git type.  
 **Key files**: `packages/cli/src/commands/registry.ts`, `packages/cli/src/utils/git-registry-client.ts`, `packages/core/src/schema/config-schema.ts`
+
+---
+
+### E2E git registry round-trip — 2026-06-26 `d7f8fa0`
+**What**: Docker e2e runs publish → install → search against a Gitea-hosted git registry; local e2e uses a temporary bare repo when `GITEA_URL` is unset. Shared helpers in `test-env.ts` isolate `HOME`/`AI_TOOLS_CONFIG_ROOT` so user config does not leak into tests.  
+**Key files**: `packages/e2e/src/cli.test.ts`, `packages/e2e/src/test-env.ts`, `packages/e2e/global-setup.cjs`, `packages/e2e/gitea-setup.cjs`
+
+---
+
+### README registry types documentation — 2026-06-26 `52eaa5a`
+**What**: `readme.md` reorganized with table of contents, quick-start slot for lightweight git registry, and a **Registry types** reference (git vs HTTP comparison, repo layout, config examples, CLI flags).  
+**Key files**: `readme.md`, `docs/deployment.md` (link to `#registry-types`)
 
 ---
 

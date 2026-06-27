@@ -5,7 +5,7 @@
 
 ## System Overview
 
-`ai-tools` is a package manager for AI tools — skills, subagents, prompts, and MCP tools. Think `npm` for the AI tooling ecosystem. It is a TypeScript + Node.js ≥20 ESM monorepo with four packages: `@ai-tools/core`, `@ai-tools/cli` (binary: `aitools`), `@ai-tools/server` (Fastify registry), and `@ai-tools/e2e`. Project context for AI assistants lives in `.ai/product-changelog/` (load `index.md` first, then section files as needed).
+`ai-tools` is a package manager for AI tools — skills, subagents, prompts, and MCP tools. Think `npm` for the AI tooling ecosystem. It is a TypeScript + Node.js ≥20 ESM monorepo with four packages: `@ai-tools/core`, `@ai-tools/cli` (binary: `aitools`), `@ai-tools/server` (Fastify HTTP registry), and `@ai-tools/e2e`. Registries can be **HTTP** (`@ai-tools/server`) or **git-backed** (any git remote, no server). Project context for AI assistants lives in `.ai/product-changelog/` (load `index.md` first, then section files as needed).
 
 ---
 
@@ -24,7 +24,8 @@
 
 ## Recent Changes
 
-- **2026-06-26** — Git registry mode: `aitools registry add --type git` with local clone cache, publish/install/search — see `architecture.md`, `features.md`, `integrations.md`
+- **2026-06-26** `52eaa5a` — README reorganized: table of contents, **Registry types** section, lightweight git registry quick start — see `features.md`
+- **2026-06-26** `d7f8fa0` — Git registry mode + Gitea Docker e2e (`gitea-init` CLI bootstrap, not web install) — see `architecture.md`, `features.md`, `integrations.md`, `constraints.md`
 - **2026-06-15** `907cce7` — CLI shebang moved to line 1 (copyright header follows) — fixes `tsc` TS18026 — see `constraints.md`
 - **2026-06-15** `21e553f` — Design docs (`docs/design/`) rewritten to match implemented API, storage, and auth — see `architecture.md`
 - **2026-06-15** `21e553f` — Experimental-software disclaimer added to `readme.md` — see `constraints.md`
@@ -35,5 +36,5 @@
 
 ---
 
-<!-- Last SHA: 907cce7 -->
+<!-- Last SHA: 52eaa5a -->
 <!-- Last updated: 2026-06-26 -->
