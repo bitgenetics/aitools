@@ -11,7 +11,7 @@
 
 Git registries store tools under `<path>/<tool-name>/<version>/` inside the repo (`manifest.json` + `tool.json`). The CLI maintains a local clone at `~/.ai-tools/git-cache/<registry-name>/`.
 
-See [readme.md](../readme.md#git-backed-registry-no-http-server) for `aitools registry add --type git` usage and CI setup.
+See [readme.md](../readme.md#registry-types) for `aitools registry add --type git` usage and CI setup.
 
 ---
 

@@ -6,6 +6,27 @@ Think `npm` but for the AI tooling ecosystem. Tools can be scoped to a project (
 
 > **Experimental software.** This project is under active development. APIs, file formats, and behavior may change without notice. There are **no warranties of any kind**, express or implied. **Use at your own risk.**
 
+## Table of contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Quick starts](#quick-starts)
+  - [Using ai-tools in a project](#1-using-ai-tools-in-a-project)
+  - [Lightweight git registry](#2-lightweight-git-registry)
+  - [Local HTTP registry](#3-local-http-registry)
+  - [Enterprise multi-registry](#4-enterprise-multi-registry)
+  - [Developing ai-tools](#5-developing-ai-tools)
+- [CLI reference](#cli-reference)
+- [Publishing tools](#publishing-tools)
+- [Project files](#project-files)
+- [Tool categories & install paths](#tool-categories--install-paths)
+- [Registry types](#registry-types)
+- [Self-hosted HTTP registry](#self-hosted-http-registry)
+- [Monorepo structure](#monorepo-structure)
+- [Development](#development)
+- [License](#license)
+
 ---
 
 ## Features
@@ -14,9 +35,9 @@ Think `npm` but for the AI tooling ecosystem. Tools can be scoped to a project (
 - **Project-scope and user-scope** installs with sensible default paths per category
 - **Extended search** — search by name, description, keywords, and tags across all configured registries
 - **Publish tools** — package and upload skills, agents, and prompts to any registry
+- **Two registry types** — full HTTP server (`@ai-tools/server`) or a **lightweight git-backed registry** (any git remote, no server to run)
 - **Cascading config** — `aitools.config.json` merges from home directory down to project directory, like `.npmrc`
 - **Lock file** — `aitools-lock.json` pins exact versions for reproducible installs
-- **Self-hosted registry** — run your own private registry and chain it with public ones
 - **Registry chaining** — multiple registries resolved by priority; proxy search merges results
 
 ---
@@ -36,7 +57,7 @@ npm install -g @ai-tools/cli
 
 ---
 
-## Quick Starts
+## Quick starts
 
 ### 1. Using ai-tools in your project
 
@@ -74,7 +95,66 @@ aitools uninstall @scope/my-skill
 
 ---
 
-### 2. Hosting a local network registry
+### 2. Lightweight git registry
+
+Use a **git repository as your registry** — no HTTP server, no database, no Docker. The CLI clones the repo locally (cached under `~/.ai-tools/git-cache/<name>/`), reads tool packages from a `registry/` tree, and publishes by committing and pushing.
+
+| | Git registry | HTTP registry (`@ai-tools/server`) |
+|---|---|---|
+| **Server to run** | None — any git host (GitHub, Gitea, bare repo) | Yes — Fastify process |
+| **Auth** | System git credentials (SSH keys, credential manager, CI tokens) | Bearer tokens / user accounts |
+| **Best for** | Solo devs, small teams, repos you already have | LAN teams, enterprise, upstream chaining |
+| **Config `type`** | `git` | `http` (default when omitted) |
+
+**Repository layout** — tools live under `registry/` by default:
+
+```
+my-tools-registry/
+└── registry/
+    └── @scope__tool-name/
+        └── 1.0.0/
+            ├── manifest.json
+            └── tool.json      # JSON tarball: [{ "path", "content" }, ...]
+```
+
+Scoped names use `__` instead of `/` in directory names (`@acme__review-skill`).
+
+**Add a git registry:**
+
+```bash
+# SSH remote (read + publish on main)
+aitools registry add git@github.com:myorg/ai-tools-registry.git \
+  --name team-tools --type git --global
+
+# HTTPS with separate read/publish branches
+aitools registry add https://github.com/myorg/ai-tools-registry.git \
+  --name team-tools --type git \
+  --read-branch main --publish-branch releases \
+  --path registry/ --global
+```
+
+**Publish and install** work the same as with an HTTP registry:
+
+```bash
+aitools publish
+aitools install @scope/my-tool
+aitools search "code review"
+```
+
+Publish rebases on remote changes before pushing, so concurrent publishers can share one repo.
+
+**GitHub Actions (private repo)** — configure git credentials before calling `aitools`:
+
+```yaml
+- run: git config --global url."https://x-access-token:${{ secrets.REGISTRY_TOKEN }}@github.com".insteadOf "https://github.com"
+- run: aitools install @scope/my-tool
+```
+
+Git registries chain with HTTP registries — set `--priority` to control query order. See [Registry types](#registry-types) for full configuration reference.
+
+---
+
+### 3. Local HTTP registry
 
 Run a private registry on your LAN — no Docker, no database. Tools are stored on the local filesystem.
 
@@ -100,11 +180,61 @@ Point any client machine at it:
 aitools registry add http://<server-ip>:4873 --name team --token your-token --global
 ```
 
-See the [Self-Hosted Registry](#self-hosted-registry) section below for all configuration options and environment variables.
+See [Self-hosted HTTP registry](#self-hosted-http-registry) for all configuration options and environment variables.
 
 ---
 
-### 3. Developing for ai-tools
+### 4. Enterprise multi-registry
+
+Full setup with user accounts, a database, and multi-registry chaining for supply-chain control.
+
+#### Server setup (Docker + Postgres)
+
+```bash
+# Grab the repo (or just docker-compose.yml + .env.example)
+git clone https://github.com/your-org/ai-tools && cd ai-tools
+
+cp .env.example .env   # set POSTGRES_PASSWORD, AI_TOOLS_ADMIN_TOKEN, etc.
+docker compose up -d
+```
+
+The server starts at `http://localhost:4873`. Register the first user:
+
+```bash
+curl -s -X POST http://localhost:4873/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"strong-pass"}' | jq .token
+```
+
+See [`docs/deployment.md`](docs/deployment.md) for Kubernetes, systemd, and nginx reverse proxy recipes.
+
+#### Multi-registry chaining
+
+The recommended enterprise pattern is **two HTTP registries with priority-based chaining**:
+
+| Registry | Purpose | Who publishes | Access |
+|----------|---------|---------------|--------|
+| **Internal** (priority 1) | Your team's own skills, agents, and prompts | Your developers | Private, token-gated |
+| **Curated** (priority 2) | Vetted 3rd-party tools that passed review | Review board / ops | Private, read-only for consumers |
+
+The CLI queries registries in priority order. Internal tools shadow anything with the same name in the curated registry. Install and search merge results from both.
+
+```bash
+# Developer workstation setup (run once)
+aitools registry add http://internal.corp:4873 --name internal --token $MY_TOKEN --priority 1 --global
+aitools registry add http://curated.corp:4873 --name curated --token $READ_TOKEN --priority 2 --global
+```
+
+**Workflow:**
+1. Teams publish internal tools directly to the internal registry via `aitools publish`.
+2. Third-party tools are reviewed (security, quality, compatibility) then published to the curated registry by an authorized reviewer.
+3. Developers consume from both transparently — `aitools install some-tool` resolves from internal first, then curated.
+
+You can mix HTTP and git registries in the same chain — for example, an internal HTTP registry at priority 1 and a team git repo at priority 2. See [Registry types](#registry-types).
+
+---
+
+### 5. Developing ai-tools
 
 For hacking on the ai-tools codebase itself:
 
@@ -176,84 +306,7 @@ aitools dev-init
 
 ---
 
-### 4. Private enterprise registry
-
-Full setup with user accounts, a database, and multi-registry chaining for supply-chain control.
-
-#### Server setup (Docker + Postgres)
-
-```bash
-# Grab the repo (or just docker-compose.yml + .env.example)
-git clone https://github.com/your-org/ai-tools && cd ai-tools
-
-cp .env.example .env   # set POSTGRES_PASSWORD, AI_TOOLS_ADMIN_TOKEN, etc.
-docker compose up -d
-```
-
-The server starts at `http://localhost:4873`. Register the first user:
-
-```bash
-curl -s -X POST http://localhost:4873/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"username":"alice","password":"strong-pass"}' | jq .token
-```
-
-See [`docs/deployment.md`](docs/deployment.md) for Kubernetes, systemd, and nginx reverse proxy recipes.
-
-#### Multi-registry chaining
-
-The recommended enterprise pattern is **two registries with priority-based chaining**:
-
-| Registry | Purpose | Who publishes | Access |
-|----------|---------|---------------|--------|
-| **Internal** (priority 1) | Your team's own skills, agents, and prompts | Your developers | Private, token-gated |
-| **Curated** (priority 2) | Vetted 3rd-party tools that passed review | Review board / ops | Private, read-only for consumers |
-
-The CLI queries registries in priority order. Internal tools shadow anything with the same name in the curated registry. Install and search merge results from both.
-
-```bash
-# Developer workstation setup (run once)
-aitools registry add http://internal.corp:4873 --name internal --token $MY_TOKEN --priority 1 --global
-aitools registry add http://curated.corp:4873 --name curated --token $READ_TOKEN --priority 2 --global
-```
-
-**Workflow:**
-1. Teams publish internal tools directly to the internal registry via `aitools publish`.
-2. Third-party tools are reviewed (security, quality, compatibility) then published to the curated registry by an authorized reviewer.
-3. Developers consume from both transparently — `aitools install some-tool` resolves from internal first, then curated.
-
-This gives you supply-chain control: nothing reaches developer machines without being either authored internally or vetted through your review process.
-
-#### Git-backed registry (no HTTP server)
-
-For small teams or solo devs who already use git, you can point `aitools` at a **git repository** instead of running `@ai-tools/server`. The CLI clones the repo locally (cached under `~/.ai-tools/git-cache/<name>/`) and reads/writes tool packages from a `registry/` directory inside it.
-
-Authentication uses whatever credentials your system `git` already has — SSH keys, credential manager, or CI tokens. No bearer token config is needed.
-
-```bash
-# Add a git registry (read and publish both use main by default)
-aitools registry add git@github.com:myorg/ai-tools-registry.git \
-  --name team-tools --type git --global
-
-# Separate read and publish branches
-aitools registry add https://github.com/myorg/ai-tools-registry.git \
-  --name team-tools --type git \
-  --read-branch main --publish-branch releases \
-  --path registry/ --global
-```
-
-**GitHub Actions (private repo):** configure git credentials before calling `aitools`:
-
-```yaml
-- run: git config --global url."https://x-access-token:${{ secrets.REGISTRY_TOKEN }}@github.com".insteadOf "https://github.com"
-- run: aitools install @scope/my-tool
-```
-
-Git registries chain with HTTP registries the same way — set `priority` to control query order.
-
----
-
-## CLI Reference
+## CLI reference
 
 | Command | Description |
 |---|---|
@@ -313,12 +366,18 @@ Git registries chain with HTTP registries the same way — set `priority` to con
 
 ### Registry options
 
-| Flag | Description |
-|---|---|
-| `-n, --name <name>` | Registry name (defaults to hostname) |
-| `-p, --priority <n>` | Priority — lower number = queried first (default: 100) |
-| `--token <token>` | Bearer token for authentication |
-| `-g, --global` | Write to user-level config (`~/ai-tools.config.json`) |
+| Flag | Applies to | Description |
+|---|---|---|
+| `-n, --name <name>` | both | Registry name (defaults to hostname or SSH host) |
+| `-p, --priority <n>` | both | Priority — lower number = queried first (default: 100) |
+| `-t, --type <http\|git>` | both | Registry type (default: `http`) |
+| `--read-branch <branch>` | git | Branch for install/search (default: `main`) |
+| `--publish-branch <branch>` | git | Branch for publish (default: read branch) |
+| `--path <path>` | git | Directory inside the repo (default: `registry/`) |
+| `--token <token>` | http | Bearer token for authentication |
+| `-g, --global` | both | Write to user-level config (`~/ai-tools.config.json`) |
+
+> Git registries use system git credentials. `--token` is rejected for `--type git`.
 
 ### Config keys
 
@@ -338,7 +397,7 @@ Git registries chain with HTTP registries the same way — set `priority` to con
 
 ---
 
-## Publishing Tools
+## Publishing tools
 
 ### Workflow
 
@@ -423,7 +482,7 @@ Each entry may include an optional `platform` field (`vscode`, `claude`, `cursor
 
 ---
 
-## Project Files
+## Project files
 
 ### `aitools.json` — dependency manifest
 
@@ -459,6 +518,8 @@ Pins exact installed versions. Commit this file.
   }
 }
 ```
+
+`resolved` is the registry URL — an HTTP base URL or a git remote, depending on which registry satisfied the install.
 
 ### `aitools.config.json` — configuration
 
@@ -512,7 +573,7 @@ aitools config edit --global  # user config (~/ai-tools.config.json)
 
 ---
 
-## Tool Categories & Install Paths
+## Tool categories & install paths
 
 Set `platform` in `aitools.config.json` to adapt installs to your IDE.
 
@@ -558,7 +619,100 @@ MCP tools inject a server entry into the platform's `mcp.json` config file.
 
 ---
 
-## Self-Hosted Registry
+## Registry types
+
+`aitools` supports two registry backends. Configure one or both in `aitools.config.json` and chain them with `priority`.
+
+| | Git (`type: "git"`) | HTTP (`type: "http"`) |
+|---|---|---|
+| **What it is** | A git remote whose `registry/` tree holds tool packages | A running `@ai-tools/server` instance |
+| **Server required** | No — GitHub, GitLab, Gitea, or a bare repo on disk | Yes |
+| **Authentication** | SSH keys, git credential manager, CI tokens | Bearer token or user login |
+| **Local cache** | Clone at `~/.ai-tools/git-cache/<name>/` | HTTP responses (no persistent clone) |
+| **Publish** | Commit + push to `publishBranch` (rebases on conflict) | `POST /tools` |
+| **When to pick it** | Lightweight team registry, infra you already have | Search proxy, upstream chaining, admin UI |
+
+Omitting `type` in config defaults to `http` for backward compatibility.
+
+### Git-backed registry (lightweight)
+
+Point the CLI at any git remote URL. No `@ai-tools/server` process is involved — the registry **is** the repository.
+
+**How it works**
+
+1. On first use, the CLI clones the repo into `~/.ai-tools/git-cache/<registry-name>/`.
+2. **Install** and **search** read semver directories under `<path>/<scoped-name>/<version>/`.
+3. **Publish** writes `manifest.json` and `tool.json`, commits, rebases onto the remote branch if needed, then pushes.
+4. Separate **read** and **publish** branches are supported (useful for a `releases` branch fed by CI).
+
+**Repository layout**
+
+```
+tools-registry/                 # your git repo
+└── registry/                   # default path (override with --path)
+    └── @acme__review-skill/    # @acme/review-skill — / becomes __
+        ├── 1.0.0/
+        │   ├── manifest.json     # standard tool manifest
+        │   └── tool.json       # JSON tarball: [{ "path", "content" }, ...]
+        └── 1.1.0/
+            ├── manifest.json
+            └── tool.json
+```
+
+Initialize an empty registry by creating the path and pushing:
+
+```bash
+mkdir -p registry && touch registry/.gitkeep
+git add registry && git commit -m "init registry root" && git push
+```
+
+**CLI setup**
+
+```bash
+aitools registry add git@github.com:myorg/tools-registry.git \
+  --name team --type git --global
+
+# Optional: split read vs publish branches
+aitools registry add https://git.example.com/team/tools-registry.git \
+  --name team --type git \
+  --read-branch main --publish-branch releases \
+  --path registry/ --priority 10 --global
+```
+
+**Config file example**
+
+```jsonc
+{
+  "registries": [
+    {
+      "type": "git",
+      "name": "team-tools",
+      "url": "git@github.com:myorg/tools-registry.git",
+      "readBranch": "main",
+      "publishBranch": "main",
+      "path": "registry/",
+      "priority": 1
+    }
+  ]
+}
+```
+
+**Lock file note:** `resolved` in `aitools-lock.json` stores the git remote URL (not an HTTP endpoint).
+
+**CI authentication** — use whatever git auth your runner supports. For GitHub Actions with a private repo:
+
+```yaml
+- run: git config --global url."https://x-access-token:${{ secrets.REGISTRY_TOKEN }}@github.com".insteadOf "https://github.com"
+- run: aitools publish
+```
+
+### HTTP registry (self-hosted)
+
+The full Fastify server supports user accounts, upstream chaining, tarball storage, and an admin portal. See [Self-hosted HTTP registry](#self-hosted-http-registry) below.
+
+---
+
+## Self-hosted HTTP registry
 
 Run your own registry with `@ai-tools/server`. Three deployment modes are supported — pick the one that fits your situation.
 
@@ -767,14 +921,15 @@ Registries are resolved in priority order; the first match wins for installs, an
 
 ---
 
-## Monorepo Structure
+## Monorepo structure
 
 ```
 aitools/
 ├── packages/
 │   ├── core/        # @ai-tools/core — shared types, schemas, config cascade, lock utilities
 │   ├── cli/         # @ai-tools/cli  — the `aitools` CLI
-│   └── server/      # @ai-tools/server — self-hosted registry server
+│   ├── server/      # @ai-tools/server — self-hosted HTTP registry
+│   └── e2e/         # @ai-tools/e2e  — end-to-end tests (HTTP + Gitea git registry)
 ├── tsconfig.base.json
 └── package.json
 ```
