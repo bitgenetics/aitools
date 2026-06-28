@@ -7,7 +7,14 @@
 ### `ConfigCascade` (core) ↔ `ConfigManager` (cli)
 **How they connect**: `ConfigManager` calls `ConfigCascade.load(cwd)` in its constructor. The resulting `AiToolsConfig` drives all downstream decisions (platform adapter, default scope, registry list, install path overrides). `ConfigManager.resolveInstallPath(category, scope)` checks `config.installPaths` for overrides before delegating to the platform adapter.  
 **Key files**: `packages/core/src/config/cascade.ts` (source), `packages/cli/src/utils/config-manager.ts` (consumer)  
-**Gotchas**: `ConfigCascade.load()` is called once at `ConfigManager` construction. If the config file is written during the same process (e.g. `aitools config set`), the in-memory config is stale — re-construct `ConfigManager` or reload explicitly.
+**Gotchas**: `ConfigCascade.load()` is called once at `ConfigManager` construction. If the config file is written during the same process (e.g. `aitools config set`), the in-memory config is stale — re-construct `ConfigManager` or reload explicitly. **Writes** must target a single layer via `readUserConfig()` / `readProjectConfig()` — never persist the merged object.
+
+---
+
+### `config-write-target` (cli) ↔ `ConfigManager` layer I/O — 2026-06-28 `e0a753f`
+**How they connect**: Mutating commands call `resolveConfigWriteTarget({ project, global })` to pick `'user' | 'project'`, then `configFilePath(cwd, target)` for the path. They read the target layer with `readUserConfig()` / `readProjectConfig()`, apply patches, and write with `writeUserConfig()` / `writeProjectConfig()`. Runtime reads (`get`, `list` without `--global`) still use merged `ConfigManager.config`.  
+**Key files**: `packages/cli/src/utils/config-write-target.ts`, `packages/cli/src/commands/config.ts`, `packages/cli/src/commands/registry.ts`  
+**Gotchas**: `--project` and `-g`/`--global` are mutually exclusive on write commands. `registry add` previously wrote project config by default — that was a bug fixed by this integration.
 
 ---
 
@@ -32,9 +39,9 @@
 
 ---
 
-### E2E global-setup ↔ Gitea + HTTP registry — 2026-06-26 `d7f8fa0`
-**How they connect**: Jest `globalSetup` ensures HTTP registry health (`REGISTRY_URL`), then when `GITEA_URL` is set calls `setupGiteaRegistry()` to create `tools-registry`, seed `registry/`, and write state to `/tmp/ai-tools-e2e-git-registry.json`. Tests read that via `getGitRegistryRemote()` / `initGitRegistry()` in `test-env.ts`.  
-**Key files**: `packages/e2e/global-setup.cjs`, `packages/e2e/gitea-setup.cjs`, `packages/e2e/src/test-env.ts`, `docker-compose.e2e.yml`  
+### E2E global-setup ↔ Gitea + HTTP registry — 2026-06-26 `d7f8fa0` (updated `e0a753f`)
+**How they connect**: Jest `globalSetup` ensures HTTP registry health (`REGISTRY_URL`), then when `GITEA_URL` is set calls `setupGiteaRegistry()` to create `tools-registry`, seed `registry/`, and write state to `/tmp/ai-tools-e2e-git-registry.json`. Tests read that via `getGitRegistryRemote()` / `initGitRegistry()` in `test-env.ts`. Config-layer tests additionally use `E2E_USER_CONFIG` (`~/.aitools.config.json` under isolated `HOME`) and `clearE2eUserConfig()` in `beforeEach`.  
+**Key files**: `packages/e2e/global-setup.cjs`, `packages/e2e/gitea-setup.cjs`, `packages/e2e/src/test-env.ts`, `packages/e2e/src/config-layers.test.ts`, `docker-compose.e2e.yml`  
 **Gotchas**: `gitea-init` must complete before `gitea` starts — do not revert to web-install bootstrap. E2e Dockerfile includes `git` for clone/push during setup.
 
 ---

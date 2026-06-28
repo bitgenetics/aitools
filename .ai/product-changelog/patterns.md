@@ -81,3 +81,19 @@
 **How**: `createRegistryClient(config)` checks `config.type === 'git'` (via `isGitRegistryConfig`) and returns `GitRegistryClient` or `HttpRegistryClient`. Both implement the shared `RegistryClient` interface. Omitting `type` in config defaults to HTTP.  
 **Example**: `packages/cli/src/utils/registry-client.ts`, `packages/cli/src/utils/git-registry-client.ts`  
 **Do not**: Branch on registry type inside command handlers — always go through the factory so HTTP and git stay interchangeable at the call site.
+
+---
+
+### Config write target resolution — 2026-06-28 `e0a753f`
+**Used for**: Any CLI command that mutates `aitools.config.json` (`config set/unset/edit`, `registry add/remove`).  
+**How**: Call `assertExclusiveConfigTarget(options)` then `resolveConfigWriteTarget(options)` → `'user' | 'project'`. Default is user (`~/.aitools.config.json`); `--project` selects `./aitools.config.json`. Read layer via `readUserConfig()` / `readProjectConfig()`, write via `writeUserConfig()` / `writeProjectConfig()`.  
+**Example**: `packages/cli/src/utils/config-write-target.ts`, `packages/cli/src/commands/registry.ts`  
+**Do not**: Write the merged `ConfigManager.config` object back to disk — that loses layer separation.
+
+---
+
+### Config layer test contract — 2026-06-28 `e0a753f`
+**Used for**: Any change to settings writes, cascade reads, or install scope defaults.  
+**How**: Unit tests in `config-write-target.test.ts`, `config.test.ts`, `registry.test.ts`, `config-manager.test.ts`, `install.test.ts`. E2E in `config-layers.test.ts`. Isolate user home with mocked `os.homedir()` or `AITOOLS_CONFIG_ROOT` in unit tests; e2e uses `E2E_USER_CONFIG`.  
+**Example**: `AGENTS.md` Testing section, `packages/e2e/src/config-layers.test.ts`  
+**Do not**: Ship config-layer behaviour changes without updating both unit and e2e contracts.

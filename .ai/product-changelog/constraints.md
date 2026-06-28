@@ -103,11 +103,19 @@
 
 ---
 
-### CLI unit tests must isolate user home config — 2026-06-27 `6eba41d`
-**Constraint**: Tests that construct `ConfigManager` or run install/config commands must mock `os.homedir()` to a temp dir and clear platform env vars (`VSCODE_PID`, `TERM_PROGRAM`, `CURSOR_TRACE_ID`) where auto-detection affects assertions.  
-**Reason**: Developer machines with real `~/aitools.config.json` or Cursor/VS Code env leaked platform into tests.  
+### CLI unit tests must isolate user home config — 2026-06-27 `6eba41d` (updated `e0a753f`)
+**Constraint**: Tests that construct `ConfigManager` or run install/config/registry commands must mock `os.homedir()` to a temp dir and set `AITOOLS_CONFIG_ROOT` where cascade walk must stop. Clear platform env vars (`VSCODE_PID`, `TERM_PROGRAM`, `CURSOR_TRACE_ID`) where auto-detection affects assertions.  
+**Reason**: Developer machines with real `~/aitools.config.json`, repo-root project config, or Cursor/VS Code env leaked platform/scope into tests.  
 **Do not change**: Rely on a "clean" real home directory in `@bitgenetics/aitools-cli` unit tests.  
-**Key files**: `packages/cli/src/commands/install.test.ts`, `packages/cli/src/utils/config-manager.test.ts`
+**Key files**: `packages/cli/src/commands/install.test.ts`, `packages/cli/src/utils/config-manager.test.ts`, `packages/e2e/src/test-env.ts`
+
+---
+
+### Coverage reports are gitignored — 2026-06-28 `e0a753f`
+**Constraint**: `.gitignore` lists `coverage` (matches `packages/*/coverage/` at any depth). Do not commit Jest HTML/lcov output. Config and lock files (`aitools.config.json`, `aitools-lock.json`) are **not** ignored — they are intentional project/user artifacts.  
+**Reason**: Coverage dirs were accidentally tracked and bloated diffs; config files belong in repos or user home by design.  
+**Do not change**: Do not add `aitools.config.json` to `.gitignore` without an ADR — project settings overrides are meant to be versioned.  
+**Key files**: `.gitignore`, `package.json` (`test:coverage`)
 
 ---
 

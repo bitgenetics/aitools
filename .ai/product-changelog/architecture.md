@@ -44,11 +44,27 @@
 
 ---
 
-### Config cascade (home → project) — 2026-04-26 `d0b6f60` (updated `d7f8fa0`)
+### Config cascade (home → project) — 2026-04-26 `d0b6f60` (updated `e0a753f`)
 **What**: `ConfigCascade.load()` walks from `cwd` up to the filesystem root, then the user home, reading `aitools.config.json` at each level. Lower-level files win; arrays (registries) are merged with lower-level entries prepended. `AITOOLS_CONFIG_ROOT` stops the upward walk at a boundary (used by e2e to isolate from the real user profile on Windows).  
 **Why**: Users need project-level overrides (platform, registry) without touching a global config. Mirrors the mental model of `.npmrc`.  
-**Impact**: Project-level config always beats home config. Never mutate the merged result — reload after writes.  
-**Key files**: `packages/core/src/config/cascade.ts`, `packages/core/src/types/config.ts`
+**Impact**: Project-level config always beats home config on **read**. **Writes** go to a specific layer via `resolveConfigWriteTarget()` — never persist the merged cascade object.  
+**Key files**: `packages/core/src/config/cascade.ts`, `packages/cli/src/utils/config-write-target.ts`
+
+---
+
+### Config layer model — settings write vs install scope — 2026-06-28 `e0a753f`
+**What**: Settings mutations (`config set/unset/edit`, `registry add/remove`) default to `~/.aitools.config.json`; `--project` writes `./aitools.config.json`. Reads (`config get/list`, command runtime) use merged cascade (project wins). `install` defaults to **project** scope; `-g`/`--global` installs to user scope.  
+**Why**: Personal defaults belong in home config; project files override on read only. Installing tools globally by default was surprising in multi-repo workflows.  
+**Impact**: Mutating commands use `readUserConfig()` / `readProjectConfig()` + layer writes — not `ConfigManager.config` directly. Contract enforced in unit + e2e tests (`AGENTS.md`).  
+**Key files**: `packages/cli/src/utils/config-write-target.ts`, `packages/cli/src/commands/config.ts`, `packages/cli/src/commands/registry.ts`, `packages/cli/src/commands/install.ts`
+
+---
+
+### Three manifest files (deps, lock, settings) — 2026-06-28 `e0a753f`
+**What**: `aitools.json` lists tool dependencies (like `package.json`); `aitools-lock.json` records resolved installs (like `package-lock.json`); `aitools.config.json` holds settings and may exist at user and/or project level.  
+**Why**: Mixing settings with dependency manifests caused confusion about which file to edit and where lock entries live.  
+**Impact**: Lock and deps are always project-scoped; settings use the layer model above. E2E header in `config-layers.test.ts` is the canonical spec.  
+**Key files**: `packages/e2e/src/config-layers.test.ts`, `packages/core/src/config/lock.ts`, `readme.md`
 
 ---
 
@@ -100,11 +116,11 @@
 
 ---
 
-### GitHub Actions CI — 2026-06-15 `95123f3`
-**What**: Three workflows: `test.yml` (build core/cli/server + Jest with coverage on push/PR), `e2e.yml` (Docker Compose E2E gate), `docker.yml` (registry image build).  
+### GitHub Actions CI — 2026-06-15 `95123f3` (updated `e0a753f`)
+**What**: Three workflows: `test.yml` (build core/cli/server + `npm run test:coverage` on push/PR), `e2e.yml` (Docker Compose E2E gate), `docker.yml` (registry image build).  
 **Why**: Catch regressions before merge; E2E validates CLI against a live registry in CI.  
-**Impact**: PRs to `main` should pass unit tests locally (`npm test`) before push. Full E2E requires Docker (`npm run test:e2e`).  
-**Key files**: `.github/workflows/test.yml`, `.github/workflows/e2e.yml`, `.github/workflows/docker.yml`
+**Impact**: PRs to `main` should pass unit tests locally (`npm test` or `npm run test:coverage`) before push. Full E2E requires Docker (`npm run test:e2e`). Server jest enforces 80% stmts/lines/funcs, 70% branches.  
+**Key files**: `.github/workflows/test.yml`, `package.json`, `packages/server/jest.config.cjs`
 
 ---
 

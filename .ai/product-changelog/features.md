@@ -4,8 +4,8 @@
 
 ---
 
-### install / uninstall / update — 2026-04-26 `d0b6f60`
-**What**: Full package lifecycle. `aitools install <name[@version]>` downloads from the highest-priority registry that has the package, extracts to cache, copies files to the platform-specific install path, and records the result in `aitools-lock.json`. `uninstall` removes files and the lock entry. `update` re-fetches latest (or a specified version).  
+### install / uninstall / update — 2026-04-26 `d0b6f60` (updated `e0a753f`)
+**What**: Full package lifecycle. `aitools install <name[@version]>` downloads from the highest-priority registry that has the package, extracts to cache, copies files to the platform-specific install path, and records the result in `aitools-lock.json`. Default install scope is **project**; `-g`/`--global` (or `--scope user`) installs to user paths. `uninstall` removes files and the lock entry. `update` re-fetches latest (or a specified version).  
 **Key APIs**: `Installer.install(client, manifest, scope)`, `Installer.uninstall(name, cwd)`, `CacheManager.get/set`  
 **Key files**: `packages/cli/src/commands/install.ts`, `packages/cli/src/commands/uninstall.ts`, `packages/cli/src/commands/update.ts`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/utils/cache-manager.ts`
 
@@ -29,15 +29,15 @@
 
 ---
 
-### config — 2026-04-26 `d0b6f60`
-**What**: `aitools config get <key>`, `aitools config set <key> <value>`, `aitools config list` — reads/writes the project-level `aitools.config.json`. Keys use dot notation: `platform`, `defaultScope`, `registries.0.url`, etc.  
-**Key files**: `packages/cli/src/commands/config.ts`, `packages/core/src/config/cascade.ts`
+### config — 2026-04-26 `d0b6f60` (updated `e0a753f`)
+**What**: `aitools config get/list` reads the **merged** cascade (project overrides user). `config set/unset/edit` writes to `~/.aitools.config.json` by default; `--project` writes `./aitools.config.json`. `config list --global` shows user-only layer. Keys use dot notation: `platform`, `defaultScope`, `registries.0.url`, etc.  
+**Key files**: `packages/cli/src/commands/config.ts`, `packages/cli/src/utils/config-write-target.ts`, `packages/core/src/config/cascade.ts`
 
 ---
 
-### registry — 2026-04-26 `d0b6f60` (updated `d7f8fa0`)
-**What**: `aitools registry add/remove/list` — manages the `registries` array in config. Supports HTTP registries (default) and git-backed registries (`--type git`, `--read-branch`, `--publish-branch`, `--path`). Git registries use system git credentials; `--token` is rejected for git type.  
-**Key files**: `packages/cli/src/commands/registry.ts`, `packages/cli/src/utils/git-registry-client.ts`, `packages/core/src/schema/config-schema.ts`
+### registry — 2026-04-26 `d0b6f60` (updated `e0a753f`)
+**What**: `aitools registry add/remove/list` — manages the `registries` array. Writes default to user config; `--project` writes project config. Supports HTTP registries (default) and git-backed registries (`--type git`, `--read-branch`, `--publish-branch`, `--path`). Git registries use system git credentials; `--token` is rejected for git type.  
+**Key files**: `packages/cli/src/commands/registry.ts`, `packages/cli/src/utils/config-write-target.ts`, `packages/cli/src/utils/git-registry-client.ts`
 
 ---
 
@@ -130,4 +130,16 @@
 ### `aitools mcp` — 2026-06-27 `6eba41d`
 **What**: `aitools mcp` runs an MCP stdio server exposing registry search/install and on-demand `aitools_transform`. Subcommands `mcp install` / `mcp remove` register the server in detected platform `mcp.json` files (project or `--user`). Uses `@modelcontextprotocol/sdk`.  
 **Key files**: `packages/cli/src/commands/mcp.ts`, `packages/cli/src/cli.ts`
+
+---
+
+### E2E config layer contract — 2026-06-28 `e0a753f`
+**What**: `packages/e2e/src/config-layers.test.ts` (17 tests) is the canonical e2e spec for settings write targets, cascade read merge, and install scope defaults. Uses `E2E_USER_CONFIG` + `clearE2eUserConfig()` so user config does not leak between tests.  
+**Key files**: `packages/e2e/src/config-layers.test.ts`, `packages/e2e/src/test-env.ts`, `AGENTS.md`
+
+---
+
+### `npm run test:coverage` + server thresholds — 2026-06-28 `e0a753f`
+**What**: Root script runs Jest with `--coverage` on core/cli/server; CI `test.yml` invokes it. Reports emit to `packages/*/coverage/` (gitignored). Server adds scoped `collectCoverageFrom`, expanded auth/storage/route tests, and global thresholds (80% stmts/lines/funcs, 70% branches).  
+**Key files**: `package.json`, `.github/workflows/test.yml`, `packages/server/jest.config.cjs`, `packages/server/src/auth/publisher-auth.test.ts`
 
