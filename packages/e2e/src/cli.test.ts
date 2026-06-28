@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -21,7 +21,7 @@
  *   "node /app/packages/cli/dist/cli.js"
  * so the binary doesn't need to be globally installed.
  *
- * Locally, ensure the CLI is built (`npm run build -w @aitools/cli`) and
+ * Locally, ensure the CLI is built (`npm run build -w @bitgenetics/aitools-cli`) and
  * either installed globally or set AITOOLS_CLI accordingly.
  */
 

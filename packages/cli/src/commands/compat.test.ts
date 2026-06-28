@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,7 +14,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import { parseSkillFrontmatter, analyzeCompat, rewriteSkillFrontmatter } from './compat.js';
 import { createCompatCommand } from './compat.js';
-import { PLATFORM_SPECS } from '@aitools/core';
+import { PLATFORM_SPECS } from '@bitgenetics/aitools-core';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -84,7 +84,7 @@ describe('analyzeCompat', () => {
   });
 
   it('marks an unsupported category as not supported', () => {
-    // universal platform only lists specific supported categories ù use a
+    // universal platform only lists specific supported categories ÔøΩ use a
     // category that is not in any spec's list to trigger false
     const universalSpec = PLATFORM_SPECS['universal'];
     const unsupportedCategory = 'mcp-tool';

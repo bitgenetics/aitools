@@ -17,7 +17,7 @@ COPY tsconfig.base.json ./
 COPY packages/core packages/core/
 COPY packages/server packages/server/
 
-RUN npm run build -w @aitools/core && npm run build -w @aitools/server
+RUN npm run build -w @bitgenetics/aitools-core && npm run build -w @bitgenetics/aitools-server
 
 # ---- Runtime stage ----
 FROM node:22-alpine
@@ -27,7 +27,7 @@ COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY packages/server/package.json packages/server/
 
-RUN npm ci --workspace=@aitools/core --workspace=@aitools/server --omit=dev --ignore-scripts
+RUN npm ci --workspace=@bitgenetics/aitools-core --workspace=@bitgenetics/aitools-server --omit=dev --ignore-scripts
 
 COPY --from=builder /app/packages/core/dist packages/core/dist/
 COPY --from=builder /app/packages/server/dist packages/server/dist/

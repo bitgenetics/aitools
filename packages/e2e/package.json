@@ -1,19 +1,19 @@
 {
-  "name": "@aitools/e2e",
-  "version": "0.1.0",
+  "name": "@bitgenetics/aitools-e2e",
+  "version": "1.0.0",
   "private": true,
   "description": "End-to-end tests for the AITools registry server and CLI",
   "author": {
-    "name": "Michael Benjamin",
-    "email": "turbofoxwave@gmail.com"
+    "name": "Nucleic Logic Studios, LLC",
+    "url": "https://github.com/bitgenetics"
   },
   "license": "AGPL-3.0-or-later",
   "scripts": {
     "test": "jest --forceExit --testTimeout=30000"
   },
   "dependencies": {
-    "@aitools/core": "*",
-    "@aitools/cli": "*"
+    "@bitgenetics/aitools-core": "*",
+    "@bitgenetics/aitools-cli": "*"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",

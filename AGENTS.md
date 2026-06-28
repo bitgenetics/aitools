@@ -29,14 +29,14 @@ Test files live alongside source: `src/foo.ts` → `src/foo.test.ts`.
 - Prefer `describe` blocks that mirror the module structure so failures are self-locating.
 
 ### Coverage targets
-- **Statements / branches / functions**: aim for ≥ 80% on `@aitools/core` and `@aitools/cli`.
-- The `@aitools/server` route handlers are integration-tested via `buildApp()` using Fastify's `inject()` method — no real HTTP port needed.
+- **Statements / branches / functions**: aim for ≥ 80% on `@bitgenetics/aitools-core` and `@bitgenetics/aitools-cli`.
+- The `@bitgenetics/aitools-server` route handlers are integration-tested via `buildApp()` using Fastify's `inject()` method — no real HTTP port needed.
 - Coverage is a floor, not a goal. A file at 60% with meaningful tests is better than 100% achieved by testing getters.
 
 ### Running tests
 ```
 npm test                     # run all workspaces
-npm test -w @aitools/core   # single package
+npm test -w @bitgenetics/aitools-core   # single package
 npm test -- --coverage       # emit coverage report to /coverage
 ```
 IMPORTANT: only use available tools, do not assume you have acess to one.

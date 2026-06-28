@@ -1,9 +1,20 @@
 {
-  "name": "@aitools/core",
-  "version": "0.1.0",
+  "name": "@bitgenetics/aitools-core",
+  "version": "1.0.0",
   "description": "Shared types, schemas, and utilities for AITools",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bitgenetics/aitools.git",
+    "directory": "packages/core"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -18,8 +29,8 @@
     "test": "jest"
   },
   "author": {
-    "name": "Michael Benjamin",
-    "email": "turbofoxwave@gmail.com"
+    "name": "Nucleic Logic Studios, LLC",
+    "url": "https://github.com/bitgenetics"
   },
   "license": "AGPL-3.0-or-later",
   "dependencies": {

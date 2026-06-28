@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -17,7 +17,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createRegistryCommand } from './registry.js';
 import { ConfigManager } from '../utils/config-manager.js';
-import type { AiToolsConfig } from '@aitools/core';
+import type { AiToolsConfig } from '@bitgenetics/aitools-core';
 
 jest.mock('../utils/config-manager.js');
 

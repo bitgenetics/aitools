@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -15,8 +15,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { ConfigManager } from '../utils/config-manager.js';
-import { RegistryConfigSchema } from '@aitools/core';
-import type { RegistryConfig, GitRegistryConfig, HttpRegistryConfig } from '@aitools/core';
+import { RegistryConfigSchema } from '@bitgenetics/aitools-core';
+import type { RegistryConfig, GitRegistryConfig, HttpRegistryConfig } from '@bitgenetics/aitools-core';
 
 function defaultRegistryName(url: string): string {
   try {

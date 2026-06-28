@@ -1,5 +1,13 @@
 # AITools
 
+> **Project home:** [github.com/bitgenetics/aitools](https://github.com/bitgenetics/aitools) — maintained by [Nucleic Logic Studios, LLC](https://github.com/bitgenetics). Formerly `turbofoxwave/aitools` (GitHub redirects automatically).
+>
+> **npm (CLI):** `@bitgenetics/aitools-cli` (pulls in `@bitgenetics/aitools-core`) — `npm install -g @bitgenetics/aitools-cli`.
+>
+> **HTTP registry:** build from this repo, Docker, or `ghcr.io/bitgenetics/aitools` — not published to npm.
+>
+> **Registry (your AI tools):** publish and install under your own scope, e.g. `aitools install @bitgenetics/my-skill` — separate from the platform package names above.
+
 A package manager for AI tools — discover, install, update, and publish **skills**, **subagents**, **prompts**, and **MCP tools** across projects and IDE environments.
 
 Think `npm` but for the AI tooling ecosystem. Tools can be scoped to a project (committed to your repo) or installed at the user level (available across all projects in your IDE).
@@ -35,7 +43,7 @@ Think `npm` but for the AI tooling ecosystem. Tools can be scoped to a project (
 - **Project-scope and user-scope** installs with sensible default paths per category
 - **Extended search** — search by name, description, keywords, and tags across all configured registries
 - **Publish tools** — package and upload skills, agents, and prompts to any registry
-- **Two registry types** — full HTTP server (`@aitools/server`) or a **lightweight git-backed registry** (any git remote, no server to run)
+- **Two registry types** — full HTTP server (`@bitgenetics/aitools-server`) or a **lightweight git-backed registry** (any git remote, no server to run)
 - **Cascading config** — `aitools.config.json` merges from home directory down to project directory, like `.npmrc`
 - **Lock file** — `aitools-lock.json` pins exact versions for reproducible installs
 - **Registry chaining** — multiple registries resolved by priority; proxy search merges results
@@ -52,7 +60,7 @@ Think `npm` but for the AI tooling ecosystem. Tools can be scoped to a project (
 ## Installation
 
 ```bash
-npm install -g @aitools/cli
+npm install -g @bitgenetics/aitools-cli
 ```
 
 ---
@@ -99,7 +107,7 @@ aitools uninstall @scope/my-skill
 
 Use a **git repository as your registry** — no HTTP server, no database, no Docker. The CLI clones the repo locally (cached under `~/.aitools/git-cache/<name>/`), reads tool packages from a `registry/` tree, and publishes by committing and pushing.
 
-| | Git registry | HTTP registry (`@aitools/server`) |
+| | Git registry | HTTP registry (`@bitgenetics/aitools-server`) |
 |---|---|---|
 | **Server to run** | None — any git host (GitHub, Gitea, bare repo) | Yes — Fastify process |
 | **Auth** | System git credentials (SSH keys, credential manager, CI tokens) | Bearer tokens / user accounts |
@@ -156,22 +164,23 @@ Git registries chain with HTTP registries — set `--priority` to control query 
 
 ### 3. Local HTTP registry
 
-Run a private registry on your LAN — no Docker, no database. Tools are stored on the local filesystem.
+Run a private registry on your LAN — no Docker, no database. Tools are stored on the local filesystem. Build the server from the repo (not published to npm):
 
 ```bash
-npm install -g @aitools/server
+git clone https://github.com/bitgenetics/aitools && cd aitools
+npm ci && npm run build -w @bitgenetics/aitools-server
 
-# bash
+# bash (from repo root)
 AITOOLS_DATA_DIR=./data \
 AITOOLS_ADMIN_TOKEN=change-me \
 AITOOLS_PUBLISHER_TOKENS='{"your-token":{"userId":"you","orgs":["my-org"]}}' \
-node $(npm root -g)/@aitools/server/dist/index.js
+node packages/server/dist/index.js
 
 # PowerShell
 $env:AITOOLS_DATA_DIR = ".\data"
 $env:AITOOLS_ADMIN_TOKEN = "change-me"
 $env:AITOOLS_PUBLISHER_TOKENS = '{"your-token":{"userId":"you","orgs":["my-org"]}}'
-node (Join-Path (npm root -g) "@aitools/server/dist/index.js")
+node packages/server/dist/index.js
 ```
 
 Point any client machine at it:
@@ -265,12 +274,12 @@ The server can be started directly from TypeScript source using `tsx` — no bui
 ```bash
 # bash — run from TypeScript source with file-watching
 AITOOLS_DATA_DIR=/tmp/ai-tools-dev PORT=4873 HOST=127.0.0.1 \
-  npm run dev -w @aitools/server
+  npm run dev -w @bitgenetics/aitools-server
 
 # PowerShell
 $env:AITOOLS_DATA_DIR = "$env:TEMP\ai-tools-dev"
 $env:PORT = "4873"; $env:HOST = "127.0.0.1"
-npm run dev -w @aitools/server
+npm run dev -w @bitgenetics/aitools-server
 ```
 
 To attach a debugger (e.g. VS Code **Attach to Node Process**), use the `debug:watch` script — it exposes the inspector on port `9229` and restarts on file changes:
@@ -278,12 +287,12 @@ To attach a debugger (e.g. VS Code **Attach to Node Process**), use the `debug:w
 ```bash
 # bash
 AITOOLS_DATA_DIR=/tmp/ai-tools-dev PORT=4873 HOST=127.0.0.1 \
-  npm run debug:watch -w @aitools/server
+  npm run debug:watch -w @bitgenetics/aitools-server
 
 # PowerShell
 $env:AITOOLS_DATA_DIR = "$env:TEMP\ai-tools-dev"
 $env:PORT = "4873"; $env:HOST = "127.0.0.1"
-npm run debug:watch -w @aitools/server
+npm run debug:watch -w @bitgenetics/aitools-server
 ```
 
 Then in VS Code open the **Run and Debug** panel and choose **Attach to Node Process** (port `9229`). Set breakpoints in any file under `packages/server/src/`.
@@ -625,7 +634,7 @@ MCP tools inject a server entry into the platform's `mcp.json` config file.
 
 | | Git (`type: "git"`) | HTTP (`type: "http"`) |
 |---|---|---|
-| **What it is** | A git remote whose `registry/` tree holds tool packages | A running `@aitools/server` instance |
+| **What it is** | A git remote whose `registry/` tree holds tool packages | A running `@bitgenetics/aitools-server` instance |
 | **Server required** | No — GitHub, GitLab, Gitea, or a bare repo on disk | Yes |
 | **Authentication** | SSH keys, git credential manager, CI tokens | Bearer token or user login |
 | **Local cache** | Clone at `~/.aitools/git-cache/<name>/` | HTTP responses (no persistent clone) |
@@ -636,7 +645,7 @@ Omitting `type` in config defaults to `http` for backward compatibility.
 
 ### Git-backed registry (lightweight)
 
-Point the CLI at any git remote URL. No `@aitools/server` process is involved — the registry **is** the repository.
+Point the CLI at any git remote URL. No `@bitgenetics/aitools-server` process is involved — the registry **is** the repository.
 
 **How it works**
 
@@ -714,10 +723,11 @@ The full Fastify server supports user accounts, upstream chaining, tarball stora
 
 ## Self-hosted HTTP registry
 
-Run your own registry with `@aitools/server`. Three deployment modes are supported — pick the one that fits your situation.
+Run your own registry with `@bitgenetics/aitools-server` from this repository, via Docker Compose, or the GHCR image (`ghcr.io/bitgenetics/aitools` on release tags). The server is **not** published to npm.
 
 ```bash
-npm install -g @aitools/server
+git clone https://github.com/bitgenetics/aitools && cd aitools
+npm ci && npm run build -w @bitgenetics/aitools-server
 ```
 
 ---
@@ -926,10 +936,10 @@ Registries are resolved in priority order; the first match wins for installs, an
 ```
 ai-tools/
 ├── packages/
-│   ├── core/        # @aitools/core — shared types, schemas, config cascade, lock utilities
-│   ├── cli/         # @aitools/cli  — the `aitools` CLI
-│   ├── server/      # @aitools/server — self-hosted HTTP registry
-│   └── e2e/         # @aitools/e2e  — end-to-end tests (HTTP + Gitea git registry)
+│   ├── core/        # @bitgenetics/aitools-core — shared types, schemas, config cascade, lock utilities
+│   ├── cli/         # @bitgenetics/aitools-cli  — the `aitools` CLI
+│   ├── server/      # @bitgenetics/aitools-server — self-hosted HTTP registry
+│   └── e2e/         # @bitgenetics/aitools-e2e  — end-to-end tests (HTTP + Gitea git registry)
 ├── tsconfig.base.json
 └── package.json
 ```
@@ -949,9 +959,9 @@ npm run build
 npm test
 
 # Run tests with coverage
-npm test -w @aitools/core -- --coverage
-npm test -w @aitools/server -- --coverage
-npm test -w @aitools/cli -- --coverage
+npm test -w @bitgenetics/aitools-core -- --coverage
+npm test -w @bitgenetics/aitools-server -- --coverage
+npm test -w @bitgenetics/aitools-cli -- --coverage
 ```
 
 ### Unit / integration tests
@@ -976,7 +986,7 @@ Docker e2e spins up three backing services:
 
 | Service | Role |
 |---------|------|
-| `test-registry` | HTTP registry (`@aitools/server`) |
+| `test-registry` | HTTP registry (`@bitgenetics/aitools-server`) |
 | `gitea-init` + `gitea` | Real Git remote for git-registry publish/install/search tests |
 | `e2e` | Jest runner |
 
@@ -987,7 +997,7 @@ Git registry tests use Gitea when `GITEA_URL` is set (Docker). Locally they fall
 1. Build:
 
    ```bash
-   npm run build -w @aitools/core && npm run build -w @aitools/cli
+   npm run build -w @bitgenetics/aitools-core && npm run build -w @bitgenetics/aitools-cli
    ```
 
 2. Start a fresh registry in one terminal:
@@ -1009,20 +1019,20 @@ Git registry tests use Gitea when `GITEA_URL` is set (Docker). Locally they fall
    # PowerShell
    $env:REGISTRY_URL = "http://localhost:4873"
    $env:AITOOLS_CLI = "node $PWD/packages/cli/dist/cli.js"
-   npm test -w @aitools/e2e
+   npm test -w @bitgenetics/aitools-e2e
 
    # bash
    REGISTRY_URL=http://localhost:4873 \
    AITOOLS_CLI="node $(pwd)/packages/cli/dist/cli.js" \
-   npm test -w @aitools/e2e
+   npm test -w @bitgenetics/aitools-e2e
    ```
 
    > Re-running against the same server can cause 409 conflicts. Delete the data directory and restart the server before re-running.
 
 ### Test coverage targets
 
-- `@aitools/core` and `@aitools/cli`: >= 80% statements / branches / functions
-- `@aitools/server` route handlers: integration-tested via Fastify `inject()` — no real HTTP port
+- `@bitgenetics/aitools-core` and `@bitgenetics/aitools-cli`: >= 80% statements / branches / functions
+- `@bitgenetics/aitools-server` route handlers: integration-tested via Fastify `inject()` — no real HTTP port
 
 ---
 

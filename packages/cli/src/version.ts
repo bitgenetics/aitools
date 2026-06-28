@@ -12,23 +12,10 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-import { normalizeCategory } from './category.js';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
-describe('normalizeCategory', () => {
-  it('maps subagent to agent', () => {
-    const result = normalizeCategory('subagent');
-    expect(result.category).toBe('agent');
-    expect(result.deprecatedAlias).toBe(true);
-  });
+const require = createRequire(fileURLToPath(import.meta.url));
 
-  it('maps prompt to command', () => {
-    const result = normalizeCategory('prompt');
-    expect(result.category).toBe('command');
-    expect(result.deprecatedAlias).toBe(true);
-  });
-
-  it('passes through canonical categories unchanged', () => {
-    expect(normalizeCategory('hook').category).toBe('hook');
-    expect(normalizeCategory('rule').deprecatedAlias).toBe(false);
-  });
-});
+/** CLI package version (from packages/cli/package.json). */
+export const CLI_VERSION: string = require('../version.cjs').CLI_VERSION as string;

@@ -106,7 +106,7 @@
 ### CLI unit tests must isolate user home config — 2026-06-27 `6eba41d`
 **Constraint**: Tests that construct `ConfigManager` or run install/config commands must mock `os.homedir()` to a temp dir and clear platform env vars (`VSCODE_PID`, `TERM_PROGRAM`, `CURSOR_TRACE_ID`) where auto-detection affects assertions.  
 **Reason**: Developer machines with real `~/aitools.config.json` or Cursor/VS Code env leaked platform into tests.  
-**Do not change**: Rely on a "clean" real home directory in `@aitools/cli` unit tests.  
+**Do not change**: Rely on a "clean" real home directory in `@bitgenetics/aitools-cli` unit tests.  
 **Key files**: `packages/cli/src/commands/install.test.ts`, `packages/cli/src/utils/config-manager.test.ts`
 
 ---

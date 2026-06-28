@@ -22,7 +22,7 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npm run build -w @aitools/core && npm run build -w @aitools/server && npm run build -w @aitools/cli
+        run: npm run build -w @bitgenetics/aitools-core && npm run build -w @bitgenetics/aitools-server && npm run build -w @bitgenetics/aitools-cli
 
       - name: Test with coverage
         run: npm test -- --coverage

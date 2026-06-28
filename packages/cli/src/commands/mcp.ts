@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -22,13 +22,15 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  type CallToolResult,
 } from '@modelcontextprotocol/sdk/types.js';
-import { ToolManifestSchema, readLockFile } from '@aitools/core';
-import type { TargetPlatform } from '@aitools/core';
+import { ToolManifestSchema, readLockFile } from '@bitgenetics/aitools-core';
+import type { TargetPlatform } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { createRegistryClient } from '../utils/registry-client.js';
 import { Installer } from '../utils/installer.js';
 import { transform, estimateCategoryConfidence } from '../transformers/index.js';
+import { CLI_VERSION } from '../version.js';
 
 const SERVER_NAME = 'aitools';
 const SERVER_ENTRY = {
@@ -115,7 +117,7 @@ async function runMcpServer(): Promise<void> {
   const ctx: McpToolContext = { cwd, configManager, installer };
 
   const server = new Server(
-    { name: 'aitools', version: '0.1.0' },
+    { name: 'aitools', version: CLI_VERSION },
     { capabilities: { tools: {} } },
   );
 
@@ -190,9 +192,10 @@ async function runMcpServer(): Promise<void> {
     ],
   }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request): Promise<CallToolResult> => {
     const { name, arguments: args } = request.params;
-    return handleMcpToolCall(name, args as Record<string, unknown> | undefined, ctx);
+    const result = await handleMcpToolCall(name, args as Record<string, unknown> | undefined, ctx);
+    return result as CallToolResult;
   });
 
   const transport = new StdioServerTransport();

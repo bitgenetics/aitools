@@ -77,9 +77,9 @@ Welcome to **AITools** design documentation. This folder contains comprehensive 
 **Architecture Highlights**:
 ```
 packages/
-├── @aitools/core/      # Library (types, schemas, utilities)
-├── @aitools/cli/       # CLI binary
-└── @aitools/server/    # Registry API server
+├── @bitgenetics/aitools-core/      # Library (types, schemas, utilities)
+├── @bitgenetics/aitools-cli/       # CLI binary
+└── @bitgenetics/aitools-server/    # Registry API server
 ```
 
 **Audience**: Architects, developers, system designers
@@ -228,9 +228,9 @@ packages/
 ```
 ai-tools/
 ├── packages/
-│   ├── @aitools/core/      # Library
-│   ├── @aitools/cli/       # CLI
-│   └── @aitools/server/    # Server
+│   ├── @bitgenetics/aitools-core/      # Library
+│   ├── @bitgenetics/aitools-cli/       # CLI
+│   └── @bitgenetics/aitools-server/    # Server
 └── docs/design/             # This folder
 ```
 
@@ -425,9 +425,9 @@ If you have feedback or suggestions for improving this documentation:
 ```
 ai-tools/
 ├── packages/
-│   ├── @aitools/core/      # Library: types, schemas, utilities
-│   ├── @aitools/cli/       # CLI binary
-│   └── @aitools/server/    # Registry API server
+│   ├── @bitgenetics/aitools-core/      # Library: types, schemas, utilities
+│   ├── @bitgenetics/aitools-cli/       # CLI binary
+│   └── @bitgenetics/aitools-server/    # Registry API server
 ├── docs/design/             # This folder
 ├── e2e/                     # End-to-end tests
 └── sandbox/                 # Testing sandbox

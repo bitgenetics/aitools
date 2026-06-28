@@ -10,16 +10,16 @@ responsibility.
 
 ```mermaid
 graph LR
-    core["@aitools/core<br/>Types · Schemas · Config · Lock · Platform specs"]
-    cli["@aitools/cli<br/>CLI binary (aitools)"]
-    server["@aitools/server<br/>Registry API (Fastify)"]
+    core["@bitgenetics/aitools-core<br/>Types · Schemas · Config · Lock · Platform specs"]
+    cli["@bitgenetics/aitools-cli<br/>CLI binary (aitools)"]
+    server["@bitgenetics/aitools-server<br/>Registry API (Fastify)"]
 
     core --> cli
     core --> server
 ```
 
-`@aitools/core` has no runtime dependencies on the other two packages.
-`@aitools/cli` and `@aitools/server` both depend on `core` for types and schemas.
+`@bitgenetics/aitools-core` has no runtime dependencies on the other two packages.
+`@bitgenetics/aitools-cli` and `@bitgenetics/aitools-server` both depend on `core` for types and schemas.
 
 ---
 
@@ -47,7 +47,7 @@ graph TD
         config_files["aitools.config.json<br/>(project → home cascade)"]
     end
 
-    subgraph private_registry["Private Registry (@aitools/server)"]
+    subgraph private_registry["Private Registry (@bitgenetics/aitools-server)"]
         api["Fastify HTTP API"]
         store["ToolStore<br/>(file-based)"]
         data["dataDir/<br/><name>/<version>/"]
@@ -75,13 +75,13 @@ graph TD
 
 ## Package internals
 
-### @aitools/core
+### @bitgenetics/aitools-core
 
 Pure library — no CLI, no HTTP server. Imported by both `cli` and `server`.
 
 ```mermaid
 graph LR
-    subgraph core["@aitools/core"]
+    subgraph core["@bitgenetics/aitools-core"]
         types["types/<br/>ToolManifest · AiToolsConfig<br/>AiToolsLock · TargetPlatform"]
         schema["schema/<br/>Zod validators<br/>(ToolManifestSchema<br/>AiToolsConfigSchema)"]
         config["config/<br/>ConfigCascade<br/>(project→home merge)"]
@@ -97,13 +97,13 @@ graph LR
     types --> platforms
 ```
 
-### @aitools/cli
+### @bitgenetics/aitools-cli
 
 The `aitools` binary. Commands are thin orchestrators that delegate to utility classes.
 
 ```mermaid
 graph LR
-    subgraph cli["@aitools/cli"]
+    subgraph cli["@bitgenetics/aitools-cli"]
         entry["cli.ts<br/>(Commander entry)"]
         commands["commands/<br/>install · uninstall · update<br/>search · find · list<br/>init · publish · manifest<br/>registry · config · compat"]
         adapters["adapters/<br/>PlatformAdapter per IDE<br/>(vscode · cursor · claude<br/>windsurf · universal)"]
@@ -116,13 +116,13 @@ graph LR
     utils --> adapters
 ```
 
-### @aitools/server
+### @bitgenetics/aitools-server
 
 Fastify HTTP registry. Stateless per-request — all state is in the file system.
 
 ```mermaid
 graph LR
-    subgraph server["@aitools/server"]
+    subgraph server["@bitgenetics/aitools-server"]
         app["app.ts<br/>buildApp() factory"]
         tools_route["routes/tools.ts<br/>GET/POST/PATCH /api/tools"]
         registry_route["routes/registry.ts<br/>GET /upstream · /health · /proxy/search"]

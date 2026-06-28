@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ConfigCascade } from '@aitools/core';
+import { ConfigCascade } from '@bitgenetics/aitools-core';
 import { ConfigManager, detectPlatformFromEnv } from '../utils/config-manager.js';
 
 describe('ConfigManager.getDefaultScope', () => {

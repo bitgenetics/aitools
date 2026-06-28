@@ -6,8 +6,9 @@ module.exports = {
   moduleNameMapper: {
     '^chalk$': '<rootDir>/src/__mocks__/chalk.cjs',
     '^ora$': '<rootDir>/src/__mocks__/ora.cjs',
+    '^(.+/version)\\.js$': '<rootDir>/version.cjs',
     '^(\\.{1,2}/.*)\\.js$': '$1',
-    '^@aitools/core$': '<rootDir>/../core/src/index.ts',
+    '^@bitgenetics/aitools-core$': '<rootDir>/../core/src/index.ts',
   },
   transform: {
     // Override module to CommonJS so ts-jest does not emit ESM in tests.

@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -21,9 +21,9 @@ import {
   isSpecStale,
   ToolManifestSchema,
   normalizeCategory,
-} from '@aitools/core';
-import type { PlatformSpec, FieldSupport } from '@aitools/core';
-import type { TargetPlatform } from '@aitools/core';
+} from '@bitgenetics/aitools-core';
+import type { PlatformSpec, FieldSupport } from '@bitgenetics/aitools-core';
+import type { TargetPlatform } from '@bitgenetics/aitools-core';
 import { estimateCategoryConfidence } from '../transformers/index.js';
 import type { TransformConfidence } from '../transformers/index.js';
 

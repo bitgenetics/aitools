@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,7 +14,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import http from 'node:http';
 import { createRegistryClient } from './registry-client.js';
-import type { ToolManifest } from '@aitools/core';
+import type { ToolManifest } from '@bitgenetics/aitools-core';
 
 // ---------------------------------------------------------------------------
 // Minimal local HTTP server used across all tests

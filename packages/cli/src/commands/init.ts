@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -22,7 +22,7 @@ import {
   writeLockFile,
   upsertLockEntry,
   toLockEntry,
-} from '@aitools/core';
+} from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { AITOOLS_CONVERT_NAME, AITOOLS_CONVERT_SKILL_MD, AITOOLS_CONVERT_VERSION } from '../bundled/aitools-convert.js';
 

@@ -63,7 +63,7 @@ Test the handler logic directly — do not test that the command was registered 
 ### 4. Build and smoke-test
 
 ```bash
-npm run build -w @aitools/cli
+npm run build -w @bitgenetics/aitools-cli
 aitools <name> --help
 ```
 
@@ -91,5 +91,5 @@ The CLI is globally linked (`npm link`) — rebuilding is sufficient to update i
 - [ ] `packages/cli/src/commands/<name>.ts` created, exports `create<Name>Command()`
 - [ ] `packages/cli/src/cli.ts` updated — import + `program.addCommand(...)` added
 - [ ] `packages/cli/src/commands/<name>.test.ts` created
-- [ ] `npm run build -w @aitools/cli` succeeds
+- [ ] `npm run build -w @bitgenetics/aitools-cli` succeeds
 - [ ] `aitools <name> --help` shows correct usage

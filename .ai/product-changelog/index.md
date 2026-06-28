@@ -5,7 +5,7 @@
 
 ## System Overview
 
-`AITools` is a package manager for AI tools — skills, rules, commands, agents, hooks, and MCP tools. Think `npm` for the AI tooling ecosystem. It is a TypeScript + Node.js ≥20 ESM monorepo with four packages: `@aitools/core`, `@aitools/cli` (binary: `aitools`), `@aitools/server` (Fastify HTTP registry), and `@aitools/e2e`. Install can **transform** content across IDE platforms when `nativeFor` differs from the active platform. Registries can be **HTTP** (`@aitools/server`) or **git-backed** (any git remote, no server). Project context for AI assistants lives in `.ai/product-changelog/` (load `index.md` first, then section files as needed).
+`AITools` is a package manager for AI tools — skills, rules, commands, agents, hooks, and MCP tools. Think `npm` for the AI tooling ecosystem. It is a TypeScript + Node.js ≥20 ESM monorepo with four packages: `@bitgenetics/aitools-core`, `@bitgenetics/aitools-cli` (binary: `aitools`), `@bitgenetics/aitools-server` (Fastify HTTP registry), and `@bitgenetics/aitools-e2e`. Install can **transform** content across IDE platforms when `nativeFor` differs from the active platform. Registries can be **HTTP** (`@bitgenetics/aitools-server`) or **git-backed** (any git remote, no server). Project context for AI assistants lives in `.ai/product-changelog/` (load `index.md` first, then section files as needed).
 
 ---
 
@@ -25,7 +25,7 @@
 ## Recent Changes
 
 - **2026-06-27** `6eba41d` — Cross-platform install transforms (rule/command/agent/hook), `aitools mcp`, `nativeFor` manifest field — see `architecture.md`, `features.md`, `integrations.md`, `patterns.md`, `constraints.md`
-- **2026-06-27** `8ffd641` — Rebrand to `aitools` CLI and `@aitools/*` packages (`aitools.config.json`, `AITOOLS_*` env vars) — see `architecture.md`
+- **2026-06-27** `8ffd641` — Rebrand to `aitools` CLI and `@bitgenetics/aitools-*` packages (`aitools.config.json`, `AITOOLS_*` env vars) — see `architecture.md`
 - **2026-06-26** `52eaa5a` — README reorganized: table of contents, **Registry types** section, lightweight git registry quick start — see `features.md`
 - **2026-06-26** `d7f8fa0` — Git registry mode + Gitea Docker e2e (`gitea-init` CLI bootstrap, not web install) — see `architecture.md`, `features.md`, `integrations.md`, `constraints.md`
 - **2026-06-15** `907cce7` — CLI shebang moved to line 1 (copyright header follows) — fixes `tsc` TS18026 — see `constraints.md`

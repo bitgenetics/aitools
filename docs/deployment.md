@@ -6,7 +6,7 @@
 
 | Type | When to use | Auth |
 |------|-------------|------|
-| **HTTP** (`@aitools/server`) | Teams needing search API, admin portal, user accounts | Bearer token or DB-backed users |
+| **HTTP** (`@bitgenetics/aitools-server`) | Teams needing search API, admin portal, user accounts | Bearer token or DB-backed users |
 | **Git** | Small teams with an existing git repo; no server to host | System git credentials (SSH, credential manager, CI tokens) |
 
 Git registries store tools under `<path>/<tool-name>/<version>/` inside the repo (`manifest.json` + `tool.json`). The CLI maintains a local clone at `~/.aitools/git-cache/<registry-name>/`.

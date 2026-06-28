@@ -73,10 +73,10 @@ This folder contains comprehensive design documentation for the **ai-tools** eco
 **Architecture Highlights**:
 ```
 packages/
-├── @aitools/core/      # Library (types, schemas, utilities)
-├── @aitools/cli/       # CLI binary (aitools)
-├── @aitools/server/    # Registry API server
-└── @aitools/e2e/       # Docker-based E2E tests
+├── @bitgenetics/aitools-core/      # Library (types, schemas, utilities)
+├── @bitgenetics/aitools-cli/       # CLI binary (aitools)
+├── @bitgenetics/aitools-server/    # Registry API server
+└── @bitgenetics/aitools-e2e/       # Docker-based E2E tests
 ```
 
 **Audience**: Architects, developers, system designers
@@ -212,9 +212,9 @@ packages/
 ```
 ai-tools/
 ├── packages/
-│   ├── @aitools/core/      # Library
-│   ├── @aitools/cli/       # CLI
-│   └── @aitools/server/    # Server
+│   ├── @bitgenetics/aitools-core/      # Library
+│   ├── @bitgenetics/aitools-cli/       # CLI
+│   └── @bitgenetics/aitools-server/    # Server
 └── docs/design/             # This folder
 ```
 

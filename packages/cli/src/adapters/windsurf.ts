@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -16,7 +16,7 @@ import os from 'node:os';
 import path from 'node:path';
 import type { PlatformAdapter } from './types.js';
 import { resolveFileCategory } from './types.js';
-import type { ToolCategory, InstallScope, FileCategory } from '@aitools/core';
+import type { ToolCategory, InstallScope, FileCategory } from '@bitgenetics/aitools-core';
 
 /**
  * Windsurf IDE (Cognition) adapter.

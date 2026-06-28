@@ -8,9 +8,9 @@ This document covers ongoing maintenance tasks for contributors and project owne
 
 ```
 ├── packages/
-│   ├── core/     @aitools/core   — shared types, schemas, config, lock utilities, platform specs
-│   ├── cli/      @aitools/cli    — the `aitools` CLI binary
-│   └── server/   @aitools/server — self-hosted registry (Fastify)
+│   ├── core/     @bitgenetics/aitools-core   — shared types, schemas, config, lock utilities, platform specs
+│   ├── cli/      @bitgenetics/aitools-cli    — the `aitools` CLI binary
+│   └── server/   @bitgenetics/aitools-server — self-hosted registry (Fastify)
 ├── tools/
 │   └── create-ai-tool/            — skill published to the registry; teaches agents to author tools
 ├── .agents/
@@ -22,6 +22,7 @@ This document covers ongoing maintenance tasks for contributors and project owne
 │   └── workflows/
 │       ├── test.yml    — unit + integration tests on every PR and push to main
 │       ├── docker.yml  — builds Docker image; pushes to GHCR on version tags
+│       ├── npm-publish.yml — publishes @bitgenetics/aitools-* packages to npm on version tags
 │       └── e2e.yml     — end-to-end tests against a live Docker Compose stack
 ├── docs/
 │   ├── deployment.md   — Docker, Kubernetes, systemd, reverse proxy recipes
@@ -40,13 +41,13 @@ Build order is mandatory — `core` must compile before `cli` or `server`.
 ```bash
 npm install                          # install all workspace dependencies
 npm run build                        # builds core → cli → server in order
-npm run build -w @aitools/core      # rebuild only core
-npm run build -w @aitools/cli       # rebuild only cli (requires core already built)
-npm run build -w @aitools/server    # rebuild only server
+npm run build -w @bitgenetics/aitools-core      # rebuild only core
+npm run build -w @bitgenetics/aitools-cli       # rebuild only cli (requires core already built)
+npm run build -w @bitgenetics/aitools-server    # rebuild only server
 ```
 
 The CLI binary is globally linked during development via `npm link` from `packages/cli`.
-Rebuilding `@aitools/cli` is enough to update the global `aitools` command.
+Rebuilding `@bitgenetics/aitools-cli` is enough to update the global `aitools` command.
 
 ---
 
@@ -56,13 +57,13 @@ Rebuilding `@aitools/cli` is enough to update the global `aitools` command.
 
 ```bash
 npm test                              # run all workspaces (core + cli + server)
-npm test -w @aitools/core            # single package
-npm test -w @aitools/cli
-npm test -w @aitools/server
+npm test -w @bitgenetics/aitools-core            # single package
+npm test -w @bitgenetics/aitools-cli
+npm test -w @bitgenetics/aitools-server
 npm test -- --coverage                # emit coverage report to /coverage
 ```
 
-Coverage floors: **≥ 80% statements / branches / functions** on `@aitools/core` and `@aitools/cli`.
+Coverage floors: **≥ 80% statements / branches / functions** on `@bitgenetics/aitools-core` and `@bitgenetics/aitools-cli`.
 Server route handlers are integration-tested via Fastify `inject()` — no real HTTP port.
 
 See `AGENTS.md` for the full testing ruleset (what to test, what to skip, naming conventions).
@@ -86,8 +87,8 @@ starting, so repeated runs always get a clean registry and the publish tests alw
 1. Build the packages that need to be current:
 
    ```bash
-   npm run build -w @aitools/core
-   npm run build -w @aitools/cli
+   npm run build -w @bitgenetics/aitools-core
+   npm run build -w @bitgenetics/aitools-cli
    ```
 
 2. Start a fresh registry server in one terminal:
@@ -112,12 +113,12 @@ starting, so repeated runs always get a clean registry and the publish tests alw
    # PowerShell
    $env:REGISTRY_URL = "http://localhost:4873"
    $env:AITOOLS_CLI = "node $PWD/packages/cli/dist/cli.js"
-   npm test -w @aitools/e2e
+   npm test -w @bitgenetics/aitools-e2e
 
    # bash
    REGISTRY_URL=http://localhost:4873 \
    AITOOLS_CLI="node $(pwd)/packages/cli/dist/cli.js" \
-   npm test -w @aitools/e2e
+   npm test -w @bitgenetics/aitools-e2e
    ```
 
 > **Note:** Re-running against the same local server instance causes 409 conflicts on the
@@ -133,7 +134,7 @@ Follow the `.agents/skills/add-cli-command/SKILL.md` skill. Summary:
 1. Create `packages/cli/src/commands/<name>.ts` — export `create<Name>Command(): Command`
 2. Register in `packages/cli/src/cli.ts` — import + `program.addCommand(...)`
 3. Write `packages/cli/src/commands/<name>.test.ts`
-4. `npm run build -w @aitools/cli` + smoke-test with `aitools <name> --help`
+4. `npm run build -w @bitgenetics/aitools-cli` + smoke-test with `aitools <name> --help`
 
 All local imports use `.js` extensions (Node16 ESM). See the skill for utility reuse table
 and gotchas.
@@ -149,7 +150,7 @@ Follow the `.agents/skills/add-platform/SKILL.md` skill. Summary:
 3. Register in `packages/cli/src/adapters/index.ts` (import, export, `ADAPTERS` entry)
 4. **Add a `PlatformSpec` data file** in `packages/core/src/platforms/<platform>.ts` — export the spec and add it to `PLATFORM_SPECS` in `packages/core/src/platforms/index.ts`
 5. Export the new spec from `packages/core/src/index.ts`
-6. Build: `npm run build -w @aitools/core && npm run build -w @aitools/cli`
+6. Build: `npm run build -w @bitgenetics/aitools-core && npm run build -w @bitgenetics/aitools-cli`
 7. Update `tools/create-ai-tool/references/platform-paths.md` with the new platform's install paths
 8. Bump and republish `tools/create-ai-tool`
 
@@ -192,10 +193,42 @@ packages/core/src/platforms/windsurf.ts   → https://docs.windsurf.com/windsurf
 After updating any spec, rebuild core and run the compat command against a known tool to sanity-check output:
 
 ```bash
-npm run build -w @aitools/core
+npm run build -w @bitgenetics/aitools-core
 cd tools/create-ai-tool
 aitools compat
 ```
+
+---
+
+## Publishing packages to npm
+
+The `@bitgenetics/aitools-core` and `@bitgenetics/aitools-cli` packages are published to [npm](https://www.npmjs.com/) when a version tag is pushed. `@bitgenetics/aitools-server` and `@bitgenetics/aitools-e2e` are private — run the server from this repo, Docker, or GHCR (`ghcr.io/bitgenetics/aitools` on release tags).
+
+Platform packages use the **`aitools-` prefix** under the `@bitgenetics` npm org so the bare scope (`@bitgenetics/my-skill`, etc.) remains available for AI tools published to a registry via `aitools publish`. Do not publish platform code as `@bitgenetics/cli` or `@bitgenetics/core`.
+
+### One-time setup
+
+1. Create an npm organization **`@bitgenetics`** on [npmjs.com](https://www.npmjs.com/).
+2. Create an npm **Automation** or **Publish** access token.
+3. Add it to the GitHub repo as secret **`NPM_TOKEN`**.
+
+### Release workflow
+
+```bash
+npm run version:patch          # or version:minor / version:major
+git add package.json package-lock.json packages/*/package.json
+git commit -m "chore: release v1.0.1"
+git tag v1.0.1                 # must match packages/*/package.json version
+git push origin main --tags
+```
+
+Pushing `v*` triggers `.github/workflows/npm-publish.yml`, which:
+
+1. Verifies the tag matches all publishable package versions
+2. Runs tests and builds
+3. Publishes `@bitgenetics/aitools-core`, then `@bitgenetics/aitools-cli` (with npm provenance)
+
+The same tag also triggers `docker.yml` to push the registry image to GHCR.
 
 ---
 
@@ -223,7 +256,7 @@ aitools publish                 # publish to configured registry
 
 ## Registry server
 
-The `@aitools/server` package is a self-hosted Fastify registry. Start it locally for development:
+The `@bitgenetics/aitools-server` package is a self-hosted Fastify registry. Start it locally for development:
 
 ```bash
 AITOOLS_DATA_DIR=./packages/e2e/fixtures node packages/server/dist/index.js
@@ -285,7 +318,7 @@ Keep these skills up to date when the patterns they describe change. After editi
 
 ## Dependency management
 
-- Keep `@aitools/core` dependency-free where possible — it is imported by both `cli` and `server`.
+- Keep `@bitgenetics/aitools-core` dependency-free where possible — it is imported by both `cli` and `server`.
 - `commander`, `chalk`, `ora`, `semver` are CLI-only dependencies — do not add them to `core`.
 - `fastify`, `zod` are used in `server` and `core` respectively — check the package's `package.json` before importing a new library.
 - After adding a dependency, rebuild the affected package and run its tests.

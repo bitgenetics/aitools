@@ -13,10 +13,10 @@ The project is organized as a monorepo with four packages:
 ```
 ai-tools/
 ├── packages/
-│   ├── @aitools/core/      # Pure library: types, schemas, utilities
-│   ├── @aitools/cli/       # CLI binary (aitools command)
-│   ├── @aitools/server/    # Registry API (Fastify HTTP server)
-│   └── @aitools/e2e/       # Docker-based end-to-end tests
+│   ├── @bitgenetics/aitools-core/      # Pure library: types, schemas, utilities
+│   ├── @bitgenetics/aitools-cli/       # CLI binary (aitools command)
+│   ├── @bitgenetics/aitools-server/    # Registry API (Fastify HTTP server)
+│   └── @bitgenetics/aitools-e2e/       # Docker-based end-to-end tests
 ├── docs/
 └── sandbox/                 # Local testing sandbox
 ```
@@ -25,9 +25,9 @@ ai-tools/
 
 ```mermaid
 graph LR
-    core["@aitools/core<br/>Types · Schemas · Config · Lock · Platform specs"]
-    cli["@aitools/cli<br/>CLI binary (aitools)"]
-    server["@aitools/server<br/>Registry API (Fastify)"]
+    core["@bitgenetics/aitools-core<br/>Types · Schemas · Config · Lock · Platform specs"]
+    cli["@bitgenetics/aitools-cli<br/>CLI binary (aitools)"]
+    server["@bitgenetics/aitools-server<br/>Registry API (Fastify)"]
 
     core --> cli
     core --> server
@@ -38,7 +38,7 @@ graph LR
 ```
 
 **Key Design Decisions:**
-- `@aitools/core` has **no runtime dependencies** on cli or server
+- `@bitgenetics/aitools-core` has **no runtime dependencies** on cli or server
 - Both `cli` and `server` depend on `core` for types and schemas
 - This separation enables independent testing and deployment of each package
 
@@ -66,7 +66,7 @@ graph TD
         config_files["aitools.config.json<br/>(project → home cascade)"]
     end
 
-    subgraph private_registry["Private Registry<br/>(@aitools/server)"]
+    subgraph private_registry["Private Registry<br/>(@bitgenetics/aitools-server)"]
         api["Fastify HTTP API"]
         store["ToolStore<br/>(file-based)"]
         data["dataDir/<br/><name>/<version>/"]

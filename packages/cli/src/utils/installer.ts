@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,7 +14,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import fs from 'node:fs';
 import path from 'node:path';
-import type { ToolManifest, InstalledTool, InstallScope, AiToolsLock, ToolFile, TargetPlatform } from '@aitools/core';
+import type { ToolManifest, InstalledTool, InstallScope, AiToolsLock, ToolFile, TargetPlatform } from '@bitgenetics/aitools-core';
 import {
   readLockFile,
   writeLockFile,
@@ -22,7 +22,7 @@ import {
   removeLockEntry,
   toLockEntry,
   normalizeCategory,
-} from '@aitools/core';
+} from '@bitgenetics/aitools-core';
 import type { ConfigManager } from './config-manager.js';
 import type { RegistryClient } from './registry-client.js';
 import { CacheManager } from './cache-manager.js';

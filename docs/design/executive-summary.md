@@ -59,7 +59,7 @@ graph LR
 
 ## Core Components
 
-### 1. @aitools/core (Library)
+### 1. @bitgenetics/aitools-core (Library)
 
 **Purpose**: Shared types, schemas, and utilities
 
@@ -72,7 +72,7 @@ graph LR
 
 **Dependencies**: None (pure library)
 
-### 2. @aitools/cli (CLI Tool)
+### 2. @bitgenetics/aitools-cli (CLI Tool)
 
 **Purpose**: Command-line interface for tool management
 
@@ -87,9 +87,9 @@ graph LR
 
 **Binary name**: `aitools`
 
-**Dependencies**: @aitools/core, commander, chalk, ora
+**Dependencies**: @bitgenetics/aitools-core, commander, chalk, ora
 
-### 3. @aitools/server (Registry)
+### 3. @bitgenetics/aitools-server (Registry)
 
 **Purpose**: HTTP API server for tool registry operations
 
@@ -101,15 +101,15 @@ graph LR
 - Pluggable auth (`SimpleAuthProvider`, `DatabaseAuthProvider`)
 - Rate limiting on publish and auth routes
 
-**Dependencies**: @aitools/core, fastify, optional PostgreSQL
+**Dependencies**: @bitgenetics/aitools-core, fastify, optional PostgreSQL
 
 ---
 
-### 4. @aitools/e2e (End-to-End Tests)
+### 4. @bitgenetics/aitools-e2e (End-to-End Tests)
 
 **Purpose**: Docker-based integration tests against a live registry
 
-**Dependencies**: @aitools/cli, @aitools/server (via docker-compose.e2e.yml)
+**Dependencies**: @bitgenetics/aitools-cli, @bitgenetics/aitools-server (via docker-compose.e2e.yml)
 
 ---
 

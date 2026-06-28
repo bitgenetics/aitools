@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -15,7 +15,7 @@
 import path from 'node:path';
 import crypto from 'node:crypto';
 import semver from 'semver';
-import type { ToolManifest } from '@aitools/core';
+import type { ToolManifest } from '@bitgenetics/aitools-core';
 import type { IStorageProvider } from '../providers/storage/types.js';
 import { LocalStorageProvider } from '../providers/storage/local.js';
 

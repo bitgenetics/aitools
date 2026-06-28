@@ -53,7 +53,7 @@
 ---
 
 ### Fastify `buildApp()` / `inject()` for server tests
-**Used for**: Testing `@aitools/server` route handlers.  
+**Used for**: Testing `@bitgenetics/aitools-server` route handlers.  
 **How**: Call `buildApp(options)` to get a Fastify instance, then use `app.inject({ method, url, payload })` to fire requests without binding a network port. No `supertest` or real HTTP needed.  
 **Example**: `packages/server/src/routes/tools.test.ts`  
 **Do not**: Start the server with `app.listen()` in tests — it causes port conflicts and slow teardown.

@@ -19,19 +19,19 @@
 
 ---
 
-## Step 1 — Fork the Repository
+## Step 1 — Clone the Repository
 
-On GitHub, fork `turbofoxwave/ai-tools` to your organisation's GitHub account, then clone it locally:
+Clone the canonical repository from the **bitgenetics** GitHub organization:
 
 ```bash
-git clone https://github.com/your-org/ai-tools
-cd ai-tools
+git clone https://github.com/bitgenetics/aitools
+cd aitools
 ```
 
-Track upstream to receive security patches:
+If you maintain a fork, track upstream for security patches:
 
 ```bash
-git remote add upstream https://github.com/turbofoxwave/ai-tools
+git remote add upstream https://github.com/bitgenetics/aitools
 git fetch upstream
 git merge upstream/main
 ```
@@ -197,7 +197,7 @@ az ad app federated-credential create \
   --parameters '{
     "name": "github-actions-main",
     "issuer": "https://token.actions.githubusercontent.com",
-    "subject": "repo:your-org/ai-tools:ref:refs/heads/main",
+    "subject": "repo:bitgenetics/aitools:ref:refs/heads/main",
     "audiences": ["api://AzureADTokenExchange"]
   }'
 ```

@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,8 +14,8 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { ToolManifestSchema } from '@aitools/core';
-import type { ToolManifest } from '@aitools/core';
+import { ToolManifestSchema } from '@bitgenetics/aitools-core';
+import type { ToolManifest } from '@bitgenetics/aitools-core';
 import type { IAuthProvider } from '../providers/auth/types.js';
 import { ToolStoreError } from '../storage/tool-store.js';
 import type { ToolStore } from '../storage/tool-store.js';
@@ -35,12 +35,12 @@ const PatchToolBodySchema = z.object({
 /**
  * Register all /tools routes onto the Fastify instance.
  *
- * GET  /tools                      — list latest version of every tool
- * GET  /tools/:name                — get latest manifest for a tool
- * GET  /tools/:name/:version       — get specific version manifest
- * GET  /tools/:name/:version/tarball — download tool tarball
- * GET  /search?q=<query>           — search tools
- * POST /tools                      — publish a new tool version
+ * GET  /tools                      ï¿½ list latest version of every tool
+ * GET  /tools/:name                ï¿½ get latest manifest for a tool
+ * GET  /tools/:name/:version       ï¿½ get specific version manifest
+ * GET  /tools/:name/:version/tarball ï¿½ download tool tarball
+ * GET  /search?q=<query>           ï¿½ search tools
+ * POST /tools                      ï¿½ publish a new tool version
  */
 export async function registerToolRoutes(
   fastify: FastifyInstance,

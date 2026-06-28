@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -27,13 +27,14 @@ import { createConfigCommand } from './commands/config.js';
 import { createCompatCommand } from './commands/compat.js';
 import { createDevInitCommand } from './commands/dev-init.js';
 import { createMcpCommand } from './commands/mcp.js';
+import { CLI_VERSION } from './version.js';
 
 const program = new Command();
 
 program
   .name('aitools')
   .description('AITools — package manager for AI skills, rules, commands, agents, hooks, and MCP tools')
-  .version('0.1.0');
+  .version(CLI_VERSION);
 
 program.addCommand(createInitCommand());
 program.addCommand(createDevInitCommand());

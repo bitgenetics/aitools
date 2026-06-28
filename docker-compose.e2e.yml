@@ -7,7 +7,7 @@
 # run so tests always start with an empty registry.
 #
 # Services:
-#   test-registry — HTTP Fastify registry (@aitools/server)
+#   test-registry — HTTP Fastify registry (@bitgenetics/aitools-server)
 #   gitea-init    — one-shot CLI bootstrap (migrate + admin user) for Gitea
 #   gitea         — Git hosting for git-registry e2e tests
 #   e2e           — Jest test runner (starts after dependencies are healthy)

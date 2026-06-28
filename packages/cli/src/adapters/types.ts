@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -12,13 +12,13 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-import type { ToolCategory, InstallScope, TargetPlatform, FileCategory } from '@aitools/core';
-import { normalizeCategory } from '@aitools/core';
+import type { ToolCategory, InstallScope, TargetPlatform, FileCategory } from '@bitgenetics/aitools-core';
+import { normalizeCategory } from '@bitgenetics/aitools-core';
 
 /**
  * A platform adapter translates the universal ai-tools category model into
  * the concrete file-system paths and config-file locations required by a
- * specific AI platform (VS Code, Claude Code, Cursor, Windsurf, …).
+ * specific AI platform (VS Code, Claude Code, Cursor, Windsurf, ï¿½).
  */
 export interface PlatformAdapter {
   readonly platform: TargetPlatform;

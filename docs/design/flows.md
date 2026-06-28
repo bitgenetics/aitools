@@ -9,7 +9,7 @@ Sequence diagrams for the primary operations. Actor abbreviations:
 - **CacheManager** — local tarball cache at `~/.aitools/cache/`
 - **Adapter** — platform-specific path resolver
 - **RegistryClient** — HTTP client for a single registry endpoint
-- **Registry** — `@aitools/server` (or any compatible registry)
+- **Registry** — `@bitgenetics/aitools-server` (or any compatible registry)
 - **FS** — local file system
 
 ---

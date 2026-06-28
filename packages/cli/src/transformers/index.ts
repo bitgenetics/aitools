@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -12,8 +12,8 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-import type { NormalizedCategory, TargetPlatform, ToolCategory } from '@aitools/core';
-import { normalizeCategory } from '@aitools/core';
+import type { NormalizedCategory, TargetPlatform, ToolCategory } from '@bitgenetics/aitools-core';
+import { normalizeCategory } from '@bitgenetics/aitools-core';
 import type { TransformContext, TransformResult } from './types.js';
 import { nativeResult, passthrough, unsupportedCategory, withSkillPrompt } from './types.js';
 import { transformRule } from './rule.js';

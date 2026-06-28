@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -18,7 +18,7 @@
  * These run against a live registry server.  In CI the server is provided by
  * docker-compose (REGISTRY_URL=http://registry:4873).  Locally you can run:
  *
- *   npm test -w @aitools/e2e
+ *   npm test -w @bitgenetics/aitools-e2e
  *
  * global-setup.cjs starts a local registry automatically when REGISTRY_URL
  * points at localhost and nothing is listening yet.
@@ -30,7 +30,7 @@ const BASE = (process.env['REGISTRY_URL'] ?? 'http://localhost:4873').replace(/\
 const FIXTURE_MANIFEST = {
   name: 'e2e-test-tool',
   version: '1.0.0',
-  description: 'Tool used by e2e tests — safe to delete',
+  description: 'Tool used by e2e tests ï¿½ safe to delete',
   category: 'skill' as const,
   scope: 'user' as const,
   platform: 'universal' as const,
@@ -71,7 +71,7 @@ describe('GET /health', () => {
 
 // ---------------------------------------------------------------------------
 
-describe('POST /api/tools — publish', () => {
+describe('POST /api/tools ï¿½ publish', () => {
   it('publishes a new tool and returns 201 with integrity hash', async () => {
     const res = await api('/api/tools', {
       method: 'POST',
@@ -93,10 +93,10 @@ describe('POST /api/tools — publish', () => {
       manifest: { ...FIXTURE_MANIFEST, version: '1.0.0-dup' },
       files: { 'index.md': '# duplicate' },
     };
-    // First publish — must succeed
+    // First publish ï¿½ must succeed
     const first = await api('/api/tools', { method: 'POST', body: JSON.stringify(payload) });
     expect(first.status).toBe(201);
-    // Second publish same version — must conflict
+    // Second publish same version ï¿½ must conflict
     const second = await api('/api/tools', { method: 'POST', body: JSON.stringify(payload) });
     expect(second.status).toBe(409);
   });
@@ -115,7 +115,7 @@ describe('POST /api/tools — publish', () => {
 
 // ---------------------------------------------------------------------------
 
-describe('GET /api/tools — list', () => {
+describe('GET /api/tools ï¿½ list', () => {
   it('returns an array containing the published tool', async () => {
     const tools = await json<unknown[]>('/api/tools');
     expect(Array.isArray(tools)).toBe(true);

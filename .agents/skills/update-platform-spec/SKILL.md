@@ -71,7 +71,7 @@ lastVerified: '2026-04-25',   // replace with today
 ### 3. Build and verify
 
 ```bash
-npm run build -w @aitools/core
+npm run build -w @bitgenetics/aitools-core
 cd tools/create-ai-tool
 aitools compat
 ```
@@ -125,8 +125,8 @@ installPaths: {
 ### 4. Build both packages
 
 ```bash
-npm run build -w @aitools/core
-npm run build -w @aitools/cli
+npm run build -w @bitgenetics/aitools-core
+npm run build -w @bitgenetics/aitools-cli
 ```
 
 ### 5. Update the reference doc
@@ -171,7 +171,7 @@ that you verified it and resets the staleness timer.
 ### 5. Build and run compat
 
 ```bash
-npm run build -w @aitools/core
+npm run build -w @bitgenetics/aitools-core
 cd tools/create-ai-tool
 aitools compat
 ```
@@ -192,14 +192,14 @@ The staleness warning should be gone.
 - **Don't update `universal.ts` with platform-specific fields.** Universal is the
   agentskills.io baseline — it should only contain fields from that spec.
 - **Build order:** `core` must build before `cli`. If you only changed a spec file,
-  `npm run build -w @aitools/core` is sufficient.
+  `npm run build -w @bitgenetics/aitools-core` is sufficient.
 
 ## Checklist
 
 - [ ] Spec file updated (field support, install paths, or both)
 - [ ] `lastVerified` set to today's date in every edited spec file
 - [ ] Adapter `DIRS` updated if install paths changed
-- [ ] `npm run build -w @aitools/core` succeeds (add `@aitools/cli` if adapter changed)
+- [ ] `npm run build -w @bitgenetics/aitools-core` succeeds (add `@bitgenetics/aitools-cli` if adapter changed)
 - [ ] `aitools compat` output is correct
 - [ ] `tools/create-ai-tool/references/platform-paths.md` updated if paths changed
 - [ ] `create-ai-tool` bumped and republished if reference docs changed

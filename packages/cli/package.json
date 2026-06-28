@@ -1,12 +1,24 @@
 {
-  "name": "@aitools/cli",
-  "version": "0.1.0",
+  "name": "@bitgenetics/aitools-cli",
+  "version": "1.0.0",
   "description": "CLI tool for managing AITools packages",
   "bin": {
     "aitools": "./dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "version.cjs"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bitgenetics/aitools.git",
+    "directory": "packages/cli"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -14,12 +26,12 @@
     "test": "jest"
   },
   "author": {
-    "name": "Michael Benjamin",
-    "email": "turbofoxwave@gmail.com"
+    "name": "Nucleic Logic Studios, LLC",
+    "url": "https://github.com/bitgenetics"
   },
   "license": "AGPL-3.0-or-later",
   "dependencies": {
-    "@aitools/core": "*",
+    "@bitgenetics/aitools-core": "*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "chalk": "^5.3.0",
     "commander": "^12.1.0",

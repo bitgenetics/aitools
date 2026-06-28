@@ -33,10 +33,10 @@ The model is coherent and well-scoped:
 
 ```
 packages/
-  core/    @aitools/core   — types, schemas, config, lock, platform specs
-  cli/     @aitools/cli    — aitools binary (Commander)
-  server/  @aitools/server — Fastify registry HTTP API
-  e2e/     @aitools/e2e   — Docker-based end-to-end tests
+  core/    @bitgenetics/aitools-core   — types, schemas, config, lock, platform specs
+  cli/     @bitgenetics/aitools-cli    — aitools binary (Commander)
+  server/  @bitgenetics/aitools-server — Fastify registry HTTP API
+  e2e/     @bitgenetics/aitools-e2e   — Docker-based end-to-end tests
 tools/
   create-ai-tool/            — published skill; dogfoods the system
 .agents/skills/              — project-scoped skills for AI coding agents
@@ -53,7 +53,7 @@ All strict options are on (`strict`, `noUncheckedIndexedAccess`, `noImplicitRetu
 
 ### 2.4 Module system inconsistency (not yet resolved)
 
-`@aitools/cli` declares `"type": "module"` (ESM). `@aitools/core` and `@aitools/server` do not, making them implicitly CommonJS.
+`@bitgenetics/aitools-cli` declares `"type": "module"` (ESM). `@bitgenetics/aitools-core` and `@bitgenetics/aitools-server` do not, making them implicitly CommonJS.
 
 Consequences that persist:
 - The CLI Jest config overrides `module` to `"CommonJS"` for ts-jest
@@ -168,9 +168,9 @@ When `publishToken` is not configured, `POST /tools` is open to anyone who can r
 
 | Package | Statements | Branch | Functions |
 |---|---|---|---|
-| `@aitools/core` | 81.5% | 66.7% | 75% |
-| `@aitools/cli` | 47.4% | 33.5% | 38.2% |
-| `@aitools/server` | 94.0% | 62.0% | 97.2% |
+| `@bitgenetics/aitools-core` | 81.5% | 66.7% | 75% |
+| `@bitgenetics/aitools-cli` | 47.4% | 33.5% | 38.2% |
+| `@bitgenetics/aitools-server` | 94.0% | 62.0% | 97.2% |
 
 ### 5.1 Core — gaps
 

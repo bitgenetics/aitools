@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -16,11 +16,11 @@ import { Command } from 'commander';
 import ora from 'ora';
 import chalk from 'chalk';
 import semver from 'semver';
-import { readManifest } from '@aitools/core';
+import { readManifest } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { createRegistryClient } from '../utils/registry-client.js';
 import { Installer } from '../utils/installer.js';
-import type { InstallScope } from '@aitools/core';
+import type { InstallScope } from '@bitgenetics/aitools-core';
 
 /**
  * aitools update [name]

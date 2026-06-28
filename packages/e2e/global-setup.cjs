@@ -44,7 +44,7 @@ async function ensureHttpRegistry() {
 
   if (!fs.existsSync(SERVER_ENTRY)) {
     throw new Error(
-      `Registry server not built at ${SERVER_ENTRY}. Run: npm run build -w @aitools/server`,
+      `Registry server not built at ${SERVER_ENTRY}. Run: npm run build -w @bitgenetics/aitools-server`,
     );
   }
 

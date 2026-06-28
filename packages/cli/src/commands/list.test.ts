@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -16,8 +16,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createListCommand } from './list.js';
-import { writeLockFile, upsertLockEntry, emptyLock } from '@aitools/core';
-import type { LockEntry } from '@aitools/core';
+import { writeLockFile, upsertLockEntry, emptyLock } from '@bitgenetics/aitools-core';
+import type { LockEntry } from '@bitgenetics/aitools-core';
 
 function makeLockEntry(overrides: Partial<LockEntry> = {}): LockEntry {
   return {

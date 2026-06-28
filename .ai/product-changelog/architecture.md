@@ -13,7 +13,7 @@
 ---
 
 ### aitools CLI rebrand — 2026-06-27 `8ffd641`
-**What**: Global binary `aitools`, npm scopes `@aitools/*`, config/lock files `aitools.config.json` / `aitools-lock.json`, cache under `~/.aitools/`, env prefix `AITOOLS_*` (e.g. `AITOOLS_CONFIG_ROOT`, `AITOOLS_PUBLISH_TOKEN`).  
+**What**: Global binary `aitools`, npm scopes `@bitgenetics/aitools-*`, config/lock files `aitools.config.json` / `aitools-lock.json`, cache under `~/.aitools/`, env prefix `AITOOLS_*` (e.g. `AITOOLS_CONFIG_ROOT`, `AITOOLS_PUBLISH_TOKEN`).  
 **Why**: Short-lived APM naming collided with npm bin expectations and confused the project with agent-focused package managers.  
 **Impact**: All docs, skills, e2e helpers, and server env examples use the new names. No runtime alias for old `ai-tools.*` filenames.  
 **Key files**: `packages/cli/package.json`, `readme.md`, `packages/server/.env.example`, `.ai/product-changelog/`
@@ -38,7 +38,7 @@
 
 ### Git-backed registry mode — 2026-06-26 `d7f8fa0`
 **What**: Registries can be `type: "git"` — tool packages are stored in a git repo under `registry/<tool>/<version>/` (`manifest.json` + `tool.json`). The CLI maintains a local clone at `~/.aitools/git-cache/<name>/` and delegates auth to system git.  
-**Why**: Small teams and solo devs often already have a private git repo; this avoids hosting `@aitools/server` while still supporting install/search/publish through the same CLI commands.  
+**Why**: Small teams and solo devs often already have a private git repo; this avoids hosting `@bitgenetics/aitools-server` while still supporting install/search/publish through the same CLI commands.  
 **Impact**: `RegistryConfig` is a discriminated union (`http` | `git`). `createRegistryClient()` dispatches to `HttpRegistryClient` or `GitRegistryClient`. Configs without `type` remain HTTP for backward compatibility. Lock `resolved` accepts git remote URLs.  
 **Key files**: `packages/cli/src/utils/git-registry-client.ts`, `packages/core/src/schema/config-schema.ts`, `packages/cli/src/commands/registry.ts`
 
@@ -53,7 +53,7 @@
 ---
 
 ### Fastify registry server with ToolStore JSON persistence — 2026-04-26 `d0b6f60`
-**What**: `@aitools/server` is a standalone Fastify v5 HTTP server exposing REST endpoints for tool discovery, download, and publish. `ToolStore` persists manifests as JSON + tarballs under `./data/`.  
+**What**: `@bitgenetics/aitools-server` is a standalone Fastify v5 HTTP server exposing REST endpoints for tool discovery, download, and publish. `ToolStore` persists manifests as JSON + tarballs under `./data/`.  
 **Why**: A self-hosted registry allows teams to publish internal tools privately. Fastify was chosen for its TypeScript-first design and low overhead. `buildApp()` is separated from `listen()` so tests can inject requests without binding a port.  
 **Impact**: The server is stateless per request; all state lives in `ToolStore`. Registry chaining (proxy search to upstreams) is handled in `routes/registry.ts`.  
 **Key files**: `packages/server/src/app.ts`, `packages/server/src/storage/tool-store.ts`, `packages/server/src/routes/`

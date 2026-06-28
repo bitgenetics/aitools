@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -18,7 +18,7 @@ import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import semver from 'semver';
-import type { ToolManifest, GitRegistryConfig } from '@aitools/core';
+import type { ToolManifest, GitRegistryConfig } from '@bitgenetics/aitools-core';
 import type { RegistryClient, SearchResult, PublishResult, DownloadResult } from './registry-client.js';
 
 /** Convert a scoped package name like "@scope/name" to a safe directory name. */

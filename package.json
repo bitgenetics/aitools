@@ -5,18 +5,21 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @aitools/core && npm run build -w @aitools/cli && npm run build -w @aitools/server",
+    "build": "npm run build -w @bitgenetics/aitools-core && npm run build -w @bitgenetics/aitools-cli && npm run build -w @bitgenetics/aitools-server",
     "dev": "npm run dev --workspaces --if-present",
-    "test": "npm test -w @aitools/core -w @aitools/cli -w @aitools/server",
+    "test": "npm test -w @bitgenetics/aitools-core -w @bitgenetics/aitools-cli -w @bitgenetics/aitools-server",
     "test:e2e": "docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans && docker compose -f docker-compose.e2e.yml up --build --exit-code-from e2e --attach e2e --no-log-prefix",
     "test:e2e:verbose": "docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans && docker compose -f docker-compose.e2e.yml up --build --exit-code-from e2e",
     "test:e2e:down": "docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans",
     "lint": "npm run lint --workspaces --if-present",
-    "clean": "npm run clean --workspaces --if-present"
+    "clean": "npm run clean --workspaces --if-present",
+    "version:patch": "npm version patch --workspaces --no-git-tag-version",
+    "version:minor": "npm version minor --workspaces --no-git-tag-version",
+    "version:major": "npm version major --workspaces --no-git-tag-version"
   },
   "author": {
-    "name": "Michael Benjamin",
-    "email": "turbofoxwave@gmail.com"
+    "name": "Nucleic Logic Studios, LLC",
+    "url": "https://github.com/bitgenetics"
   },
   "license": "AGPL-3.0-or-later",
   "engines": {

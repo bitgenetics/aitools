@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -15,8 +15,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ConfigCascade, CONFIG_FILENAME } from '@aitools/core';
-import type { AiToolsConfig, InstallScope, TargetPlatform, ToolCategory } from '@aitools/core';
+import { ConfigCascade, CONFIG_FILENAME } from '@bitgenetics/aitools-core';
+import type { AiToolsConfig, InstallScope, TargetPlatform, ToolCategory } from '@bitgenetics/aitools-core';
 import { getAdapter } from '../adapters/index.js';
 import type { PlatformAdapter } from '../adapters/index.js';
 

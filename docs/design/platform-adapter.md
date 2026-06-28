@@ -213,7 +213,7 @@ flowchart TD
     spec_index["Register in PLATFORM_SPECS<br/>packages/core/src/platforms/index.ts"]
     adapter["Create PlatformAdapter class<br/>packages/cli/src/adapters/&lt;platform&gt;.ts"]
     adapters_index["Register in ADAPTERS record<br/>packages/cli/src/adapters/index.ts"]
-    build["Build: core → cli<br/>npm run build -w @aitools/core<br/>npm run build -w @aitools/cli"]
+    build["Build: core → cli<br/>npm run build -w @bitgenetics/aitools-core<br/>npm run build -w @bitgenetics/aitools-cli"]
     docs["Update platform-paths.md<br/>bump + republish create-ai-tool"]
     done([Done])
 

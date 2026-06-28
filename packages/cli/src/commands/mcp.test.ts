@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Michael Benjamin (turbofoxwave@gmail.com)
+// Copyright (C) 2026 Nucleic Logic Studios, LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -24,7 +24,7 @@ import {
   handleMcpToolCall,
   createMcpCommand,
 } from './mcp.js';
-import { writeLockFile, upsertLockEntry, emptyLock } from '@aitools/core';
+import { writeLockFile, upsertLockEntry, emptyLock } from '@bitgenetics/aitools-core';
 
 const mockGetManifest = jest.fn();
 const mockSearch = jest.fn();
