@@ -269,15 +269,21 @@ Platform packages use the **`aitools-` prefix** under the `@bitgenetics` npm org
 
 ### Release workflow
 
+One command bumps every workspace, commits, tags, and pushes (current branch +
+`v*` tag). Pick the level from `.agents/skills/git-push/SKILL.md` or use patch for routine fixes.
+
 ```bash
 npm run version:patch          # or version:minor / version:major
-git add package.json package-lock.json packages/*/package.json
-git commit -m "chore: release v1.0.1"
-git tag v1.0.1                 # must match packages/*/package.json version
-git push origin main --tags
 ```
 
-Pushing `v*` triggers `.github/workflows/npm-publish.yml`, which:
+That script:
+
+1. Runs `npm version <level> --workspaces --no-git-tag-version`
+2. `git add .` → `git commit -m "chore: bump"`
+3. `git tag v<version>` (must match `packages/core` and `packages/cli`)
+4. `git push origin <current-branch> --tags`
+
+Pushing the `v*` tag triggers `.github/workflows/npm-publish.yml`, which:
 
 1. Verifies the tag matches all publishable package versions
 2. Runs tests and builds

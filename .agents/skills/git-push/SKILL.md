@@ -1,14 +1,14 @@
 ---
 name: git-push
 description: >-
-  Bump workspace versions, commit all changes, and push to main on the aitools
-  repo. Use when the user asks to push to main, publish changes, ship a bump,
-  or run the standard release commit workflow before push.
+  Bump workspace versions, commit, tag, and push on the aitools repo. Use when
+  the user asks to push to main, publish to npm, ship a release, run version:patch,
+  or run the standard release workflow.
 metadata:
   project: aitools
 ---
 
-Standard workflow for publishing local work to `main` on `bitgenetics/aitools`.
+Standard workflow for publishing local work on `bitgenetics/aitools`.
 
 ## Choosing the bump level
 
@@ -37,46 +37,51 @@ Pick the level from **what changed**, using [semver](https://semver.org/) intent
 4. When unsure and the change might affect CLI consumers or npm publish, **ask**
    which bump level to use before running the script.
 
-Replace `version:patch` in the workflow below with `version:minor` or
-`version:major` when the table above calls for it.
-
 ## Workflow
 
-Run these steps **in order**. Do not skip the version bump unless the user
-explicitly says not to bump.
+Run **one** command (do not run separate git steps unless the script failed
+partway through):
 
 ```bash
-npm run version:patch   # or version:minor / version:major — see above
-git add .
-git commit -m "chore: bump"
-git push origin main
+npm run version:patch   # or version:minor / version:major
 ```
 
-## What the version scripts do
+`scripts/version-release.cjs` performs, in order:
 
-Root scripts run `npm version <level> --workspaces --no-git-tag-version`:
+1. `npm version <level> --workspaces --no-git-tag-version`
+2. `git add .`
+3. `git commit -m "chore: bump"`
+4. `git tag v<version>` — version from `packages/core/package.json`
+5. `git push origin <current-branch> --tags`
 
-```bash
-npm run version:patch   # npm version patch --workspaces --no-git-tag-version
-npm run version:minor   # npm version minor --workspaces --no-git-tag-version
-npm run version:major   # npm version major --workspaces --no-git-tag-version
-```
+Commit any non-version work **before** running the script, or leave it unstaged —
+`git add .` stages everything, so the bump commit may include other pending changes.
 
-That bumps `@bitgenetics/aitools-cli`, `@bitgenetics/aitools-core`,
-`@bitgenetics/aitools-server`, and `@bitgenetics/aitools-e2e` together.
-It does **not** create a git tag. npm publish (on `v*` tags) is separate from
-this `chore: bump` push.
+## What gets triggered
+
+| Push | CI |
+|------|-----|
+| Branch push | E2E (`.github/workflows/e2e.yml`) |
+| `v*` tag | npm publish + Docker/GHCR (tag workflows) |
+
+Published to npm: `@bitgenetics/aitools-core`, `@bitgenetics/aitools-cli` only.
 
 ## Git safety
 
-- Only run when the user explicitly asks to commit and/or push.
+- Only run when the user explicitly asks to release, commit, and/or push.
 - Never change git config.
-- Never force-push to `main`.
+- Never force-push.
 - Do not commit `.env`, credentials, or other secret files.
-- Temp/debug artifacts (`.ci-log.zip`, `.docker-e2e.log`) belong in
-  `.gitignore`, not in the commit.
+- Script refuses to create a tag that already exists locally.
+- Requires a named branch (not detached HEAD).
 
-## After push
+## Manual fallback
 
-- CI runs E2E on push to `main` (`.github/workflows/e2e.yml`).
-- npm packages publish on version tags, not on every `chore: bump` push.
+If the script fails after the version bump but before push:
+
+```bash
+git add .
+git commit -m "chore: bump"
+git tag vX.Y.Z    # match packages/core/package.json
+git push origin <branch> --tags
+```

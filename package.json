@@ -13,9 +13,9 @@
     "test:e2e:down": "docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans",
     "lint": "npm run lint --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present",
-    "version:patch": "npm version patch --workspaces --no-git-tag-version",
-    "version:minor": "npm version minor --workspaces --no-git-tag-version",
-    "version:major": "npm version major --workspaces --no-git-tag-version"
+    "version:patch": "node scripts/version-release.cjs patch",
+    "version:minor": "node scripts/version-release.cjs minor",
+    "version:major": "node scripts/version-release.cjs major"
   },
   "author": {
     "name": "Nucleic Logic Studios, LLC",
