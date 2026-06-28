@@ -23,9 +23,9 @@
 
 ---
 
-### compat — 2026-04-26 `d0b6f60`
-**What**: `aitools compat [--platform <p>] [--manifest <path>] [--fix]` checks every `.md` file in the manifest's `files` list against the platform's known SKILL.md frontmatter support. Reports unsupported fields; `--fix` rewrites the frontmatter to remove them. Also warns when a platform spec is stale (>90 days since `lastVerified`).  
-**Key files**: `packages/cli/src/commands/compat.ts`, `packages/core/src/platforms/`
+### compat — 2026-04-26 `d0b6f60` (updated `6eba41d`)
+**What**: `aitools compat [--platform <p>] [--manifest <path>] [--fix]` checks manifest files against platform specs. Reports unsupported frontmatter fields; `--fix` strips them. Warns on stale specs (>90 days). When `nativeFor` differs from the target platform, shows per-category **transform confidence** (`high`/`medium`/`low`/`unsupported`) via `estimateCategoryConfidence`.  
+**Key files**: `packages/cli/src/commands/compat.ts`, `packages/cli/src/transformers/hook.ts`, `packages/core/src/platforms/`
 
 ---
 
@@ -111,4 +111,23 @@
 ### HTML browse portal — 2026-06-15 `95123f3`
 **What**: Server serves an HTML tool browser at `GET /` and `GET /skills/:name` (not JSON API). Admin UI at `/admin` with session login (see Admin portal login entry). Cross-registry search via `GET /api/search/all`.  
 **Key files**: `packages/server/src/routes/portal.ts`, `packages/server/src/routes/registry-exploration.ts`
+
+---
+
+### Cross-platform install transforms — 2026-06-27 `6eba41d`
+**What**: When `nativeFor` on the manifest differs from the configured platform, `Installer` mechanically transforms rule/command/agent/hook files at install time. Hooks merge into platform `hooks.json` / Claude `settings.json`. Unsupported or empty transforms are skipped with stderr guidance; low confidence suggests running `/aitools-convert`.  
+**Key APIs**: `transform(content, category, from, to, ctx)`, `mergeHookConfigs`, `estimateCategoryConfidence`  
+**Key files**: `packages/cli/src/transformers/`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/bundled/aitools-convert.ts`
+
+---
+
+### Expanded tool categories + `nativeFor` — 2026-06-27 `6eba41d`
+**What**: `ToolCategory` adds `rule`, `command`, `agent`, `hook` (legacy `subagent`/`prompt` normalize via `normalizeCategory`). Manifest optional `nativeFor: TargetPlatform` declares authorship platform. Adapters expose category install dirs and `resolveHooksConfig()` for hook merging.  
+**Key files**: `packages/core/src/types/tool.ts`, `packages/core/src/types/category.ts`, `packages/cli/src/adapters/`
+
+---
+
+### `aitools mcp` — 2026-06-27 `6eba41d`
+**What**: `aitools mcp` runs an MCP stdio server exposing registry search/install and on-demand `aitools_transform`. Subcommands `mcp install` / `mcp remove` register the server in detected platform `mcp.json` files (project or `--user`). Uses `@modelcontextprotocol/sdk`.  
+**Key files**: `packages/cli/src/commands/mcp.ts`, `packages/cli/src/cli.ts`
 

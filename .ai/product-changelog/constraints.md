@@ -95,6 +95,22 @@
 
 ---
 
+### Cross-platform transforms are mechanical, not semantic — 2026-06-27 `6eba41d`
+**Constraint**: Install-time transforms produce best-effort skeletons. `low`/`unsupported` confidence may skip writes or emit advisories; full conversion requires the bundled `aitools-convert` skill or manual edit. HTTP/MCP hook types may be dropped when the target platform has no equivalent.  
+**Reason**: Reliable regex/JSON rewriting cannot capture all platform semantics; confidence scoring sets user expectations.  
+**Do not change**: Skipping empty post-transform content — writing broken hooks/rules is worse than skipping with a clear message.  
+**Key files**: `packages/cli/src/transformers/`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/bundled/aitools-convert.ts`
+
+---
+
+### CLI unit tests must isolate user home config — 2026-06-27 `6eba41d`
+**Constraint**: Tests that construct `ConfigManager` or run install/config commands must mock `os.homedir()` to a temp dir and clear platform env vars (`VSCODE_PID`, `TERM_PROGRAM`, `CURSOR_TRACE_ID`) where auto-detection affects assertions.  
+**Reason**: Developer machines with real `~/aitools.config.json` or Cursor/VS Code env leaked platform into tests.  
+**Do not change**: Rely on a "clean" real home directory in `@aitools/cli` unit tests.  
+**Key files**: `packages/cli/src/commands/install.test.ts`, `packages/cli/src/utils/config-manager.test.ts`
+
+---
+
 ### Experimental software — no warranty — 2026-06-15 `21e553f`
 **Constraint**: `readme.md` states the project is experimental, APIs may change without notice, and there are no warranties — use at your own risk.  
 **Reason**: Pre-release project; sets expectations for adopters and employers evaluating internal use.  

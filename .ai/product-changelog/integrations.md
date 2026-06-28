@@ -46,6 +46,27 @@
 
 ---
 
+### `Installer` (cli) ↔ `transformers` — 2026-06-27 `6eba41d`
+**How they connect**: After reading cached file content, `installFiles` compares `manifest.nativeFor ?? 'universal'` to the active platform. Non-native installs call `transform()` per file category; hooks additionally `mergeHookConfigs` into the path from `adapter.resolveHooksConfig()`. Transform warnings go to stderr; skipped files still update lock only when written.  
+**Key files**: `packages/cli/src/utils/installer.ts`, `packages/cli/src/transformers/index.ts`, `packages/cli/src/adapters/types.ts`  
+**Gotchas**: Hook install is config-merge, not a standalone file copy. `recommendNativePath` advisory may skip the write even when partial content exists.
+
+---
+
+### `compat` / `publish` ↔ `estimateCategoryConfidence` — 2026-06-27 `6eba41d`
+**How they connect**: `compat` reads `manifest.nativeFor` and, for each supported category, calls `estimateCategoryConfidence(normalizedCategory, sourcePlatform, targetPlatform)` to display transform feasibility alongside frontmatter checks. `publish --strict` can block on compat warnings including transform confidence.  
+**Key files**: `packages/cli/src/commands/compat.ts`, `packages/cli/src/commands/publish.ts`, `packages/cli/src/transformers/hook.ts`  
+**Gotchas**: Confidence is estimated from transform rules, not from reading file bodies — run `compat` on real manifests before publishing cross-platform packages.
+
+---
+
+### `aitools mcp` ↔ MCP SDK + platform `mcp.json` — 2026-06-27 `6eba41d`
+**How they connect**: Default action starts `@modelcontextprotocol/sdk` stdio server with tools (`aitools_search`, `aitools_install`, `aitools_transform`, etc.). `mcp install` uses `detectMcpTargets()` to find `.cursor/mcp.json`, `.vscode/mcp.json`, etc., and writes `{ command: 'aitools', args: ['mcp'] }`. `mcp remove` deletes the `aitools` entry.  
+**Key files**: `packages/cli/src/commands/mcp.ts`, `packages/cli/src/adapters/*` (`resolveMcpConfig`)  
+**Gotchas**: User-level install (`--user`) targets home-dir configs; project-level requires the platform dot-dir to exist. Stdio server lifecycle is not covered by unit tests.
+
+---
+
 ### `ToolStore` (server) ↔ `IStorageProvider`
 **How they connect**: `ToolStore` persists manifests as `manifest.json` + `files.json` under `<dataDir>/<name>/<version>/`. Tarballs are synthesised on download as JSON arrays (not gzip). `search()` scans in-memory manifests loaded via the storage provider.  
 **Key files**: `packages/server/src/storage/tool-store.ts`, `packages/server/src/providers/storage/local.ts`  

@@ -22,9 +22,25 @@
 
 ### Platform adapter interface for path resolution
 **Used for**: Resolving where tool files should be installed for each IDE.  
-**How**: Implement `PlatformAdapter` (`resolveDir(category, scope, cwd)`, `resolveMcpConfig(scope, cwd)`). Register in `ADAPTERS` map in `packages/cli/src/adapters/index.ts`. Add a `PlatformSpec` entry in `packages/core/src/platforms/`.  
+**How**: Implement `PlatformAdapter` (`resolveDir(category, scope, cwd)`, `resolveMcpConfig(scope, cwd)`, `resolveHooksConfig(scope, cwd)` for hook category). Register in `ADAPTERS` map in `packages/cli/src/adapters/index.ts`. Add a `PlatformSpec` entry in `packages/core/src/platforms/`.  
 **Example**: `packages/cli/src/adapters/vscode.ts`  
 **Do not**: Branch on platform name inside `Installer` or command handlers — always go through the adapter.
+
+---
+
+### Transformer layer for cross-platform content — 2026-06-27 `6eba41d`
+**Used for**: Converting rule/command/agent/hook file content between IDE formats at install time.  
+**How**: Call `transform(content, category, from, to, ctx)` from `packages/cli/src/transformers/index.ts`. Category-specific logic lives in `rule.ts`, `command.ts`, `agent.ts`, `hook.ts`. Return `TransformResult` with `confidence`, optional `destExtension`, `skillPrompt`, and `# aitools:` annotations. Use `normalizeCategory()` before routing. Skills and mcp-tool categories passthrough.  
+**Example**: `packages/cli/src/utils/installer.ts` — transform branch in `installFiles`  
+**Do not**: Branch on platform inside command handlers — keep conversion rules in transformers so `compat` and MCP can reuse `estimateCategoryConfidence`.
+
+---
+
+### `nativeFor` manifest field for authorship platform — 2026-06-27 `6eba41d`
+**Used for**: Packages authored for one IDE but installed on another.  
+**How**: Set `nativeFor: "cursor"` (etc.) on `aitools.manifest.json`. Omit or match active platform for no transform. Installer compares `nativeFor ?? 'universal'` to `ConfigManager` platform.  
+**Example**: `packages/core/src/types/tool.ts`, `tools/create-ai-tool/references/manifest-reference.md`  
+**Do not**: Encode platform in `file.dest` paths — use `nativeFor` + transformers so a single package publishes once.
 
 ---
 

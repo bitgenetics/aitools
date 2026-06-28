@@ -12,6 +12,22 @@
 
 ---
 
+### aitools CLI rebrand — 2026-06-27 `8ffd641`
+**What**: Global binary `aitools`, npm scopes `@aitools/*`, config/lock files `aitools.config.json` / `aitools-lock.json`, cache under `~/.aitools/`, env prefix `AITOOLS_*` (e.g. `AITOOLS_CONFIG_ROOT`, `AITOOLS_PUBLISH_TOKEN`).  
+**Why**: Short-lived APM naming collided with npm bin expectations and confused the project with agent-focused package managers.  
+**Impact**: All docs, skills, e2e helpers, and server env examples use the new names. No runtime alias for old `ai-tools.*` filenames.  
+**Key files**: `packages/cli/package.json`, `readme.md`, `packages/server/.env.example`, `.ai/product-changelog/`
+
+---
+
+### Platform content transformation layer — 2026-06-27 `6eba41d`
+**What**: `packages/cli/src/transformers/` converts rule/command/agent/hook files when `manifest.nativeFor` differs from the active install platform. Returns `TransformResult` with confidence (`high` | `medium` | `low` | `unsupported`) and optional `# aitools:` annotations for lossy sections.  
+**Why**: Each IDE uses different file formats and config shapes for the same conceptual tool types; users should install cross-platform packages without hand-editing.  
+**Impact**: `Installer.installFiles` calls `transform()` at copy-time; low-confidence output may be skipped or advisory-only. `compat` and `publish --strict` surface confidence. Bundled `aitools-convert` skill guides AI-assisted cleanup.  
+**Key files**: `packages/cli/src/transformers/`, `packages/cli/src/utils/installer.ts`, `packages/core/src/types/tool.ts` (`nativeFor`)
+
+---
+
 ### Platform adapter pattern for install path resolution — 2026-04-26 `d0b6f60`
 **What**: A `PlatformAdapter` interface (`resolveDir`, `resolveMcpConfig`) is implemented by five adapters: `universal`, `vscode`, `claude`, `cursor`, `windsurf`. `ConfigManager` selects the active adapter from `aitools.config.json`.  
 **Why**: Each IDE places skills/agents/prompts in different directories and config formats. The adapter isolates this variation so `Installer` never needs to branch on platform.  
