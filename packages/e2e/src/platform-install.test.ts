@@ -72,9 +72,9 @@ function makeProjectDir(platform: string): string {
 
 const EXPECTED_DIRS: Record<string, Record<string, string>> = {
   vscode: {
-    skill: path.join('.agents', 'skills'),
+    skill: path.join('.github', 'skills'),
     subagent: path.join('.github', 'agents'),
-    prompt: path.join('.agents', 'prompts'),
+    prompt: path.join('.github', 'prompts'),
   },
   claude: {
     skill: path.join('.claude', 'skills'),
@@ -82,14 +82,14 @@ const EXPECTED_DIRS: Record<string, Record<string, string>> = {
     prompt: path.join('.claude', 'commands'),
   },
   cursor: {
-    skill: path.join('.agents', 'skills'),
-    subagent: path.join('.agents', 'agents'),
-    prompt: path.join('.agents', 'prompts'),
+    skill: path.join('.cursor', 'skills'),
+    subagent: path.join('.cursor', 'agents'),
+    prompt: path.join('.cursor', 'commands'),
   },
   windsurf: {
     skill: path.join('.windsurf', 'skills'),
     subagent: path.join('.windsurf', 'agents'),
-    prompt: path.join('.windsurf', 'rules'),
+    prompt: path.join('.windsurf', 'workflows'),
   },
 };
 

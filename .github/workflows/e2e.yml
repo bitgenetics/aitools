@@ -22,7 +22,7 @@ jobs:
         run: npm ci
 
       - name: Run E2E tests
-        run: docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from e2e
+        run: docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans && docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from e2e
         timeout-minutes: 10
 
       - name: Cleanup
