@@ -21,6 +21,11 @@ import chalk from 'chalk';
 import { ConfigCascade } from '@bitgenetics/aitools-core';
 import type { AiToolsConfig } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
+import {
+  assertExclusiveConfigTarget,
+  configFilePath,
+  resolveConfigWriteTarget,
+} from '../utils/config-write-target.js';
 
 const CONFIG_FILE = 'aitools.config.json';
 
@@ -153,10 +158,18 @@ export function createConfigCommand(): Command {
   cmd
     .command('set <key> <value>')
     .description(
-      `Set a config value.\n  Keys: ${SCALAR_KEYS.join(', ')}, installPaths.<scope.category>`,
+      `Set a config value (user config by default; project overrides when present).\n  Keys: ${SCALAR_KEYS.join(', ')}, installPaths.<scope.category>`,
     )
-    .option('-g, --global', 'Write to user-level config (~/' + CONFIG_FILE + ')')
-    .action((key: string, value: string, options: { global?: boolean }) => {
+    .option('-g, --global', 'Write to user-level config (~/' + CONFIG_FILE + ') [default]')
+    .option('--project', 'Write to project config (./' + CONFIG_FILE + ')')
+    .action((key: string, value: string, options: { global?: boolean; project?: boolean }) => {
+      try {
+        assertExclusiveConfigTarget(options);
+      } catch (err) {
+        console.error(chalk.red((err as Error).message));
+        process.exit(1);
+      }
+
       const parsed = parseKey(key);
 
       if (!parsed) {
@@ -177,30 +190,44 @@ export function createConfigCommand(): Command {
 
       const cwd = process.cwd();
       const configManager = new ConfigManager(cwd);
+      const target = resolveConfigWriteTarget(options);
+      const layerConfig =
+        target === 'project'
+          ? configManager.readProjectConfig()
+          : configManager.readUserConfig();
 
       let patch: Record<string, unknown>;
       if (parsed.type === 'scalar') {
         patch = { [parsed.field]: value };
       } else {
-        const existing = configManager.get().installPaths ?? {};
-        patch = { installPaths: { ...existing, [parsed.subkey]: value } };
+        patch = {
+          installPaths: { ...(layerConfig.installPaths ?? {}), [parsed.subkey]: value },
+        };
       }
 
-      if (options.global) {
-        configManager.writeUserConfig(patch as Parameters<typeof configManager.writeUserConfig>[0]);
-        console.log(chalk.green(`Set ${key} = ${value}`), chalk.dim('(user config)'));
-      } else {
+      if (target === 'project') {
         configManager.writeProjectConfig(patch as Parameters<typeof configManager.writeProjectConfig>[0]);
         console.log(chalk.green(`Set ${key} = ${value}`), chalk.dim('(project config)'));
+      } else {
+        configManager.writeUserConfig(patch as Parameters<typeof configManager.writeUserConfig>[0]);
+        console.log(chalk.green(`Set ${key} = ${value}`), chalk.dim('(user config)'));
       }
     });
 
   // -- config unset -----------------------------------------------------------
   cmd
     .command('unset <key>')
-    .description('Remove a config key from the project or user config')
-    .option('-g, --global', 'Remove from user-level config (~/' + CONFIG_FILE + ')')
-    .action((key: string, options: { global?: boolean }) => {
+    .description('Remove a config key (user config by default)')
+    .option('-g, --global', 'Remove from user-level config (~/' + CONFIG_FILE + ') [default]')
+    .option('--project', 'Remove from project config (./' + CONFIG_FILE + ')')
+    .action((key: string, options: { global?: boolean; project?: boolean }) => {
+      try {
+        assertExclusiveConfigTarget(options);
+      } catch (err) {
+        console.error(chalk.red((err as Error).message));
+        process.exit(1);
+      }
+
       const parsed = parseKey(key);
 
       if (!parsed) {
@@ -209,9 +236,9 @@ export function createConfigCommand(): Command {
         process.exit(1);
       }
 
-      const filePath = options.global
-        ? path.join(os.homedir(), CONFIG_FILE)
-        : path.join(process.cwd(), CONFIG_FILE);
+      const cwd = process.cwd();
+      const target = resolveConfigWriteTarget(options);
+      const filePath = configFilePath(cwd, target);
 
       if (!fs.existsSync(filePath)) {
         console.log(chalk.dim(`No config file at ${filePath} � nothing to unset.`));
@@ -231,7 +258,10 @@ export function createConfigCommand(): Command {
       }
 
       fs.writeFileSync(filePath, JSON.stringify(raw, null, 2) + '\n', 'utf8');
-      console.log(chalk.green(`Unset ${key}`), chalk.dim(options.global ? '(user config)' : '(project config)'));
+      console.log(
+        chalk.green(`Unset ${key}`),
+        chalk.dim(target === 'project' ? '(project config)' : '(user config)'),
+      );
     });
 
 
@@ -239,11 +269,19 @@ export function createConfigCommand(): Command {
   cmd
     .command('edit')
     .description('Open the config file in your editor ($VISUAL, $EDITOR, or code)')
-    .option('-g, --global', 'Open the user-level config (~/' + CONFIG_FILE + ')')
-    .action((options: { global?: boolean }) => {
-      const filePath = options.global
-        ? path.join(os.homedir(), CONFIG_FILE)
-        : path.join(process.cwd(), CONFIG_FILE);
+    .option('-g, --global', 'Open user-level config (~/' + CONFIG_FILE + ') [default]')
+    .option('--project', 'Open project config (./' + CONFIG_FILE + ')')
+    .action((options: { global?: boolean; project?: boolean }) => {
+      try {
+        assertExclusiveConfigTarget(options);
+      } catch (err) {
+        console.error(chalk.red((err as Error).message));
+        process.exit(1);
+      }
+
+      const cwd = process.cwd();
+      const target = resolveConfigWriteTarget(options);
+      const filePath = configFilePath(cwd, target);
 
       // Create a commented template if the file does not exist yet
       if (!fs.existsSync(filePath)) {

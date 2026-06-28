@@ -13,6 +13,11 @@ Test files live alongside source: `src/foo.ts` → `src/foo.test.ts`.
 - Business logic with non-trivial branching (config cascade merge order, lock entry upsert, installer file resolution).
 - Error paths that are reachable at runtime (missing file, malformed JSON, registry 4xx).
 - Registry client behaviour — mock the HTTP layer (`nock` or `jest.fn()`), assert request shape and error propagation.
+- **Config layer model** (required for any change to settings vs install scope):
+  - Settings (`config`, `registry`) default writes to user config; `--project` writes project config; reads merge with project overriding user.
+  - Installs default to project scope; `-g` / `--global` uses user scope.
+  - Unit: `config-write-target.test.ts`, `config.test.ts`, `registry.test.ts`, `config-manager.test.ts`, `install.test.ts`.
+  - E2E: `packages/e2e/src/config-layers.test.ts` (must pass in CI via `npm run test:e2e`).
 
 ### What NOT to test
 - Implementation details: private helpers, internal variable state, exact call counts on internal methods.
@@ -37,7 +42,10 @@ Test files live alongside source: `src/foo.ts` → `src/foo.test.ts`.
 ```
 npm test                     # run all workspaces
 npm test -w @bitgenetics/aitools-core   # single package
-npm test -- --coverage       # emit coverage report to /coverage
+npm test -w @bitgenetics/aitools-cli     # includes config layer unit tests
+npm test -w @bitgenetics/aitools-e2e     # local e2e (registry must be running)
+npm run test:e2e             # full docker e2e (CI parity)
+npm run test:coverage         # unit tests + coverage in packages/*/coverage/
 ```
 IMPORTANT: only use available tools, do not assume you have acess to one.
 if you attempt to use a tool that is not available to you, adjust your approach.

@@ -8,6 +8,7 @@
     "build": "npm run build -w @bitgenetics/aitools-core && npm run build -w @bitgenetics/aitools-cli && npm run build -w @bitgenetics/aitools-server",
     "dev": "npm run dev --workspaces --if-present",
     "test": "npm test -w @bitgenetics/aitools-core -w @bitgenetics/aitools-cli -w @bitgenetics/aitools-server",
+    "test:coverage": "npm test -w @bitgenetics/aitools-core -w @bitgenetics/aitools-cli -w @bitgenetics/aitools-server -- --coverage",
     "test:e2e": "docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans && docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from e2e",
     "test:e2e:verbose": "docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans && docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from e2e",
     "test:e2e:down": "docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans",

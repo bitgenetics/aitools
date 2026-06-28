@@ -138,6 +138,70 @@ describe('ConfigManager.getRegistries', () => {
   });
 });
 
+describe('ConfigManager layer reads', () => {
+  let tmp: string;
+  let isolatedHome: string;
+  let homedirSpy: jest.SpiedFunction<typeof os.homedir>;
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cm-layers-'));
+    isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cm-home-'));
+    homedirSpy = jest.spyOn(os, 'homedir').mockReturnValue(isolatedHome);
+    process.env['AITOOLS_CONFIG_ROOT'] = tmp;
+  });
+
+  afterEach(() => {
+    homedirSpy.mockRestore();
+    delete process.env['AITOOLS_CONFIG_ROOT'];
+    fs.rmSync(tmp, { recursive: true, force: true });
+    fs.rmSync(isolatedHome, { recursive: true, force: true });
+  });
+
+  it('readUserConfig returns only the home file contents', () => {
+    fs.writeFileSync(
+      path.join(isolatedHome, 'aitools.config.json'),
+      JSON.stringify({ platform: 'claude' }),
+      'utf8',
+    );
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'cursor' }),
+      'utf8',
+    );
+    expect(new ConfigManager(tmp).readUserConfig().platform).toBe('claude');
+  });
+
+  it('readProjectConfig returns only the project file contents', () => {
+    fs.writeFileSync(
+      path.join(isolatedHome, 'aitools.config.json'),
+      JSON.stringify({ platform: 'claude' }),
+      'utf8',
+    );
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'cursor' }),
+      'utf8',
+    );
+    expect(new ConfigManager(tmp).readProjectConfig().platform).toBe('cursor');
+  });
+
+  it('get merges project over user for effective reads', () => {
+    fs.writeFileSync(
+      path.join(isolatedHome, 'aitools.config.json'),
+      JSON.stringify({ platform: 'claude', defaultScope: 'user' }),
+      'utf8',
+    );
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'cursor' }),
+      'utf8',
+    );
+    const manager = new ConfigManager(tmp);
+    expect(manager.get().platform).toBe('cursor');
+    expect(manager.getDefaultScope()).toBe('user');
+  });
+});
+
 describe('detectPlatformFromEnv', () => {
   let tmp: string;
   const savedEnv: Record<string, string | undefined> = {};

@@ -28,6 +28,7 @@ import { Installer } from '../utils/installer.js';
 
 interface InstallOptions {
   scope?: InstallScope;
+  global?: boolean;
   dev?: boolean;
   version?: string;
 }
@@ -43,14 +44,23 @@ export function createInstallCommand(): Command {
     .alias('i')
     .description('Install an AITools package or all packages listed in aitools.json')
     .argument('[package]', 'Package name with optional version, e.g. my-skill or my-skill@1.2.0')
-    .option('-s, --scope <scope>', 'Install scope: project or user', 'project')
+    .option('-s, --scope <scope>', 'Install scope: project (default) or user')
+    .option('-g, --global', 'Install to user scope (same as --scope user)')
     .option('-D, --dev', 'Save as a devTool dependency')
     .option('-v, --version <version>', 'Specific version to install (overrides @version in name)')
     .action(async (pkg: string | undefined, options: InstallOptions) => {
       const cwd = process.cwd();
       const configManager = new ConfigManager(cwd);
       const installer = new Installer(configManager, cwd);
-      const scope = (options.scope as InstallScope | undefined) ?? configManager.getDefaultScope();
+
+      if (options.global && options.scope && options.scope !== 'user') {
+        console.error(chalk.red('Use either --global or --scope project, not both.'));
+        process.exit(1);
+      }
+
+      const scope: InstallScope = options.global
+        ? 'user'
+        : (options.scope ?? configManager.getDefaultScope());
 
       if (pkg) {
         await installSingle(pkg, options, scope, configManager, installer, cwd);

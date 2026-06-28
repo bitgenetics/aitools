@@ -269,6 +269,7 @@ describe('install command action', () => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-install-cmd-'));
     isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-install-home-'));
     homedirSpy = jest.spyOn(os, 'homedir').mockReturnValue(isolatedHome);
+    process.env['AITOOLS_CONFIG_ROOT'] = tmp;
     delete process.env.VSCODE_PID;
     delete process.env.TERM_PROGRAM;
     delete process.env.CURSOR_TRACE_ID;
@@ -294,9 +295,32 @@ describe('install command action', () => {
   afterEach(() => {
     process.chdir(originalCwd);
     homedirSpy.mockRestore();
+    delete process.env['AITOOLS_CONFIG_ROOT'];
     fs.rmSync(tmp, { recursive: true });
     fs.rmSync(isolatedHome, { recursive: true, force: true });
     jest.restoreAllMocks();
+  });
+
+  it('installs with project scope by default', async () => {
+    const installSpy = jest.spyOn(Installer.prototype, 'install');
+    await createInstallCommand().parseAsync(['test-skill'], { from: 'user' });
+    expect(installSpy).toHaveBeenCalledWith(expect.anything(), expect.anything(), 'project');
+    installSpy.mockRestore();
+  });
+
+  it('installs with user scope when --global is passed', async () => {
+    const installSpy = jest.spyOn(Installer.prototype, 'install');
+    await createInstallCommand().parseAsync(['test-skill', '--global'], { from: 'user' });
+    expect(installSpy).toHaveBeenCalledWith(expect.anything(), expect.anything(), 'user');
+    installSpy.mockRestore();
+  });
+
+  it('exits when --global conflicts with --scope project', async () => {
+    const exitSpy = mockExit();
+    await expect(
+      createInstallCommand().parseAsync(['test-skill', '--global', '--scope', 'project'], { from: 'user' }),
+    ).rejects.toThrow('process.exit:1');
+    exitSpy.mockRestore();
   });
 
   it('installs a package and writes aitools.json', async () => {

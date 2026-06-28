@@ -28,13 +28,19 @@ jobs:
         with:
           context: .
           push: false
+          load: true
           tags: ai-tools:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Verify non-root user
         run: |
-          docker run --rm ai-tools:${{ github.sha }} id | grep -v "uid=0"
+          uid=$(docker run --rm ai-tools:${{ github.sha }} id -u)
+          echo "Container runs as uid=$uid"
+          if [ "$uid" = "0" ]; then
+            echo "Expected non-root USER in Dockerfile, got root"
+            exit 1
+          fi
 
       - name: Log in to GitHub Container Registry
         if: startsWith(github.ref, 'refs/tags/v')

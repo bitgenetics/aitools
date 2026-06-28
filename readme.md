@@ -71,7 +71,7 @@ npm install -g @bitgenetics/aitools-cli
 
 ```bash
 # Tell aitools which IDE you use (once, global)
-aitools config set platform vscode --global   # vscode | claude | cursor | windsurf
+aitools config set platform vscode   # vscode | claude | cursor | windsurf (user config by default)
 
 # Initialise a project (creates aitools.json)
 aitools init
@@ -327,17 +327,18 @@ aitools dev-init
 | `aitools find <description>` | Extended search across name, description, keywords, and tags |
 | `aitools list` | List tools recorded in the lock file |
 | `aitools registry list` | Show configured registries |
-| `aitools registry add <url>` | Add a registry to the project config |
+| `aitools registry add <url>` | Add a registry to user config (`~/.aitools.config.json`) |
 | `aitools registry add <url> --type git` | Add a git-backed registry |
-| `aitools registry add <url> --global` | Add a registry to the user config |
+| `aitools registry add <url> --project` | Add a registry to the current project only |
 | `aitools registry remove <name>` | Remove a registry |
 | `aitools config list` | Show all config files and their values |
 | `aitools config get <key>` | Get an effective config value |
-| `aitools config set <key> <value>` | Set a config value in the project config |
-| `aitools config set <key> <value> --global` | Set a config value in the user config |
-| `aitools config unset <key>` | Remove a config key |
-| `aitools config edit` | Open the project config in your editor |
-| `aitools config edit --global` | Open the user config in your editor |
+| `aitools config set <key> <value>` | Set a config value in user config (`~/.aitools.config.json`) |
+| `aitools config set <key> <value> --project` | Set a config value in the project config |
+| `aitools config unset <key>` | Remove a config key from user config |
+| `aitools config unset <key> --project` | Remove a config key from project config |
+| `aitools config edit` | Open user config in your editor |
+| `aitools config edit --project` | Open project config in your editor |
 | `aitools manifest init` | Create an `aitools.manifest.json` for publishing |
 | `aitools manifest validate` | Validate an existing manifest against the schema |
 | `aitools manifest bump <patch\|minor\|major\|x.y.z>` | Bump the manifest version |
@@ -350,6 +351,7 @@ aitools dev-init
 | Flag | Default | Description |
 |---|---|---|
 | `--scope <project\|user>` | `project` | Where to install the tool |
+| `-g, --global` | | Install to user scope (same as `--scope user`) |
 | `--dev` | `false` | Save as a dev dependency in `aitools.json` |
 | `-v, --version <version>` | | Specific version to install (overrides `@version` in name) |
 
@@ -432,11 +434,11 @@ aitools publish
 ### Configuring the target registry
 
 ```bash
-# Save the registry to user config (applies to all projects)
-aitools registry add http://localhost:4873 --name my-registry --global
-
-# Or per-project
+# Default: user config (all projects)
 aitools registry add http://localhost:4873 --name my-registry
+
+# Per-project override (e.g. team repo pins a registry)
+aitools registry add http://localhost:4873 --name my-registry --project
 
 # Publish with no flags — registry is picked from config automatically
 aitools publish
@@ -958,10 +960,8 @@ npm run build
 # Run tests
 npm test
 
-# Run tests with coverage
-npm test -w @bitgenetics/aitools-core -- --coverage
-npm test -w @bitgenetics/aitools-server -- --coverage
-npm test -w @bitgenetics/aitools-cli -- --coverage
+# Run tests with coverage (core, cli, server)
+npm run test:coverage
 ```
 
 ### Unit / integration tests

@@ -29,7 +29,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
+  E2E_HOME,
+  E2E_USER_CONFIG,
   REGISTRY_URL,
+  clearE2eUserConfig,
   getGitRegistryRemote,
   gitCacheDirFor,
   initGitRegistry,
@@ -81,9 +84,10 @@ describe('aitools install', () => {
 
   beforeEach(() => {
     tmpDir = makeE2eProjectDir('aitools-e2e-');
-    // Write a minimal project config pointing at our test registry
+    clearE2eUserConfig();
+    // Registry lives in user config by default
     fs.writeFileSync(
-      path.join(tmpDir, 'aitools.config.json'),
+      E2E_USER_CONFIG,
       JSON.stringify({
         registries: [{ name: 'e2e-registry', url: REGISTRY_URL, priority: 1 }],
       }),
@@ -94,9 +98,8 @@ describe('aitools install', () => {
     rmTmpDir(tmpDir);
   });
 
-  it('installs a tool from the registry into a project directory', () => {
-    run(`install ${fixtureName} --scope project`, tmpDir);
-    // The lock file should record the installed tool
+  it('installs a tool from the registry', () => {
+    run(`install ${fixtureName}`, tmpDir);
     const lockPath = path.join(tmpDir, 'aitools-lock.json');
     expect(fs.existsSync(lockPath)).toBe(true);
     const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8')) as {
@@ -170,8 +173,9 @@ describe('aitools list', () => {
 
   beforeEach(() => {
     tmpDir = makeE2eProjectDir('aitools-e2e-');
+    clearE2eUserConfig();
     fs.writeFileSync(
-      path.join(tmpDir, 'aitools.config.json'),
+      E2E_USER_CONFIG,
       JSON.stringify({
         registries: [{ name: 'e2e-registry', url: REGISTRY_URL, priority: 1 }],
       }),
@@ -180,6 +184,7 @@ describe('aitools list', () => {
 
   afterEach(() => {
     rmTmpDir(tmpDir);
+    clearE2eUserConfig();
   });
 
   it('reports no tools when nothing is installed', () => {
@@ -213,8 +218,9 @@ describe('aitools uninstall', () => {
 
   beforeEach(() => {
     tmpDir = makeE2eProjectDir('aitools-e2e-');
+    clearE2eUserConfig();
     fs.writeFileSync(
-      path.join(tmpDir, 'aitools.config.json'),
+      E2E_USER_CONFIG,
       JSON.stringify({
         registries: [{ name: 'e2e-registry', url: REGISTRY_URL, priority: 1 }],
       }),
@@ -223,6 +229,7 @@ describe('aitools uninstall', () => {
 
   afterEach(() => {
     rmTmpDir(tmpDir);
+    clearE2eUserConfig();
   });
 
   it('removes the tool from the lock file', () => {
@@ -260,8 +267,9 @@ describe('aitools update', () => {
 
   beforeEach(() => {
     tmpDir = makeE2eProjectDir('aitools-e2e-');
+    clearE2eUserConfig();
     fs.writeFileSync(
-      path.join(tmpDir, 'aitools.config.json'),
+      E2E_USER_CONFIG,
       JSON.stringify({
         registries: [{ name: 'e2e-registry', url: REGISTRY_URL, priority: 1 }],
       }),
@@ -270,6 +278,7 @@ describe('aitools update', () => {
 
   afterEach(() => {
     rmTmpDir(tmpDir);
+    clearE2eUserConfig();
   });
 
   it('exits non-zero when aitools.json is missing', () => {
@@ -475,96 +484,6 @@ describe('aitools publish', () => {
 
 // ---------------------------------------------------------------------------
 
-describe('aitools registry', () => {
-  let tmpDir: string;
-
-  beforeEach(() => {
-    tmpDir = makeE2eProjectDir('aitools-e2e-');
-  });
-
-  afterEach(() => {
-    rmTmpDir(tmpDir);
-  });
-
-  it('adds a registry to the project config', () => {
-    run('registry add http://registry.example.com --name my-reg', tmpDir);
-    const cfg = JSON.parse(
-      fs.readFileSync(path.join(tmpDir, 'aitools.config.json'), 'utf8'),
-    ) as { registries: Array<{ name: string; url: string }> };
-    expect(cfg.registries.some((r) => r.name === 'my-reg')).toBe(true);
-  });
-
-  it('lists configured registries', () => {
-    run('registry add http://registry.example.com --name my-reg', tmpDir);
-    const out = run('registry list', tmpDir);
-    expect(out).toContain('my-reg');
-  });
-
-  it('removes a registry from the project config', () => {
-    run('registry add http://registry.example.com --name my-reg', tmpDir);
-    run('registry remove my-reg', tmpDir);
-    const cfg = JSON.parse(
-      fs.readFileSync(path.join(tmpDir, 'aitools.config.json'), 'utf8'),
-    ) as { registries: Array<{ name: string }> };
-    expect(cfg.registries.some((r) => r.name === 'my-reg')).toBe(false);
-  });
-
-  it('sets priority on the added registry', () => {
-    run('registry add http://registry.example.com --name prio-reg --priority 5', tmpDir);
-    const cfg = JSON.parse(
-      fs.readFileSync(path.join(tmpDir, 'aitools.config.json'), 'utf8'),
-    ) as { registries: Array<{ name: string; priority?: number }> };
-    const reg = cfg.registries.find((r) => r.name === 'prio-reg');
-    expect(reg?.priority).toBe(5);
-  });
-});
-
-// ---------------------------------------------------------------------------
-
-describe('aitools config', () => {
-  let tmpDir: string;
-
-  beforeEach(() => {
-    tmpDir = makeE2eProjectDir('aitools-e2e-');
-  });
-
-  afterEach(() => {
-    rmTmpDir(tmpDir);
-  });
-
-  it('sets a scalar config key and writes it to project config', () => {
-    run('config set platform vscode', tmpDir);
-    const cfg = JSON.parse(
-      fs.readFileSync(path.join(tmpDir, 'aitools.config.json'), 'utf8'),
-    ) as { platform?: string };
-    expect(cfg.platform).toBe('vscode');
-  });
-
-  it('gets a previously set config value', () => {
-    run('config set platform claude', tmpDir);
-    const out = run('config get platform', tmpDir);
-    expect(out.trim()).toBe('claude');
-  });
-
-  it('reports not-set for a missing key', () => {
-    const out = run('config get platform', tmpDir);
-    expect(out).toContain('not set');
-  });
-
-  it('unsets a config key', () => {
-    run('config set platform vscode', tmpDir);
-    run('config unset platform', tmpDir);
-    const out = run('config get platform', tmpDir);
-    expect(out).toContain('not set');
-  });
-
-  it('exits non-zero for an invalid platform value', () => {
-    expect(() => run('config set platform invalid-ide', tmpDir)).toThrow();
-  });
-});
-
-// ---------------------------------------------------------------------------
-
 describe('aitools git registry', () => {
   const fixtureName = 'cli-e2e-git-fixture';
   let gitRegName: string;
@@ -657,16 +576,17 @@ describe('aitools git registry', () => {
     expect(out).toContain(`${fixtureName}-search`);
   });
 
-  it('adds a git registry via registry add', () => {
+  it('adds a git registry via registry add to user config', () => {
     const regDir = makeE2eProjectDir('aitools-git-reg-add-');
+    clearE2eUserConfig();
     try {
       run(
         `registry add "${gitRegistryUrl.replace(/\\/g, '/')}" --name git-added --type git --read-branch main --publish-branch main --path registry/`,
         regDir,
       );
-      const cfg = JSON.parse(
-        fs.readFileSync(path.join(regDir, 'aitools.config.json'), 'utf8'),
-      ) as { registries: Array<{ type: string; name: string; url: string }> };
+      const cfg = JSON.parse(fs.readFileSync(E2E_USER_CONFIG, 'utf8')) as {
+        registries: Array<{ type: string; name: string; url: string }>;
+      };
       const added = cfg.registries.find((r) => r.name === 'git-added');
       expect(added?.type).toBe('git');
       if (usingGitea) {

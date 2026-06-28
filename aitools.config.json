@@ -1,0 +1,12 @@
+{
+  "registries": [
+    {
+      "type": "git",
+      "name": "github.com",
+      "url": "git@github.com:turbofoxwave/aitools-registry.git",
+      "readBranch": "main",
+      "path": "registry/",
+      "priority": 100
+    }
+  ]
+}

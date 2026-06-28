@@ -139,6 +139,16 @@ export class ConfigManager {
     return [...registries].sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100));
   }
 
+  /** Read user-level config only (not merged with project). */
+  readUserConfig(): AiToolsConfig {
+    return this.readConfigFile(path.join(os.homedir(), CONFIG_FILENAME));
+  }
+
+  /** Read project-level config only for the current working directory. */
+  readProjectConfig(): AiToolsConfig {
+    return this.readConfigFile(path.join(this.cwd, CONFIG_FILENAME));
+  }
+
   /** Write a project-level aitools.config.json. */
   writeProjectConfig(patch: Partial<AiToolsConfig>): void {
     this.writeConfigFile(path.join(this.cwd, CONFIG_FILENAME), patch);
@@ -147,6 +157,13 @@ export class ConfigManager {
   /** Write a user-level aitools.config.json in the home directory. */
   writeUserConfig(patch: Partial<AiToolsConfig>): void {
     this.writeConfigFile(path.join(os.homedir(), CONFIG_FILENAME), patch);
+  }
+
+  private readConfigFile(filePath: string): AiToolsConfig {
+    if (!fs.existsSync(filePath)) {
+      return {};
+    }
+    return JSON.parse(fs.readFileSync(filePath, 'utf8')) as AiToolsConfig;
   }
 
   private writeConfigFile(filePath: string, patch: Partial<AiToolsConfig>): void {

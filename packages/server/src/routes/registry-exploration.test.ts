@@ -12,7 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { buildApp } from '../app.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -170,6 +170,53 @@ describe('Registry Exploration Routes', () => {
     const body2 = JSON.parse(page2.payload);
     expect(body2.page).toBe(2);
     expect(body2.results.length).toBeGreaterThan(0);
+  });
+
+  it('GET /api/registries includes configured upstream registries', async () => {
+    const upstreamApp = await buildApp({
+      dataDir: tempDir,
+      upstreams: [{ name: 'remote', url: 'http://upstream.example.com' }],
+    });
+
+    const res = await upstreamApp.inject({
+      method: 'GET',
+      url: '/api/registries',
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.registries.some((r: { name: string; isLocal: boolean }) => r.name === 'remote' && !r.isLocal)).toBe(
+      true,
+    );
+  });
+
+  it('GET /api/search/all merges upstream search results', async () => {
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [
+        { name: 'remote-tool', version: '1.0.0', description: 'remote skill', publishedAt: '2020-01-01T00:00:00.000Z' },
+      ],
+    } as Response);
+
+    try {
+      const upstreamApp = await buildApp({
+        dataDir: tempDir,
+        upstreams: [{ name: 'remote', url: 'http://upstream.example.com' }],
+      });
+
+      const res = await upstreamApp.inject({
+        method: 'GET',
+        url: '/api/search/all?q=remote',
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.payload);
+      expect(body.results.some((r: { name: string; source: string }) => r.name === 'remote-tool' && r.source === 'remote')).toBe(
+        true,
+      );
+    } finally {
+      fetchMock.mockRestore();
+    }
   });
 });
 

@@ -15,6 +15,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { ConfigManager } from '../utils/config-manager.js';
+import { assertExclusiveConfigTarget, resolveConfigWriteTarget } from '../utils/config-write-target.js';
 import { RegistryConfigSchema } from '@bitgenetics/aitools-core';
 import type { RegistryConfig, GitRegistryConfig, HttpRegistryConfig } from '@bitgenetics/aitools-core';
 
@@ -73,7 +74,7 @@ export function createRegistryCommand(): Command {
 
   registry
     .command('add <url>')
-    .description('Add a registry to the project or user config')
+    .description('Add a registry to user config (~/.aitools.config.json) by default')
     .option('-n, --name <name>', 'Registry name (defaults to hostname)')
     .option('-p, --priority <priority>', 'Priority (lower = higher priority)', '100')
     .option('-t, --type <type>', 'Registry type: http or git', 'http')
@@ -81,7 +82,8 @@ export function createRegistryCommand(): Command {
     .option('--publish-branch <branch>', 'Git registry publish branch (default: read branch)')
     .option('--path <path>', 'Path inside git repo where tools are stored (default: registry/)')
     .option('--token <token>', 'Bearer token for HTTP registry authentication')
-    .option('-g, --global', 'Write to user-level config (~/.aitools.config.json)')
+    .option('-g, --global', 'Write to user-level config (~/.aitools.config.json) [default]')
+    .option('--project', 'Write to project config (./aitools.config.json in current directory)')
     .action((
       url: string,
       options: {
@@ -93,10 +95,20 @@ export function createRegistryCommand(): Command {
         path?: string;
         token?: string;
         global?: boolean;
+        project?: boolean;
       },
     ) => {
       const cwd = process.cwd();
       const configManager = new ConfigManager(cwd);
+
+      try {
+        assertExclusiveConfigTarget(options);
+      } catch (err) {
+        console.error(chalk.red((err as Error).message));
+        process.exit(1);
+      }
+
+      const writeToProject = resolveConfigWriteTarget(options) === 'project';
 
       const registryType = (options.type ?? 'http').toLowerCase();
       if (registryType !== 'http' && registryType !== 'git') {
@@ -138,8 +150,10 @@ export function createRegistryCommand(): Command {
       }
       newRegistry = parsed.data;
 
-      const existing = configManager.get();
-      const registries = [...(existing.registries ?? [])];
+      const layerConfig = writeToProject
+        ? configManager.readProjectConfig()
+        : configManager.readUserConfig();
+      const registries = [...(layerConfig.registries ?? [])];
 
       const idx = registries.findIndex((r) => r.name === registryName);
       if (idx >= 0) {
@@ -150,35 +164,47 @@ export function createRegistryCommand(): Command {
         console.log(chalk.green(`Added registry: ${registryName} ? ${url}`));
       }
 
-      if (options.global) {
-        configManager.writeUserConfig({ registries });
-        console.log(chalk.dim(`  saved to ~/aitools.config.json`));
-      } else {
+      if (writeToProject) {
         configManager.writeProjectConfig({ registries });
         console.log(chalk.dim(`  saved to ./aitools.config.json`));
+      } else {
+        configManager.writeUserConfig({ registries });
+        console.log(chalk.dim(`  saved to ~/aitools.config.json`));
       }
     });
 
   registry
     .command('remove <name>')
     .alias('rm')
-    .description('Remove a registry from the project or user config')
-    .option('-g, --global', 'Remove from user-level config (~/.aitools.config.json)')
-    .action((name: string, options: { global?: boolean }) => {
+    .description('Remove a registry from user config by default')
+    .option('-g, --global', 'Remove from user-level config (~/.aitools.config.json) [default]')
+    .option('--project', 'Remove from project config (./aitools.config.json)')
+    .action((name: string, options: { global?: boolean; project?: boolean }) => {
       const cwd = process.cwd();
       const configManager = new ConfigManager(cwd);
-      const existing = configManager.get();
-      const registries = (existing.registries ?? []).filter((r) => r.name !== name);
 
-      if (registries.length === (existing.registries ?? []).length) {
+      try {
+        assertExclusiveConfigTarget(options);
+      } catch (err) {
+        console.error(chalk.red((err as Error).message));
+        process.exit(1);
+      }
+
+      const writeToProject = resolveConfigWriteTarget(options) === 'project';
+      const layerConfig = writeToProject
+        ? configManager.readProjectConfig()
+        : configManager.readUserConfig();
+      const registries = (layerConfig.registries ?? []).filter((r) => r.name !== name);
+
+      if (registries.length === (layerConfig.registries ?? []).length) {
         console.log(chalk.yellow(`Registry "${name}" not found in config.`));
         return;
       }
 
-      if (options.global) {
-        configManager.writeUserConfig({ registries });
-      } else {
+      if (writeToProject) {
         configManager.writeProjectConfig({ registries });
+      } else {
+        configManager.writeUserConfig({ registries });
       }
       console.log(chalk.green(`Removed registry: ${name}`));
     });

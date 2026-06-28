@@ -43,6 +43,14 @@ const CLI = process.env['AITOOLS_CLI'] ?? DEFAULT_CLI;
 /** Empty home directory — prevents user-level config from affecting e2e runs. */
 export const E2E_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-e2e-home-'));
 
+export const E2E_USER_CONFIG = path.join(E2E_HOME, 'aitools.config.json');
+
+export function clearE2eUserConfig(): void {
+  if (fs.existsSync(E2E_USER_CONFIG)) {
+    fs.rmSync(E2E_USER_CONFIG, { force: true });
+  }
+}
+
 /** Create a project directory under E2E_HOME so config cascade does not walk into the real user profile. */
 export function makeE2eProjectDir(prefix = 'aitools-e2e-'): string {
   return fs.mkdtempSync(path.join(E2E_HOME, prefix));

@@ -21,24 +21,36 @@ import type { AiToolsConfig } from '@bitgenetics/aitools-core';
 
 jest.mock('../utils/config-manager.js');
 
-function makeMockConfigManager(initialRegistries: AiToolsConfig['registries'] = []) {
-  let currentRegistries = [...(initialRegistries ?? [])];
+function makeMockConfigManager(
+  userRegistries: AiToolsConfig['registries'] = [],
+  projectRegistries: AiToolsConfig['registries'] = [],
+) {
+  let userRegs = [...(userRegistries ?? [])];
+  let projectRegs = [...(projectRegistries ?? [])];
   const mockWriteProjectConfig = jest.fn((patch: Partial<AiToolsConfig>) => {
     if (patch.registries !== undefined) {
-      currentRegistries = patch.registries;
+      projectRegs = patch.registries;
+    }
+  });
+  const mockWriteUserConfig = jest.fn((patch: Partial<AiToolsConfig>) => {
+    if (patch.registries !== undefined) {
+      userRegs = patch.registries;
     }
   });
   const instance = {
-    get: jest.fn(() => ({ registries: currentRegistries })),
-    getRegistries: jest.fn(() => [...(currentRegistries ?? [])]),
+    get: jest.fn(() => ({ registries: [...userRegs, ...projectRegs] })),
+    readUserConfig: jest.fn(() => ({ registries: [...userRegs] })),
+    readProjectConfig: jest.fn(() => ({ registries: [...projectRegs] })),
+    getRegistries: jest.fn(() => [...userRegs, ...projectRegs]),
     writeProjectConfig: mockWriteProjectConfig,
-    writeUserConfig: jest.fn(),
+    writeUserConfig: mockWriteUserConfig,
     getDefaultScope: jest.fn(() => 'project' as const),
     getPlatform: jest.fn(() => 'universal' as const),
     resolveInstallPath: jest.fn(),
     resolveMcpConfig: jest.fn(),
     getAdapter: jest.fn(),
-    _getWrittenRegistries: () => currentRegistries,
+    _getUserRegistries: () => userRegs,
+    _getProjectRegistries: () => projectRegs,
   };
   (ConfigManager as jest.Mock).mockImplementation(() => instance);
   return instance;
@@ -52,7 +64,7 @@ describe('registry command', () => {
       const mock = makeMockConfigManager([]);
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createRegistryCommand().parse(['add', 'http://registry.example.com', '--name', 'my-reg'], { from: 'user' });
-      const written = mock._getWrittenRegistries();
+      const written = mock._getUserRegistries();
       expect(written).toContainEqual(expect.objectContaining({ name: 'my-reg', url: 'http://registry.example.com' }));
     });
 
@@ -60,7 +72,7 @@ describe('registry command', () => {
       const mock = makeMockConfigManager([]);
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createRegistryCommand().parse(['add', 'git@github.com:org/registry.git', '--type', 'git'], { from: 'user' });
-      const written = mock._getWrittenRegistries();
+      const written = mock._getUserRegistries();
       expect(written?.[0]?.name).toBe('github.com');
     });
 
@@ -68,7 +80,7 @@ describe('registry command', () => {
       const mock = makeMockConfigManager([]);
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createRegistryCommand().parse(['add', '!!!not-a-url!!!', '--type', 'git'], { from: 'user' });
-      const written = mock._getWrittenRegistries();
+      const written = mock._getUserRegistries();
       expect(written?.[0]?.name).toBeTruthy();
     });
 
@@ -76,7 +88,7 @@ describe('registry command', () => {
       const mock = makeMockConfigManager([{ name: 'existing', url: 'http://existing.example.com' }]);
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createRegistryCommand().parse(['add', 'http://new.example.com', '--name', 'new-reg'], { from: 'user' });
-      const written = mock._getWrittenRegistries();
+      const written = mock._getUserRegistries();
       expect(written).toContainEqual(expect.objectContaining({ name: 'existing' }));
       expect(written).toContainEqual(expect.objectContaining({ name: 'new-reg' }));
     });
@@ -85,7 +97,7 @@ describe('registry command', () => {
       const mock = makeMockConfigManager([{ name: 'my-reg', url: 'http://old.example.com' }]);
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createRegistryCommand().parse(['add', 'http://new.example.com', '--name', 'my-reg'], { from: 'user' });
-      const written = mock._getWrittenRegistries();
+      const written = mock._getUserRegistries();
       const reg = written?.find((r: { name: string }) => r.name === 'my-reg');
       expect(reg?.url).toBe('http://new.example.com');
     });
@@ -110,7 +122,7 @@ describe('registry command', () => {
         ],
         { from: 'user' },
       );
-      const written = mock._getWrittenRegistries();
+      const written = mock._getUserRegistries();
       expect(written).toContainEqual(
         expect.objectContaining({
           type: 'git',
@@ -129,7 +141,7 @@ describe('registry command', () => {
       const mock = makeMockConfigManager([{ name: 'my-reg', url: 'http://my.example.com' }]);
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createRegistryCommand().parse(['remove', 'my-reg'], { from: 'user' });
-      const written = mock._getWrittenRegistries();
+      const written = mock._getUserRegistries();
       expect(written?.find((r: { name: string }) => r.name === 'my-reg')).toBeUndefined();
     });
 
@@ -248,12 +260,22 @@ describe('registry command', () => {
         ['add', 'http://secure.example.com', '--name', 'secure', '--token', 'tok'],
         { from: 'user' },
       );
-      const written = mock._getWrittenRegistries();
+      const written = mock._getUserRegistries();
       expect(written?.[0]).toEqual(
         expect.objectContaining({
           auth: { type: 'bearer', token: 'tok' },
         }),
       );
+    });
+
+    it('writes to user config by default', () => {
+      const mock = makeMockConfigManager([]);
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createRegistryCommand().parse(['add', 'http://global.example.com', '--name', 'global-reg'], {
+        from: 'user',
+      });
+      expect(mock.writeUserConfig).toHaveBeenCalled();
+      expect(mock.writeProjectConfig).not.toHaveBeenCalled();
     });
 
     it('writes to user config with --global', () => {
@@ -264,14 +286,53 @@ describe('registry command', () => {
       });
       expect(mock.writeUserConfig).toHaveBeenCalled();
     });
+
+    it('writes to project config with --project', () => {
+      const mock = makeMockConfigManager([]);
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createRegistryCommand().parse(
+        ['add', 'http://project.example.com', '--name', 'project-reg', '--project'],
+        { from: 'user' },
+      );
+      expect(mock.writeProjectConfig).toHaveBeenCalled();
+      expect(mock.writeUserConfig).not.toHaveBeenCalled();
+    });
+
+    it('exits when --project and --global are both passed to add', () => {
+      const exitSpy = jest.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+        throw new Error(`process.exit:${code ?? 0}`);
+      }) as never);
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      expect(() =>
+        createRegistryCommand().parse(
+          ['add', 'http://bad.example.com', '--name', 'bad', '--project', '--global'],
+          { from: 'user' },
+        ),
+      ).toThrow('process.exit:1');
+      exitSpy.mockRestore();
+    });
   });
 
   describe('remove global', () => {
+    it('removes registry from user config by default', () => {
+      const mock = makeMockConfigManager([{ name: 'my-reg', url: 'http://my.example.com' }]);
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createRegistryCommand().parse(['remove', 'my-reg'], { from: 'user' });
+      expect(mock.writeUserConfig).toHaveBeenCalled();
+    });
+
     it('removes registry from user config with --global', () => {
       const mock = makeMockConfigManager([{ name: 'my-reg', url: 'http://my.example.com' }]);
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createRegistryCommand().parse(['remove', 'my-reg', '--global'], { from: 'user' });
       expect(mock.writeUserConfig).toHaveBeenCalled();
+    });
+
+    it('removes registry from project config with --project', () => {
+      const mock = makeMockConfigManager([], [{ name: 'my-reg', url: 'http://my.example.com' }]);
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createRegistryCommand().parse(['remove', 'my-reg', '--project'], { from: 'user' });
+      expect(mock.writeProjectConfig).toHaveBeenCalled();
     });
   });
 });
