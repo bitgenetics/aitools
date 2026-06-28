@@ -1,6 +1,6 @@
 {
   "name": "@bitgenetics/aitools-cli",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "CLI tool for managing AITools packages",
   "bin": {
     "aitools": "./dist/cli.js"
