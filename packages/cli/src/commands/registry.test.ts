@@ -56,6 +56,22 @@ describe('registry command', () => {
       expect(written).toContainEqual(expect.objectContaining({ name: 'my-reg', url: 'http://registry.example.com' }));
     });
 
+    it('derives registry name from ssh git URL when name is omitted', () => {
+      const mock = makeMockConfigManager([]);
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createRegistryCommand().parse(['add', 'git@github.com:org/registry.git', '--type', 'git'], { from: 'user' });
+      const written = mock._getWrittenRegistries();
+      expect(written?.[0]?.name).toBe('github.com');
+    });
+
+    it('derives a fallback registry name from malformed urls', () => {
+      const mock = makeMockConfigManager([]);
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createRegistryCommand().parse(['add', '!!!not-a-url!!!', '--type', 'git'], { from: 'user' });
+      const written = mock._getWrittenRegistries();
+      expect(written?.[0]?.name).toBeTruthy();
+    });
+
     it('appends to existing registries', () => {
       const mock = makeMockConfigManager([{ name: 'existing', url: 'http://existing.example.com' }]);
       jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -144,6 +160,118 @@ describe('registry command', () => {
       const output = logSpy.mock.calls.map((a) => String(a[0])).join('\n');
       expect(output.toLowerCase()).toContain('no registr');
       logSpy.mockRestore();
+    });
+
+    it('prints git registry details including branches and path', () => {
+      makeMockConfigManager([
+        {
+          type: 'git',
+          name: 'git-reg',
+          url: 'git@github.com:org/registry.git',
+          readBranch: 'main',
+          publishBranch: 'releases',
+          path: 'packages/',
+          priority: 5,
+        },
+      ]);
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      createRegistryCommand().parse(['list'], { from: 'user' });
+      const output = logSpy.mock.calls.map((a) => String(a[0])).join('\n');
+      expect(output).toContain('git-reg');
+      expect(output).toContain('read branch: main');
+      expect(output).toContain('publish branch: releases');
+      expect(output).toContain('path: packages/');
+      expect(output).toContain('priority: 5');
+      logSpy.mockRestore();
+    });
+
+    it('prints priority for http registries when set', () => {
+      makeMockConfigManager([{ name: 'pri-reg', url: 'http://x.example.com', priority: 2 }]);
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      createRegistryCommand().parse(['list'], { from: 'user' });
+      const output = logSpy.mock.calls.map((a) => String(a[0])).join('\n');
+      expect(output).toContain('priority: 2');
+      logSpy.mockRestore();
+    });
+
+    it('prints http registry auth type when configured', () => {
+      makeMockConfigManager([
+        {
+          type: 'http',
+          name: 'auth-reg',
+          url: 'http://secure.example.com',
+          auth: { type: 'bearer', token: 'secret' },
+        },
+      ]);
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      createRegistryCommand().parse(['list'], { from: 'user' });
+      const output = logSpy.mock.calls.map((a) => String(a[0])).join('\n');
+      expect(output).toContain('auth: bearer');
+      logSpy.mockRestore();
+    });
+  });
+
+  describe('add validation', () => {
+    function mockExit(): jest.SpiedFunction<typeof process.exit> {
+      return jest.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+        throw new Error(`process.exit:${code ?? 0}`);
+      }) as never);
+    }
+
+    it('exits for invalid registry type', () => {
+      makeMockConfigManager([]);
+      const exitSpy = mockExit();
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      expect(() =>
+        createRegistryCommand().parse(['add', 'http://x.com', '--type', 'ftp'], { from: 'user' }),
+      ).toThrow('process.exit:1');
+      exitSpy.mockRestore();
+    });
+
+    it('exits when token is passed for git registry', () => {
+      makeMockConfigManager([]);
+      const exitSpy = mockExit();
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      expect(() =>
+        createRegistryCommand().parse(
+          ['add', 'git@github.com:org/r.git', '--type', 'git', '--token', 'x'],
+          { from: 'user' },
+        ),
+      ).toThrow('process.exit:1');
+      exitSpy.mockRestore();
+    });
+
+    it('adds http registry with bearer token', () => {
+      const mock = makeMockConfigManager([]);
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createRegistryCommand().parse(
+        ['add', 'http://secure.example.com', '--name', 'secure', '--token', 'tok'],
+        { from: 'user' },
+      );
+      const written = mock._getWrittenRegistries();
+      expect(written?.[0]).toEqual(
+        expect.objectContaining({
+          auth: { type: 'bearer', token: 'tok' },
+        }),
+      );
+    });
+
+    it('writes to user config with --global', () => {
+      const mock = makeMockConfigManager([]);
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createRegistryCommand().parse(['add', 'http://global.example.com', '--name', 'global-reg', '--global'], {
+        from: 'user',
+      });
+      expect(mock.writeUserConfig).toHaveBeenCalled();
+    });
+  });
+
+  describe('remove global', () => {
+    it('removes registry from user config with --global', () => {
+      const mock = makeMockConfigManager([{ name: 'my-reg', url: 'http://my.example.com' }]);
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createRegistryCommand().parse(['remove', 'my-reg', '--global'], { from: 'user' });
+      expect(mock.writeUserConfig).toHaveBeenCalled();
     });
   });
 });

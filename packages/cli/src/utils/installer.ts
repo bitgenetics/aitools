@@ -21,22 +21,26 @@ import {
   upsertLockEntry,
   removeLockEntry,
   toLockEntry,
+  normalizeCategory,
 } from '@aitools/core';
 import type { ConfigManager } from './config-manager.js';
 import type { RegistryClient } from './registry-client.js';
 import { CacheManager } from './cache-manager.js';
+import { transform, applyDestExtension, mergeHookConfigs } from '../transformers/index.js';
+import type { TransformResult } from '../transformers/index.js';
+
+export interface InstallFileResult {
+  dest: string;
+  transform?: TransformResult;
+  skipped?: boolean;
+}
+
+export interface InstallResult extends InstalledTool {
+  fileResults: InstallFileResult[];
+}
 
 /**
  * Handles the file-system mechanics of installing and removing tools.
- *
- * Install flow for file-based tools (skill / subagent / prompt):
- *   1. Check CacheManager � if the tarball has already been extracted, skip download.
- *   2. On cache miss: download from registry ? store to cache (~/.aitools/cache/).
- *   3. Copy files from the cache's .agents/ directory to the platform-specific
- *      destination resolved by ConfigManager / PlatformAdapter.
- *
- * MCP tools are not file-based; their server descriptor is injected into the
- * platform's mcp.json config file instead.
  */
 export class Installer {
   private readonly cache: CacheManager;
@@ -49,41 +53,43 @@ export class Installer {
     this.cache = cache ?? new CacheManager();
   }
 
-  /**
-   * Install a tool. Downloads from the registry (or uses cache) then writes
-   * files to the platform destination and records the result in the lock file.
-   */
   async install(
     client: RegistryClient,
     manifest: ToolManifest,
     scope: InstallScope,
-  ): Promise<InstalledTool> {
-    if (manifest.category === 'mcp-tool') {
-      return this.installMcp(manifest, scope, client.config.url);
+  ): Promise<InstallResult> {
+    const { category: normalized, warning: categoryWarning } = normalizeCategory(manifest.category);
+    if (categoryWarning) {
+      process.stderr.write(`[aitools] ${categoryWarning}\n`);
     }
-    return this.installFiles(client, manifest, scope);
+
+    if (normalized === 'mcp-tool') {
+      const installed = this.installMcp(manifest, scope, client.config.url);
+      return { ...installed, fileResults: [] };
+    }
+
+    if (normalized === 'hook') {
+      return this.installHooks(client, manifest, scope);
+    }
+
+    const installed = await this.installFiles(client, { ...manifest, category: normalized }, scope);
+    return installed;
   }
 
-  // -- File-based install (skill / subagent / prompt) -----------------------
-
-  private async installFiles(
+  private async installHooks(
     client: RegistryClient,
     manifest: ToolManifest,
     scope: InstallScope,
-  ): Promise<InstalledTool> {
-    // Reject install when the manifest restricts supported platforms and the active platform is not listed.
-    if (manifest.platforms && manifest.platforms.length > 0) {
-      const activePlatform = this.configManager.getPlatform();
-      if (!manifest.platforms.includes(activePlatform) && !manifest.platforms.includes('universal')) {
-        throw new Error(
-          `"${manifest.name}" only supports platforms: ${manifest.platforms.join(', ')}.\n` +
-          `Your configured platform is "${activePlatform}".\n` +
-          'Run: aitools config set platform <platform>  to change it.',
-        );
-      }
+  ): Promise<InstallResult> {
+    const hooksConfigPath = this.configManager.resolveHooksConfig(scope);
+    if (!hooksConfigPath) {
+      throw new Error(
+        `Hooks are not supported on platform "${this.configManager.getPlatform()}". ` +
+          'Set platform to cursor, vscode, claude, or windsurf.',
+      );
     }
 
-    // Resolve cache entry � download only on miss.
+    const activePlatform = this.configManager.getPlatform();
     let agentsDir: string;
     let integrity: string;
 
@@ -97,32 +103,158 @@ export class Installer {
       integrity = entry.integrity;
     }
 
-    // Copy from cache to platform destination.
-    const category = manifest.category as Exclude<typeof manifest.category, 'mcp-tool'>;
+    const filesToInstall = selectFilesForPlatform(manifest.files, activePlatform);
+    const fileResults: InstallFileResult[] = [];
+    const writtenFiles: string[] = [];
+    const sourcePlatform = manifest.nativeFor ?? 'universal';
+
+    fs.mkdirSync(path.dirname(hooksConfigPath), { recursive: true });
+    let existingContent: string | null = null;
+    if (fs.existsSync(hooksConfigPath)) {
+      existingContent = fs.readFileSync(hooksConfigPath, 'utf8');
+    }
+
+    let mergedContent = existingContent;
+
+    for (const file of filesToInstall) {
+      const srcPath = path.join(agentsDir, file.src);
+      const rawContent = fs.readFileSync(srcPath, 'utf8');
+      const relDest = path.relative(this.cwd, hooksConfigPath).replace(/\\/g, '/');
+
+      let result: TransformResult;
+      if (sourcePlatform !== activePlatform && sourcePlatform !== 'universal') {
+        result = transform(rawContent, 'hook', sourcePlatform, activePlatform, { destPath: relDest });
+        emitTransformMessages(relDest, result);
+        if (result.recommendNativePath) {
+          process.stderr.write(`[aitools] Advisory: ${result.recommendNativePath}\n`);
+          fileResults.push({ dest: relDest, transform: result, skipped: true });
+          continue;
+        }
+        if (result.confidence === 'unsupported' && !result.content.trim()) {
+          fileResults.push({ dest: relDest, transform: result, skipped: true });
+          continue;
+        }
+        mergedContent = mergeHookConfigs(mergedContent, result.content, activePlatform);
+      } else {
+        mergedContent = mergeHookConfigs(mergedContent, rawContent, activePlatform);
+        result = { content: rawContent, confidence: 'native', warnings: [] };
+      }
+
+      fileResults.push({ dest: relDest, transform: result });
+    }
+
+    if (mergedContent !== existingContent) {
+      fs.writeFileSync(hooksConfigPath, mergedContent!, 'utf8');
+      writtenFiles.push(path.relative(this.cwd, hooksConfigPath).replace(/\\/g, '/'));
+    }
+
+    const installedTool: InstalledTool = {
+      name: manifest.name,
+      version: manifest.version,
+      category: 'hook',
+      scope,
+      platform: activePlatform,
+      installedAt: new Date().toISOString(),
+      files: writtenFiles,
+      registry: client.config.url,
+      integrity,
+    };
+
+    const lock = readLockFile(this.cwd);
+    const updated = upsertLockEntry(lock, manifest.name, toLockEntry(installedTool, client.config.url));
+    writeLockFile(this.cwd, updated);
+    return { ...installedTool, fileResults };
+  }
+
+  private async installFiles(
+    client: RegistryClient,
+    manifest: ToolManifest,
+    scope: InstallScope,
+  ): Promise<InstallResult> {
+    if (manifest.platforms && manifest.platforms.length > 0) {
+      const activePlatform = this.configManager.getPlatform();
+      if (!manifest.platforms.includes(activePlatform) && !manifest.platforms.includes('universal')) {
+        throw new Error(
+          `"${manifest.name}" only supports platforms: ${manifest.platforms.join(', ')}.\n` +
+          `Your configured platform is "${activePlatform}".\n` +
+          'Run: aitools config set platform <platform>  to change it.',
+        );
+      }
+    }
+
+    let agentsDir: string;
+    let integrity: string;
+
+    if (this.cache.has(manifest.name, manifest.version)) {
+      agentsDir = this.cache.agentsDir(manifest.name, manifest.version);
+      integrity = this.cache.getMetadata(manifest.name, manifest.version).integrity;
+    } else {
+      const { data, integrity: serverIntegrity } = await client.download(manifest.name, manifest.version);
+      const entry = this.cache.store(manifest.name, manifest.version, data, manifest, serverIntegrity);
+      agentsDir = entry.agentsDir;
+      integrity = entry.integrity;
+    }
+
+    const category = manifest.category as Exclude<typeof manifest.category, 'mcp-tool' | 'hook'>;
     const installBase = this.configManager.resolveInstallPath(category, scope);
     fs.mkdirSync(installBase, { recursive: true });
 
     const activePlatform = this.configManager.getPlatform();
+    const sourcePlatform = manifest.nativeFor ?? 'universal';
     const filesToInstall = selectFilesForPlatform(manifest.files, activePlatform);
-
-    // Strip the installBase-relative prefix from dest in case the manifest
-    // uses full project-relative paths (e.g. ".agents/skills/foo.md") instead
-    // of paths relative to the install base (e.g. "foo.md").
     const relInstallBase = path.relative(this.cwd, installBase).replace(/\\/g, '/');
 
     const writtenFiles: string[] = [];
+    const fileResults: InstallFileResult[] = [];
+
     for (const file of filesToInstall) {
       const srcPath = path.join(agentsDir, file.src);
-      const normalizedDest = file.dest.replace(/\\/g, '/');
+      let normalizedDest = file.dest.replace(/\\/g, '/');
       const relDest =
         relInstallBase && normalizedDest.startsWith(relInstallBase + '/')
           ? normalizedDest.slice(relInstallBase.length + 1)
           : normalizedDest;
-      const destPath = path.resolve(installBase, relDest);
+
+      let destPath = path.resolve(installBase, relDest);
+      const relDestPath = path.relative(this.cwd, destPath).replace(/\\/g, '/');
+
+      let writeContent = fs.readFileSync(srcPath, 'utf8');
+      let transformResult: TransformResult | undefined;
+
+      if (sourcePlatform !== activePlatform && sourcePlatform !== 'universal') {
+        transformResult = transform(writeContent, manifest.category, sourcePlatform, activePlatform, {
+          destPath: relDestPath,
+        });
+        emitTransformMessages(relDestPath, transformResult);
+
+        if (transformResult.recommendNativePath) {
+          process.stderr.write(`[aitools] Advisory: ${transformResult.recommendNativePath}\n`);
+          fileResults.push({ dest: relDestPath, transform: transformResult, skipped: true });
+          continue;
+        }
+
+        if (transformResult.confidence === 'unsupported' && !transformResult.content.trim()) {
+          process.stderr.write(
+            `[aitools] Skipped ${relDestPath}: no ${activePlatform} equivalent for ${manifest.category}\n`,
+          );
+          if (transformResult.skillPrompt) {
+            process.stderr.write(`[aitools] ${transformResult.skillPrompt}\n`);
+          }
+          fileResults.push({ dest: relDestPath, transform: transformResult, skipped: true });
+          continue;
+        }
+
+        writeContent = transformResult.content;
+        if (transformResult.destExtension) {
+          destPath = path.resolve(installBase, applyDestExtension(relDest, transformResult));
+        }
+      }
+
       fs.mkdirSync(path.dirname(destPath), { recursive: true });
-      fs.copyFileSync(srcPath, destPath);
-      // Store as portable relative path (forward slashes) for lock file
-      writtenFiles.push(path.relative(this.cwd, destPath).replace(/\\/g, '/'));
+      fs.writeFileSync(destPath, writeContent, 'utf8');
+      const writtenRel = path.relative(this.cwd, destPath).replace(/\\/g, '/');
+      writtenFiles.push(writtenRel);
+      fileResults.push({ dest: writtenRel, transform: transformResult });
     }
 
     const installedTool: InstalledTool = {
@@ -138,15 +270,10 @@ export class Installer {
     };
 
     const lock = readLockFile(this.cwd);
-
-    // Remove files from the previous install that the new install did not
-    // overwrite. This handles version updates where files are renamed or
-    // removed, and platform switches where the old adapted paths differ.
     const previousEntry = lock.tools[manifest.name];
     if (previousEntry) {
       const newFileSet = new Set(writtenFiles);
       for (const oldFile of previousEntry.files) {
-        // Resolve relative paths from lock file (or absolute for legacy entries)
         const absOldFile = path.isAbsolute(oldFile)
           ? oldFile
           : path.resolve(this.cwd, oldFile);
@@ -160,10 +287,8 @@ export class Installer {
 
     const updated = upsertLockEntry(lock, manifest.name, toLockEntry(installedTool, client.config.url));
     writeLockFile(this.cwd, updated);
-    return installedTool;
+    return { ...installedTool, fileResults };
   }
-
-  // -- MCP install (config-file injection) ----------------------------------
 
   private installMcp(
     manifest: ToolManifest,
@@ -179,7 +304,6 @@ export class Installer {
     const configPath = this.configManager.resolveMcpConfig(scope);
     fs.mkdirSync(path.dirname(configPath), { recursive: true });
 
-    // Read existing mcp.json (or start fresh).
     let mcpJson: McpJson = { servers: {} };
     if (fs.existsSync(configPath)) {
       try {
@@ -193,7 +317,6 @@ export class Installer {
       }
     }
 
-    // Use the unscoped package name as the server key.
     const serverKey = manifest.name.replace(/^@[^/]+\//, '');
     mcpJson.servers[serverKey] = manifest.mcpServer.url
       ? { type: 'http', url: manifest.mcpServer.url, ...envEntry(manifest.mcpServer.env) }
@@ -224,15 +347,6 @@ export class Installer {
     return installedTool;
   }
 
-  // -- Uninstall -------------------------------------------------------------
-
-  /**
-   * Remove all files for a named tool and update the lock file.
-   * For MCP tools, removes the server entry from the platform mcp.json.
-   * Returns the list of removed/modified file paths.
-   *
-   * Note: the cache entry is intentionally preserved so reinstalls are fast.
-   */
   uninstall(name: string): string[] {
     const lock = readLockFile(this.cwd);
     const entry = lock.tools[name];
@@ -242,8 +356,6 @@ export class Installer {
 
     const removed: string[] = [];
 
-    // Detect MCP installs: prefer the recorded category, fall back to the
-    // legacy integrity sentinel for entries written by older versions.
     const isMcpEntry = entry.category === 'mcp-tool' ||
       (entry.category === undefined && entry.integrity === 'mcp-config' && entry.files.length === 1);
     if (isMcpEntry) {
@@ -276,20 +388,35 @@ export class Installer {
   }
 }
 
-// -- Helpers -----------------------------------------------------------------
+function emitTransformMessages(destPath: string, result: TransformResult): void {
+  if (result.confidence === 'native' || result.confidence === 'high') return;
 
-/**
- * Filter manifest files for the active platform.
- * Platform-specific entries override unscoped ones with the same dest path.
- * Files scoped to a different platform are excluded.
- */
+  if (result.confidence === 'low') {
+    process.stderr.write(
+      `[aitools] Low-confidence transform for ${destPath}. Run /aitools-convert for AI-assisted conversion.\n`,
+    );
+  } else if (result.confidence === 'medium') {
+    process.stderr.write(`[aitools] Transform warnings for ${destPath}:\n`);
+  } else if (result.confidence === 'unsupported') {
+    process.stderr.write(`[aitools] Partial/unsupported transform for ${destPath}:\n`);
+  }
+
+  for (const w of result.warnings) {
+    process.stderr.write(`  ${w}\n`);
+  }
+
+  if (result.skillPrompt) {
+    process.stderr.write(`[aitools] ${result.skillPrompt}\n`);
+  }
+}
+
 function selectFilesForPlatform(files: ToolFile[], activePlatform: TargetPlatform): ToolFile[] {
   const byDest = new Map<string, ToolFile>();
   for (const file of files) {
     if (!file.platform || file.platform === 'universal') {
       if (!byDest.has(file.dest)) byDest.set(file.dest, file);
     } else if (file.platform === activePlatform) {
-      byDest.set(file.dest, file); // platform-specific wins
+      byDest.set(file.dest, file);
     }
   }
   return Array.from(byDest.values());
@@ -312,8 +439,6 @@ function removeMcpEntry(configPath: string, toolName: string): void {
 }
 
 function cleanEmptyDirs(dir: string, stopAt: string): void {
-  // Only clean directories that are descendants of stopAt to avoid removing
-  // unrelated directories (e.g. ~/.aitools/ when stopAt is the project cwd).
   const normalizedStop = path.normalize(stopAt);
   const normalizedDir = path.normalize(dir);
   if (!normalizedDir.startsWith(normalizedStop + path.sep)) return;
@@ -325,7 +450,6 @@ function cleanEmptyDirs(dir: string, stopAt: string): void {
       cleanEmptyDirs(path.dirname(dir), stopAt);
     }
   } catch {
-    // Ignore � directory may already be gone
+    // Ignore
   }
 }
-

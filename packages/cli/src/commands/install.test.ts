@@ -12,14 +12,30 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
+const mockGetManifest = jest.fn();
+const mockDownload = jest.fn();
+const mockListVersions = jest.fn();
+
+jest.mock('../utils/registry-client.js', () => ({
+  createRegistryClient: jest.fn(() => ({
+    config: { name: 'reg', url: 'http://localhost:4873', type: 'http' },
+    getManifest: (...args: unknown[]) => mockGetManifest(...args),
+    listVersions: (...args: unknown[]) => mockListVersions(...args),
+    search: jest.fn().mockResolvedValue([]),
+    download: (...args: unknown[]) => mockDownload(...args),
+    publish: jest.fn(),
+  })),
+}));
+
 import { parsePackageArg } from './install.js';
+import { createInstallCommand } from './install.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Installer } from '../utils/installer.js';
 import { ConfigManager } from '../utils/config-manager.js';
 import { CacheManager } from '../utils/cache-manager.js';
-import { readLockFile, writeManifest } from '@aitools/core';
+import { readLockFile, writeManifest, writeLockFile, upsertLockEntry, emptyLock } from '@aitools/core';
 import type { ToolManifest, RegistryConfig } from '@aitools/core';
 import type { RegistryClient, DownloadResult } from '../utils/registry-client.js';
 
@@ -240,5 +256,165 @@ describe('install integration: registry chaining', () => {
     expect(installed).not.toBeNull();
     expect(installed!.version).toBe('1.0.0');
     expect(installed!.registry).toBe('http://private:4873');
+  });
+});
+
+describe('install command action', () => {
+  let tmp: string;
+  let isolatedHome: string;
+  const originalCwd = process.cwd();
+  let homedirSpy: jest.SpiedFunction<typeof os.homedir>;
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-install-cmd-'));
+    isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-install-home-'));
+    homedirSpy = jest.spyOn(os, 'homedir').mockReturnValue(isolatedHome);
+    delete process.env.VSCODE_PID;
+    delete process.env.TERM_PROGRAM;
+    delete process.env.CURSOR_TRACE_ID;
+    process.chdir(tmp);
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({
+        platform: 'vscode',
+        registries: [{ type: 'http', name: 'reg', url: 'http://localhost:4873' }],
+      }),
+      'utf8',
+    );
+    mockGetManifest.mockReset();
+    mockDownload.mockReset();
+    mockListVersions.mockReset();
+    mockGetManifest.mockResolvedValue(SKILL_MANIFEST);
+    mockDownload.mockResolvedValue({ data: makeTarball() });
+    mockListVersions.mockResolvedValue(['2.0.0']);
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    process.chdir(originalCwd);
+    homedirSpy.mockRestore();
+    fs.rmSync(tmp, { recursive: true });
+    fs.rmSync(isolatedHome, { recursive: true, force: true });
+    jest.restoreAllMocks();
+  });
+
+  it('installs a package and writes aitools.json', async () => {
+    await createInstallCommand().parseAsync(['test-skill'], { from: 'user' });
+    const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as { tools: Record<string, string> };
+    expect(manifest.tools['test-skill']).toBe('^2.0.0');
+    expect(readLockFile(tmp).tools['test-skill']).toBeDefined();
+  });
+
+  it('saves dev dependencies when --dev is passed', async () => {
+    await createInstallCommand().parseAsync(['test-skill', '--dev'], { from: 'user' });
+    const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
+      devTools: Record<string, string>;
+    };
+    expect(manifest.devTools['test-skill']).toBe('^2.0.0');
+  });
+
+  function mockExit(): jest.SpiedFunction<typeof process.exit> {
+    return jest.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`process.exit:${code ?? 0}`);
+    }) as never);
+  }
+
+  it('exits when no registries are configured', async () => {
+    fs.writeFileSync(path.join(tmp, 'aitools.config.json'), JSON.stringify({ platform: 'vscode' }), 'utf8');
+    const exitSpy = mockExit();
+    await expect(createInstallCommand().parseAsync(['test-skill'], { from: 'user' })).rejects.toThrow('process.exit:1');
+    exitSpy.mockRestore();
+  });
+
+  it('exits when package is not found in any registry', async () => {
+    mockGetManifest.mockRejectedValue(new Error('Not found'));
+    const exitSpy = mockExit();
+    await expect(createInstallCommand().parseAsync(['missing-skill'], { from: 'user' })).rejects.toThrow('process.exit:1');
+    exitSpy.mockRestore();
+  });
+
+  it('installs all tools listed in aitools.json', async () => {
+    writeManifest(tmp, { tools: { 'test-skill': '^2.0.0' } });
+    await createInstallCommand().parseAsync([], { from: 'user' });
+    expect(readLockFile(tmp).tools['test-skill']).toBeDefined();
+  });
+
+  it('reports when aitools.json has no tools to install', async () => {
+    writeManifest(tmp, { tools: {} });
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createInstallCommand().parseAsync([], { from: 'user' });
+    const output = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(output).toContain('No tools listed');
+  });
+
+  it('exits when install-all is run without aitools.json', async () => {
+    const exitSpy = mockExit();
+    await expect(createInstallCommand().parseAsync([], { from: 'user' })).rejects.toThrow('process.exit:1');
+    exitSpy.mockRestore();
+  });
+
+  it('prints universal platform tip after install', async () => {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ registries: [{ type: 'http', name: 'reg', url: 'http://localhost:4873' }] }),
+      'utf8',
+    );
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createInstallCommand().parseAsync(['test-skill'], { from: 'user' });
+    const output = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(output).toContain('.agents/');
+  });
+
+  it('prints auto-detected platform tip when platform is inferred', async () => {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ registries: [{ type: 'http', name: 'reg', url: 'http://localhost:4873' }] }),
+      'utf8',
+    );
+    fs.mkdirSync(path.join(tmp, '.vscode'));
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createInstallCommand().parseAsync(['test-skill'], { from: 'user' });
+    const output = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(output).toContain('Auto-detected platform');
+  });
+
+  it('exits when installer fails during single package install', async () => {
+    mockGetManifest.mockResolvedValue({
+      ...SKILL_MANIFEST,
+      name: 'fail-skill',
+    });
+    mockDownload.mockRejectedValue(new Error('network fail'));
+    const exitSpy = mockExit();
+    await expect(createInstallCommand().parseAsync(['fail-skill'], { from: 'user' })).rejects.toThrow('process.exit:1');
+    exitSpy.mockRestore();
+  });
+
+  it('skips tools already satisfied during install-all', async () => {
+    writeManifest(tmp, { tools: { 'test-skill': '^2.0.0' } });
+    writeLockFile(
+      tmp,
+      upsertLockEntry(emptyLock(), 'test-skill', {
+        version: '2.0.0',
+        resolved: 'http://localhost:4873',
+        integrity: 'sha256-x',
+        files: ['skill.md'],
+        installedAt: new Date().toISOString(),
+      }),
+    );
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createInstallCommand().parseAsync([], { from: 'user' });
+    const output = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(output).toContain('already satisfied');
+  });
+
+  it('reports failure for tools that cannot be resolved during install-all', async () => {
+    writeManifest(tmp, { tools: { 'missing-skill': '^1.0.0' } });
+    mockGetManifest.mockRejectedValue(new Error('Not found'));
+    mockListVersions.mockRejectedValue(new Error('Not found'));
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createInstallCommand().parseAsync([], { from: 'user' });
+    const output = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(output).toContain('0 tool(s) installed');
   });
 });

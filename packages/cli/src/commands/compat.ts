@@ -20,9 +20,12 @@ import {
   PLATFORM_SPECS,
   isSpecStale,
   ToolManifestSchema,
+  normalizeCategory,
 } from '@aitools/core';
 import type { PlatformSpec, FieldSupport } from '@aitools/core';
 import type { TargetPlatform } from '@aitools/core';
+import { estimateCategoryConfidence } from '../transformers/index.js';
+import type { TransformConfidence } from '../transformers/index.js';
 
 const MANIFEST_FILE = 'aitools.manifest.json';
 
@@ -90,24 +93,29 @@ export interface PlatformResult {
   stale: boolean;
   categorySupported: boolean;
   fieldIssues: FieldIssue[];
+  transformConfidence?: TransformConfidence;
 }
 
 export function analyzeCompat(
   skillFields: Record<string, string | boolean>,
   category: string,
   targetPlatforms: TargetPlatform[],
+  nativeFor?: TargetPlatform,
 ): PlatformResult[] {
+  const { category: normalized } = normalizeCategory(category as never);
+
   return targetPlatforms.map((platformId) => {
     const spec = PLATFORM_SPECS[platformId];
     const stale = isSpecStale(spec);
-    const categorySupported = spec.supportedCategories.includes(category as never);
+    const categorySupported =
+      spec.supportedCategories.includes(category as never) ||
+      spec.supportedCategories.includes(normalized as never);
 
     const fieldIssues: FieldIssue[] = [];
-    if (categorySupported && category === 'skill') {
+    if (categorySupported && (normalized === 'skill' || category === 'skill')) {
       for (const field of Object.keys(skillFields)) {
         const fieldSpec = spec.skillFrontmatter[field];
         if (!fieldSpec) {
-          // Field not in spec data � unknown
           fieldIssues.push({ field, support: 'unknown', note: 'Not in platform spec data' });
         } else if (fieldSpec.support !== 'supported') {
           fieldIssues.push({ field, support: fieldSpec.support, note: fieldSpec.note });
@@ -115,7 +123,10 @@ export function analyzeCompat(
       }
     }
 
-    return { spec, stale, categorySupported, fieldIssues };
+    const source = nativeFor ?? 'universal';
+    const transformConfidence = estimateCategoryConfidence(normalized, source, platformId);
+
+    return { spec, stale, categorySupported, fieldIssues, transformConfidence };
   });
 }
 
@@ -138,9 +149,30 @@ function overallIcon(result: PlatformResult): string {
   return chalk.green('?');
 }
 
+function confidenceColor(c: TransformConfidence): (s: string) => string {
+  switch (c) {
+    case 'native':
+    case 'high':
+      return chalk.green;
+    case 'medium':
+      return chalk.yellow;
+    case 'low':
+      return chalk.yellow;
+    case 'unsupported':
+      return chalk.red;
+    default:
+      return chalk.dim;
+  }
+}
+
 function overallLabel(result: PlatformResult): string {
   if (!result.categorySupported) return chalk.red('category not supported');
   if (result.stale) return chalk.dim(`spec data unverified (last checked ${result.spec.lastVerified})`);
+  if (result.fieldIssues.length === 0 && result.transformConfidence) {
+    const tc = result.transformConfidence;
+    if (tc === 'native' || tc === 'high') return chalk.green('fully compatible');
+    return confidenceColor(tc)(`transform: ${tc}`);
+  }
   if (result.fieldIssues.length === 0) return chalk.green('fully compatible');
   const ignored = result.fieldIssues.filter((i) => i.support === 'ignored');
   const unknown = result.fieldIssues.filter((i) => i.support === 'unknown');
@@ -212,11 +244,14 @@ export function createCompatCommand(): Command {
         }
       }
 
-      const results = analyzeCompat(skillFields, manifest.category, targetPlatforms);
+      const results = analyzeCompat(skillFields, manifest.category, targetPlatforms, manifest.nativeFor);
 
       // -- Print results ----------------------------------------------------
       console.log(`\n  ${chalk.bold('Compatibility:')} ${chalk.cyan(manifest.name)}@${manifest.version}\n`);
       console.log(`  ${chalk.dim('category:')} ${manifest.category}`);
+      if (manifest.nativeFor) {
+        console.log(`  ${chalk.dim('nativeFor:')} ${manifest.nativeFor}`);
+      }
 
       if (manifest.category === 'skill' && Object.keys(skillFields).length > 0) {
         console.log(`  ${chalk.dim('frontmatter fields:')} ${Object.keys(skillFields).join(', ')}`);
@@ -229,6 +264,12 @@ export function createCompatCommand(): Command {
         const label = overallLabel(result);
         const namePad = result.spec.name.padEnd(30);
         console.log(`  ${icon} ${chalk.bold(namePad)} ${label}`);
+
+        if (result.transformConfidence && manifest.nativeFor && manifest.nativeFor !== result.spec.id) {
+          console.log(
+            `      ${chalk.dim('transform')} ${confidenceColor(result.transformConfidence)(result.transformConfidence)}`,
+          );
+        }
 
         for (const issue of result.fieldIssues) {
           const fi = supportIcon(issue.support);

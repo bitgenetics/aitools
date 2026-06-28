@@ -96,6 +96,26 @@ describe('update command', () => {
     logSpy.mockRestore();
   });
 
+  it('reports zero updates when registry lookup fails', async () => {
+    fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify({ tools: { 'my-skill': '^1.0.0' } }), 'utf8');
+    writeLockFile(
+      tmp,
+      upsertLockEntry(emptyLock(), 'my-skill', {
+        version: '1.0.0',
+        resolved: 'http://registry.example.com',
+        integrity: 'sha256-abc=',
+        files: [],
+        installedAt: new Date().toISOString(),
+      }),
+    );
+    mockListVersions.mockRejectedValue(new Error('registry down'));
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createUpdateCommand().parseAsync([], { from: 'user' });
+    const output = logSpy.mock.calls.map((a) => String(a[0])).join('\n');
+    expect(output).toContain('0 tool(s) updated');
+    logSpy.mockRestore();
+  });
+
   it('queries registry versions for each installed tool', async () => {
     fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify({ tools: { 'my-skill': '^1.0.0' } }), 'utf8');
     writeLockFile(
@@ -111,5 +131,14 @@ describe('update command', () => {
     jest.spyOn(console, 'log').mockImplementation(() => {});
     await createUpdateCommand().parseAsync([], { from: 'user' });
     expect(mockListVersions).toHaveBeenCalledWith('my-skill');
+  });
+
+  it('skips packages that are not listed in aitools.json', async () => {
+    fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify({ tools: { 'my-skill': '^1.0.0' } }), 'utf8');
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createUpdateCommand().parseAsync(['ghost-skill'], { from: 'user' });
+    const output = logSpy.mock.calls.map((a) => String(a[0])).join('\n');
+    expect(output).toContain('not in aitools.json');
+    logSpy.mockRestore();
   });
 });

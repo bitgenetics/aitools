@@ -132,6 +132,101 @@ describe('publish command', () => {
     }
   });
 
+  it('exits with 1 when manifest JSON is invalid', async () => {
+    fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), '{ invalid', 'utf8');
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      await expect(createPublishCommand().parseAsync([], { from: 'user' })).rejects.toThrow('process.exit(1)');
+    } finally {
+      mockExit.mockRestore();
+    }
+  });
+
+  it('exits with 1 when no registry is configured', async () => {
+    fs.writeFileSync(path.join(tmp, 'aitools.config.json'), JSON.stringify({ platform: 'vscode' }), 'utf8');
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      await expect(createPublishCommand().parseAsync([], { from: 'user' })).rejects.toThrow('process.exit(1)');
+    } finally {
+      mockExit.mockRestore();
+    }
+  });
+
+  it('publishes to registry URL from --registry flag', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createPublishCommand().parseAsync(['--registry', 'http://custom.example.com'], { from: 'user' });
+    expect(mockPublish).toHaveBeenCalledTimes(1);
+  });
+
+  it('warns about skill compat issues without blocking publish', async () => {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.manifest.json'),
+      JSON.stringify({
+        ...VALID_MANIFEST,
+        files: [{ src: 'SKILL.md', dest: 'SKILL.md' }],
+      }),
+      'utf8',
+    );
+    fs.writeFileSync(
+      path.join(tmp, 'SKILL.md'),
+      '---\nname: my-skill\nargument-hint: hint\n---\n# Body',
+      'utf8',
+    );
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createPublishCommand().parseAsync([], { from: 'user' });
+    const output = warnSpy.mock.calls.flat().map(String).join('\n');
+    expect(output).toContain('argument-hint');
+    expect(mockPublish).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks publish with --strict when compat issues exist', async () => {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.manifest.json'),
+      JSON.stringify({
+        ...VALID_MANIFEST,
+        files: [{ src: 'SKILL.md', dest: 'SKILL.md' }],
+      }),
+      'utf8',
+    );
+    fs.writeFileSync(
+      path.join(tmp, 'SKILL.md'),
+      '---\nname: my-skill\nargument-hint: hint\n---\n# Body',
+      'utf8',
+    );
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      await expect(createPublishCommand().parseAsync(['--strict'], { from: 'user' })).rejects.toThrow('process.exit(1)');
+    } finally {
+      mockExit.mockRestore();
+    }
+  });
+
+  it('reports network errors with a helpful message', async () => {
+    const err = new Error('connect failed') as NodeJS.ErrnoException;
+    err.code = 'ECONNREFUSED';
+    mockPublish.mockRejectedValue(err);
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      await expect(createPublishCommand().parseAsync([], { from: 'user' })).rejects.toThrow('process.exit(1)');
+    } finally {
+      mockExit.mockRestore();
+    }
+  });
+
   it('with --strict exits 1 when skill file has compat issues', async () => {
     // Write a skill file with a frontmatter field that has known compat issues
     // The exact field doesn't matter here � we just need the command to parse a .md skill

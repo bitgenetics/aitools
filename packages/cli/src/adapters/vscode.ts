@@ -15,50 +15,51 @@
 import os from 'node:os';
 import path from 'node:path';
 import type { PlatformAdapter } from './types.js';
-import type { ToolCategory, InstallScope } from '@aitools/core';
+import { resolveFileCategory } from './types.js';
+import type { ToolCategory, InstallScope, FileCategory } from '@aitools/core';
 
 /**
  * VS Code / GitHub Copilot adapter.
  *
- * VS Code Copilot supports the universal Agent Skills spec (.agents/) so we
- * use those paths for file-based categories. This keeps installed tools in a
- * cross-IDE location rather than a VS Code-specific subdirectory.
- *
  * Project scope paths:
- *   skill    ? .agents/skills/   (Agent Skills spec — universal)
- *   subagent ? .github/agents/   (VS Code custom agents — docs: https://code.visualstudio.com/docs/copilot/customization/custom-agents)
- *   prompt   ? .agents/prompts/
- *   mcp      ? .vscode/mcp.json  (VS Code-specific)
- *
- * User scope paths:
- *   skill    ? ~/.copilot/skills/
- *   subagent ? ~/.copilot/agents/
- *   prompt   ? ~/.copilot/prompts/
- *   mcp      ? ~/.vscode/mcp.json
+ *   skill   ? .github/skills/ (also .agents/skills/)
+ *   rule    ? .github/instructions/
+ *   command ? .github/prompts/
+ *   agent   ? .github/agents/
+ *   hook    ? .github/hooks/hooks.json (Copilot CLI format)
+ *   mcp     ? .vscode/mcp.json
  */
 export class VsCodeAdapter implements PlatformAdapter {
   readonly platform = 'vscode' as const;
 
-  private readonly DIRS: Record<InstallScope, Record<Exclude<ToolCategory, 'mcp-tool'>, string>> = {
+  private readonly DIRS: Record<InstallScope, Record<FileCategory, string>> = {
     project: {
-      skill:    path.join('.agents', 'skills'),
-      subagent: path.join('.github', 'agents'),
-      prompt:   path.join('.agents', 'prompts'),
+      skill:   path.join('.github', 'skills'),
+      rule:    path.join('.github', 'instructions'),
+      command: path.join('.github', 'prompts'),
+      agent:   path.join('.github', 'agents'),
     },
     user: {
-      skill:    path.join(os.homedir(), '.copilot', 'skills'),
-      subagent: path.join(os.homedir(), '.copilot', 'agents'),
-      prompt:   path.join(os.homedir(), '.copilot', 'prompts'),
+      skill:   path.join(os.homedir(), '.copilot', 'skills'),
+      rule:    path.join(os.homedir(), '.copilot', 'instructions'),
+      command: path.join(os.homedir(), '.copilot', 'prompts'),
+      agent:   path.join(os.homedir(), '.copilot', 'agents'),
     },
   };
 
-  resolveDir(category: Exclude<ToolCategory, 'mcp-tool'>, scope: InstallScope, cwd: string): string {
-    const p = this.DIRS[scope][category];
+  resolveDir(category: Exclude<ToolCategory, 'mcp-tool' | 'hook'>, scope: InstallScope, cwd: string): string {
+    const fileCategory = resolveFileCategory(category);
+    const p = this.DIRS[scope][fileCategory];
     return scope === 'project' ? path.resolve(cwd, p) : p;
   }
 
   resolveMcpConfig(scope: InstallScope, cwd: string): string {
     if (scope === 'project') return path.resolve(cwd, '.vscode', 'mcp.json');
     return path.join(os.homedir(), '.vscode', 'mcp.json');
+  }
+
+  resolveHooksConfig(scope: InstallScope, cwd: string): string {
+    if (scope === 'project') return path.resolve(cwd, '.github', 'hooks', 'hooks.json');
+    return path.join(os.homedir(), '.copilot', 'hooks', 'hooks.json');
   }
 }

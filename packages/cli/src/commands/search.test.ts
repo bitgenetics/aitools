@@ -86,6 +86,67 @@ describe('search command', () => {
     expect(parsed[0]?.name).toBe('skill-a');
     logSpy.mockRestore();
   });
+
+  it('exits when no registries are configured', async () => {
+    fs.writeFileSync(path.join(tmp, 'aitools.config.json'), JSON.stringify({ platform: 'vscode' }), 'utf8');
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`process.exit:${code ?? 0}`);
+    }) as never);
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(createSearchCommand().parseAsync(['query'], { from: 'user' })).rejects.toThrow('process.exit:1');
+    exitSpy.mockRestore();
+  });
+
+  it('searches a specific registry URL with --registry', async () => {
+    mockSearch.mockResolvedValue([
+      { name: 'remote-skill', version: '1.0.0', description: 'Remote', category: 'skill', registry: 'http://other.example.com' },
+    ]);
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createSearchCommand().parseAsync(['remote', '--registry', 'http://other.example.com'], { from: 'user' });
+    expect(mockSearch).toHaveBeenCalledWith('remote');
+    const output = logSpy.mock.calls.map((a) => String(a[0])).join('\n');
+    expect(output).toContain('remote-skill');
+    logSpy.mockRestore();
+  });
+
+  it('continues when a registry search throws', async () => {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({
+        registries: [
+          { name: 'bad', url: 'http://bad.example.com' },
+          { name: 'good', url: 'http://good.example.com' },
+        ],
+      }),
+      'utf8',
+    );
+    mockSearch.mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce([
+      { name: 'found', version: '1.0.0', description: 'Found', category: 'skill', registry: 'http://good.example.com' },
+    ]);
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createSearchCommand().parseAsync(['found'], { from: 'user' });
+    const output = logSpy.mock.calls.map((a) => String(a[0])).join('\n');
+    expect(output).toContain('found');
+    logSpy.mockRestore();
+  });
+
+  it('prints keywords when present on search results', async () => {
+    mockSearch.mockResolvedValue([
+      {
+        name: 'tagged-skill',
+        version: '1.0.0',
+        description: 'Tagged',
+        category: 'skill',
+        registry: 'http://registry.example.com',
+        keywords: ['lint', 'fix'],
+      },
+    ]);
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createSearchCommand().parseAsync(['tagged'], { from: 'user' });
+    const output = logSpy.mock.calls.map((a) => String(a[0])).join('\n');
+    expect(output).toContain('keywords: lint, fix');
+    logSpy.mockRestore();
+  });
 });
 
 describe('find command', () => {
@@ -110,5 +171,46 @@ describe('find command', () => {
   it('runs without throwing for a valid query', async () => {
     jest.spyOn(console, 'log').mockImplementation(() => {});
     await expect(createFindCommand().parseAsync(['my-query'], { from: 'user' })).resolves.not.toThrow();
+  });
+
+  it('exits when no registries are configured', async () => {
+    fs.writeFileSync(path.join(tmp, 'aitools.config.json'), JSON.stringify({ platform: 'vscode' }), 'utf8');
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`process.exit:${code ?? 0}`);
+    }) as never);
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(createFindCommand().parseAsync(['need a linter'], { from: 'user' })).rejects.toThrow('process.exit:1');
+    exitSpy.mockRestore();
+  });
+
+  it('prints matching tools when smart search returns results', async () => {
+    mockSearch.mockResolvedValue([
+      { name: 'smart-skill', version: '1.0.0', description: 'Smart', category: 'skill', registry: 'http://registry.example.com' },
+    ]);
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createFindCommand().parseAsync(['linter tool'], { from: 'user' });
+    const output = logSpy.mock.calls.map((a) => String(a[0])).join('\n');
+    expect(output).toContain('smart-skill');
+    logSpy.mockRestore();
+  });
+
+  it('outputs JSON results with --json', async () => {
+    mockSearch.mockResolvedValue([
+      { name: 'smart-skill', version: '1.0.0', description: 'Smart', category: 'skill', registry: 'http://registry.example.com' },
+    ]);
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createFindCommand().parseAsync(['linter tool', '--json'], { from: 'user' });
+    const raw = logSpy.mock.calls[0]?.[0] as string;
+    const parsed = JSON.parse(raw) as SearchResult[];
+    expect(parsed[0]?.name).toBe('smart-skill');
+    logSpy.mockRestore();
+  });
+
+  it('prints no matching tools when smart search returns empty', async () => {
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createFindCommand().parseAsync(['nothing matches'], { from: 'user' });
+    const output = logSpy.mock.calls.map((a) => String(a[0])).join('\n');
+    expect(output).toContain('No matching tools found');
+    logSpy.mockRestore();
   });
 });

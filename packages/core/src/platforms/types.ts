@@ -70,7 +70,8 @@ export interface PlatformSpec {
    */
   skillFrontmatter: Record<string, SkillFieldSpec>;
   /** Project-scope and user-scope install paths per category. */
-  installPaths: Partial<Record<Exclude<ToolCategory, 'mcp-tool'>, InstallPathSpec>> & {
+  installPaths: Partial<Record<Exclude<ToolCategory, 'mcp-tool' | 'hook'>, InstallPathSpec>> & {
     mcpConfig?: { project: string; user: string };
+    hookConfig?: { project: string; user: string };
   };
 }

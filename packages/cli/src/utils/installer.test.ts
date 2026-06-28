@@ -563,3 +563,393 @@ describe('Installer.install (manifest platforms guard)', () => {
     await expect(installer.install(makeClient(makeTarball()) as never, manifest, 'project')).resolves.toBeDefined();
   });
 });
+
+describe('Installer.install (cross-platform transformation)', () => {
+  let tmp: string;
+  let cacheTmp: string;
+  let installer: Installer;
+
+  function makeClient(tarball: Buffer) {
+    return {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+  }
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-transform-'));
+    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cache-'));
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'claude' }),
+      'utf8',
+    );
+    installer = new Installer(new ConfigManager(tmp), tmp, new CacheManager(cacheTmp));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true });
+    fs.rmSync(cacheTmp, { recursive: true });
+  });
+
+  it('transforms rule content when nativeFor differs from the active platform', async () => {
+    const ruleContent = '---\nglobs: src/**\n---\n# Rule body';
+    const manifest: ToolManifest = {
+      name: 'my-rule',
+      version: '1.0.0',
+      description: 'A cursor rule',
+      category: 'rule',
+      nativeFor: 'cursor',
+      files: [{ src: 'rule.mdc', dest: 'my-rule.mdc' }],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([{ path: 'rule.mdc', content: ruleContent }]),
+      'utf8',
+    );
+
+    const result = await installer.install(makeClient(tarball) as never, manifest, 'project');
+
+    expect(result.files).toHaveLength(1);
+    const written = fs.readFileSync(path.resolve(tmp, result.files[0]!), 'utf8');
+    expect(written).toBe('# Rule body');
+    expect(result.fileResults[0]?.transform?.confidence).toBe('medium');
+  });
+
+  it('skips agent install on windsurf when transformation is unsupported', async () => {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'windsurf' }),
+      'utf8',
+    );
+    installer = new Installer(new ConfigManager(tmp), tmp, new CacheManager(cacheTmp));
+
+    const manifest: ToolManifest = {
+      name: 'my-agent',
+      version: '1.0.0',
+      description: 'A cursor agent',
+      category: 'agent',
+      nativeFor: 'cursor',
+      files: [{ src: 'agent.md', dest: 'my-agent.md' }],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([{ path: 'agent.md', content: '---\nname: my-agent\n---\nBody' }]),
+      'utf8',
+    );
+
+    const result = await installer.install(makeClient(tarball) as never, manifest, 'project');
+
+    expect(result.files).toHaveLength(0);
+    expect(result.fileResults[0]?.skipped).toBe(true);
+  });
+});
+
+describe('Installer.install (hook category)', () => {
+  let tmp: string;
+  let cacheTmp: string;
+  let installer: Installer;
+
+  function makeClient(tarball: Buffer) {
+    return {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+  }
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-hook-'));
+    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cache-'));
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'cursor' }),
+      'utf8',
+    );
+    installer = new Installer(new ConfigManager(tmp), tmp, new CacheManager(cacheTmp));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true });
+    fs.rmSync(cacheTmp, { recursive: true });
+  });
+
+  it('merges hook config into .cursor/hooks.json', async () => {
+    const hooksJson = JSON.stringify({
+      preToolUse: [{ type: 'command', command: 'echo hi' }],
+    });
+    const manifest: ToolManifest = {
+      name: 'my-hooks',
+      version: '1.0.0',
+      description: 'Cursor hooks',
+      category: 'hook',
+      nativeFor: 'cursor',
+      files: [{ src: 'hooks.json', dest: 'hooks.json' }],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([{ path: 'hooks.json', content: hooksJson }]),
+      'utf8',
+    );
+
+    const result = await installer.install(makeClient(tarball) as never, manifest, 'project');
+
+    const hooksPath = path.join(tmp, '.cursor', 'hooks.json');
+    expect(fs.existsSync(hooksPath)).toBe(true);
+    const parsed = JSON.parse(fs.readFileSync(hooksPath, 'utf8')) as Record<string, unknown[]>;
+    expect(parsed.preToolUse).toHaveLength(1);
+    expect(result.files[0]).toMatch(/\.cursor[\\/]hooks\.json$/);
+  });
+
+  it('merges new hook events into an existing hooks.json', async () => {
+    const hooksDir = path.join(tmp, '.cursor');
+    fs.mkdirSync(hooksDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(hooksDir, 'hooks.json'),
+      JSON.stringify({ sessionStart: [{ type: 'command', command: 'echo start' }] }) + '\n',
+      'utf8',
+    );
+
+    const incoming = JSON.stringify({
+      preToolUse: [{ type: 'command', command: 'echo tool' }],
+    });
+    const manifest: ToolManifest = {
+      name: 'extra-hooks',
+      version: '1.0.0',
+      description: 'More hooks',
+      category: 'hook',
+      nativeFor: 'cursor',
+      files: [{ src: 'hooks.json', dest: 'hooks.json' }],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([{ path: 'hooks.json', content: incoming }]),
+      'utf8',
+    );
+
+    await installer.install(makeClient(tarball) as never, manifest, 'project');
+
+    const parsed = JSON.parse(fs.readFileSync(path.join(hooksDir, 'hooks.json'), 'utf8')) as Record<string, unknown[]>;
+    expect(parsed.sessionStart).toHaveLength(1);
+    expect(parsed.preToolUse).toHaveLength(1);
+  });
+
+  it('skips claude-native hooks on cursor with an advisory message', async () => {
+    fs.writeFileSync(path.join(tmp, 'aitools.config.json'), JSON.stringify({ platform: 'cursor' }), 'utf8');
+    const claudeHooks = JSON.stringify({
+      hooks: { PreToolUse: [{ type: 'command', command: 'echo hi' }] },
+    });
+    const manifest: ToolManifest = {
+      name: 'claude-hooks',
+      version: '1.0.0',
+      description: 'Claude hooks',
+      category: 'hook',
+      nativeFor: 'claude',
+      files: [{ src: 'settings.json', dest: 'settings.json' }],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([{ path: 'settings.json', content: claudeHooks }]),
+      'utf8',
+    );
+
+    const stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const result = await installer.install(makeClient(tarball) as never, manifest, 'project');
+    expect(result.fileResults.some((f) => f.skipped)).toBe(true);
+    expect(stderrSpy.mock.calls.map((c) => String(c[0])).join('\n')).toContain('Advisory');
+    stderrSpy.mockRestore();
+  });
+});
+
+describe('Installer.install (cross-platform transformation)', () => {
+  let tmp: string;
+  let cacheTmp: string;
+  let installer: Installer;
+
+  function makeClient(tarball: Buffer) {
+    return {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+  }
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-transform-'));
+    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cache-'));
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'claude' }),
+      'utf8',
+    );
+    installer = new Installer(new ConfigManager(tmp), tmp, new CacheManager(cacheTmp));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true });
+    fs.rmSync(cacheTmp, { recursive: true });
+  });
+
+  it('transforms rule content when nativeFor differs from the active platform', async () => {
+    const ruleContent = '---\nglobs: src/**\n---\n# Rule body';
+    const manifest: ToolManifest = {
+      name: 'my-rule',
+      version: '1.0.0',
+      description: 'A cursor rule',
+      category: 'rule',
+      nativeFor: 'cursor',
+      files: [{ src: 'rule.mdc', dest: 'my-rule.mdc' }],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([{ path: 'rule.mdc', content: ruleContent }]),
+      'utf8',
+    );
+
+    const result = await installer.install(makeClient(tarball) as never, manifest, 'project');
+
+    expect(result.files).toHaveLength(1);
+    const written = fs.readFileSync(path.resolve(tmp, result.files[0]!), 'utf8');
+    expect(written).toBe('# Rule body');
+    expect(result.fileResults[0]?.transform?.confidence).toBe('medium');
+  });
+
+  it('skips agent install on windsurf when transformation is unsupported', async () => {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'windsurf' }),
+      'utf8',
+    );
+    installer = new Installer(new ConfigManager(tmp), tmp, new CacheManager(cacheTmp));
+
+    const manifest: ToolManifest = {
+      name: 'my-agent',
+      version: '1.0.0',
+      description: 'A cursor agent',
+      category: 'agent',
+      nativeFor: 'cursor',
+      files: [{ src: 'agent.md', dest: 'my-agent.md' }],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([{ path: 'agent.md', content: '---\nname: my-agent\n---\nBody' }]),
+      'utf8',
+    );
+
+    const result = await installer.install(makeClient(tarball) as never, manifest, 'project');
+
+    expect(result.files).toHaveLength(0);
+    expect(result.fileResults[0]?.skipped).toBe(true);
+  });
+});
+
+describe('Installer.install (hook category)', () => {
+  let tmp: string;
+  let cacheTmp: string;
+  let installer: Installer;
+
+  function makeClient(tarball: Buffer) {
+    return {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+  }
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-hook-'));
+    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cache-'));
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'cursor' }),
+      'utf8',
+    );
+    installer = new Installer(new ConfigManager(tmp), tmp, new CacheManager(cacheTmp));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true });
+    fs.rmSync(cacheTmp, { recursive: true });
+  });
+
+  it('merges hook config into .cursor/hooks.json', async () => {
+    const hooksJson = JSON.stringify({
+      preToolUse: [{ type: 'command', command: 'echo hi' }],
+    });
+    const manifest: ToolManifest = {
+      name: 'my-hooks',
+      version: '1.0.0',
+      description: 'Cursor hooks',
+      category: 'hook',
+      nativeFor: 'cursor',
+      files: [{ src: 'hooks.json', dest: 'hooks.json' }],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([{ path: 'hooks.json', content: hooksJson }]),
+      'utf8',
+    );
+
+    const result = await installer.install(makeClient(tarball) as never, manifest, 'project');
+
+    const hooksPath = path.join(tmp, '.cursor', 'hooks.json');
+    expect(fs.existsSync(hooksPath)).toBe(true);
+    const parsed = JSON.parse(fs.readFileSync(hooksPath, 'utf8')) as Record<string, unknown[]>;
+    expect(parsed.preToolUse).toHaveLength(1);
+    expect(result.files[0]).toMatch(/\.cursor[\\/]hooks\.json$/);
+  });
+
+  it('merges new hook events into an existing hooks.json', async () => {
+    const hooksDir = path.join(tmp, '.cursor');
+    fs.mkdirSync(hooksDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(hooksDir, 'hooks.json'),
+      JSON.stringify({ sessionStart: [{ type: 'command', command: 'echo start' }] }) + '\n',
+      'utf8',
+    );
+
+    const incoming = JSON.stringify({
+      preToolUse: [{ type: 'command', command: 'echo tool' }],
+    });
+    const manifest: ToolManifest = {
+      name: 'extra-hooks',
+      version: '1.0.0',
+      description: 'More hooks',
+      category: 'hook',
+      nativeFor: 'cursor',
+      files: [{ src: 'hooks.json', dest: 'hooks.json' }],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([{ path: 'hooks.json', content: incoming }]),
+      'utf8',
+    );
+
+    await installer.install(makeClient(tarball) as never, manifest, 'project');
+
+    const parsed = JSON.parse(fs.readFileSync(path.join(hooksDir, 'hooks.json'), 'utf8')) as Record<string, unknown[]>;
+    expect(parsed.sessionStart).toHaveLength(1);
+    expect(parsed.preToolUse).toHaveLength(1);
+  });
+
+  it('skips claude-native hooks on cursor with an advisory message', async () => {
+    fs.writeFileSync(path.join(tmp, 'aitools.config.json'), JSON.stringify({ platform: 'cursor' }), 'utf8');
+    const claudeHooks = JSON.stringify({
+      hooks: { PreToolUse: [{ type: 'command', command: 'echo hi' }] },
+    });
+    const manifest: ToolManifest = {
+      name: 'claude-hooks',
+      version: '1.0.0',
+      description: 'Claude hooks',
+      category: 'hook',
+      nativeFor: 'claude',
+      files: [{ src: 'settings.json', dest: 'settings.json' }],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([{ path: 'settings.json', content: claudeHooks }]),
+      'utf8',
+    );
+
+    const stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const result = await installer.install(makeClient(tarball) as never, manifest, 'project');
+    expect(result.fileResults.some((f) => f.skipped)).toBe(true);
+    expect(stderrSpy.mock.calls.map((c) => String(c[0])).join('\n')).toContain('Advisory');
+    stderrSpy.mockRestore();
+  });
+});

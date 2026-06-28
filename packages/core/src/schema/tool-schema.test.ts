@@ -33,10 +33,22 @@ describe('ToolManifestSchema', () => {
   });
 
   it('accepts all valid category values', () => {
-    for (const category of ['skill', 'subagent', 'prompt']) {
-      const result = ToolManifestSchema.safeParse({ ...VALID_MANIFEST, category });
+    for (const category of ['skill', 'rule', 'command', 'agent', 'hook', 'mcp-tool', 'subagent', 'prompt']) {
+      const files = category === 'mcp-tool' ? [] : [{ src: 'file.md', dest: 'file.md' }];
+      const mcpServer = category === 'mcp-tool' ? { command: 'npx' } : undefined;
+      const result = ToolManifestSchema.safeParse({ ...VALID_MANIFEST, category, files, mcpServer });
       expect(result.success).toBe(true);
     }
+  });
+
+  it('accepts nativeFor when set to a valid platform', () => {
+    const result = ToolManifestSchema.safeParse({ ...VALID_MANIFEST, nativeFor: 'cursor' });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects nativeFor when set to an invalid platform', () => {
+    const result = ToolManifestSchema.safeParse({ ...VALID_MANIFEST, nativeFor: 'invalid-platform' });
+    expect(result.success).toBe(false);
   });
 
   it('accepts a valid mcp-tool manifest with an mcpServer descriptor', () => {

@@ -26,12 +26,13 @@ import { createManifestCommand } from './commands/manifest.js';
 import { createConfigCommand } from './commands/config.js';
 import { createCompatCommand } from './commands/compat.js';
 import { createDevInitCommand } from './commands/dev-init.js';
+import { createMcpCommand } from './commands/mcp.js';
 
 const program = new Command();
 
 program
   .name('aitools')
-  .description('AITools — package manager for AI skills, subagents, prompts, and MCP tools')
+  .description('AITools — package manager for AI skills, rules, commands, agents, hooks, and MCP tools')
   .version('0.1.0');
 
 program.addCommand(createInitCommand());
@@ -47,6 +48,7 @@ program.addCommand(createPublishCommand());
 program.addCommand(createManifestCommand());
 program.addCommand(createConfigCommand());
 program.addCommand(createCompatCommand());
+program.addCommand(createMcpCommand());
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   console.error((err as Error).message);

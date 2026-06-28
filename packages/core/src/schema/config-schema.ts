@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import { z } from 'zod';
+import { ToolCategorySchema } from './tool-schema.js';
 
 // -- Registry auth -----------------------------------------------------------
 
@@ -103,7 +104,7 @@ export const LockEntrySchema = z.object({
   installedAt: z.string().datetime(),
   // Optional: absent on entries written by older versions of ai-tools.
   platform: z.enum(['universal', 'vscode', 'claude', 'cursor', 'windsurf']).optional(),
-  category: z.enum(['skill', 'subagent', 'prompt', 'mcp-tool']).optional(),
+  category: ToolCategorySchema.optional(),
   scope: z.enum(['project', 'user']).optional(),
 });
 

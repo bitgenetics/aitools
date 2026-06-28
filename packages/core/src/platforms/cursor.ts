@@ -16,29 +16,34 @@ import type { PlatformSpec } from './types.js';
 
 /**
  * Cursor IDE platform spec.
- * Docs: https://cursor.com/docs/skills#frontmatter-fields
+ * Docs: https://cursor.com/docs/skills, /rules, /hooks, /subagents
  */
 export const cursorSpec: PlatformSpec = {
   id: 'cursor',
   name: 'Cursor',
   docsUrl: 'https://cursor.com/docs/skills#frontmatter-fields',
-  lastVerified: '2026-05-15',
-  supportedCategories: ['skill', 'subagent', 'prompt', 'mcp-tool'],
+  lastVerified: '2026-06-01',
+  supportedCategories: ['skill', 'rule', 'command', 'agent', 'hook', 'mcp-tool', 'subagent', 'prompt'],
   skillFrontmatter: {
     name:                       { required: true,  support: 'supported',   platformExtension: false },
     description:                { required: true,  support: 'supported',   platformExtension: false },
     license:                    { required: false, support: 'supported',   platformExtension: false },
     compatibility:              { required: false, support: 'supported',   platformExtension: false },
     metadata:                   { required: false, support: 'supported',   platformExtension: false },
+    paths:                      { required: false, support: 'supported',   platformExtension: true,  note: 'File path globs for skill scoping (globs is legacy alias)' },
     'allowed-tools':            { required: false, support: 'unknown',     platformExtension: false, note: 'Not documented; behaviour unverified' },
     'argument-hint':            { required: false, support: 'ignored',     platformExtension: true,  note: 'VS Code-only extension; Cursor ignores this field' },
     'user-invocable':           { required: false, support: 'ignored',     platformExtension: true,  note: 'VS Code-only extension; Cursor ignores this field' },
     'disable-model-invocation': { required: false, support: 'supported',   platformExtension: true,  note: 'Cursor supports this — skill becomes slash-command-only' },
   },
   installPaths: {
-    skill:     { project: '.agents/skills',  user: '~/.agents/skills' },
-    subagent:  { project: '.agents/agents',  user: '~/.agents/agents' },
-    prompt:    { project: '.agents/prompts', user: '~/.agents/prompts' },
-    mcpConfig: { project: '.cursor/mcp.json', user: '~/.cursor/mcp.json' },
+    skill:     { project: '.cursor/skills',    user: '~/.cursor/skills' },
+    rule:      { project: '.cursor/rules',     user: '~/.cursor/rules' },
+    command:   { project: '.cursor/commands',  user: '~/.cursor/commands' },
+    agent:     { project: '.cursor/agents',    user: '~/.cursor/agents' },
+    prompt:    { project: '.cursor/commands',  user: '~/.cursor/commands' },
+    subagent:  { project: '.cursor/agents',    user: '~/.cursor/agents' },
+    mcpConfig: { project: '.cursor/mcp.json',  user: '~/.cursor/mcp.json' },
+    hookConfig: { project: '.cursor/hooks.json', user: '~/.cursor/hooks.json' },
   },
 };

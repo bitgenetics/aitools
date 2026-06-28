@@ -15,46 +15,51 @@
 import os from 'node:os';
 import path from 'node:path';
 import type { PlatformAdapter } from './types.js';
-import type { ToolCategory, InstallScope } from '@aitools/core';
+import { resolveFileCategory } from './types.js';
+import type { ToolCategory, InstallScope, FileCategory } from '@aitools/core';
 
 /**
  * Windsurf IDE (Cognition) adapter.
  *
  * Project scope paths:
- *   skill    ? .windsurf/skills/
- *   subagent ? .windsurf/agents/
- *   prompt   ? .windsurf/rules/   (Wave 8+: .windsurf/rules/*.md)
- *   mcp      ? .windsurf/mcp.json
- *
- * User scope paths:
- *   skill    ? ~/.windsurf/skills/
- *   subagent ? ~/.windsurf/agents/
- *   prompt   ? ~/.windsurf/rules/
- *   mcp      ? ~/.windsurf/mcp.json
+ *   skill   → .windsurf/skills/
+ *   rule    → .devin/rules/ (preferred; .windsurf/rules/ legacy)
+ *   command → .windsurf/workflows/
+ *   agent   → no native format (falls back to .windsurf/agents/ with warning)
+ *   hook    → .windsurf/hooks.json
+ *   mcp     → .windsurf/mcp.json
  */
 export class WindsurfAdapter implements PlatformAdapter {
   readonly platform = 'windsurf' as const;
 
-  private readonly DIRS: Record<InstallScope, Record<Exclude<ToolCategory, 'mcp-tool'>, string>> = {
+  private readonly DIRS: Record<InstallScope, Record<FileCategory, string>> = {
     project: {
-      skill:    path.join('.windsurf', 'skills'),
-      subagent: path.join('.windsurf', 'agents'),
-      prompt:   path.join('.windsurf', 'rules'),
+      skill:   path.join('.windsurf', 'skills'),
+      rule:    path.join('.devin', 'rules'),
+      command: path.join('.windsurf', 'workflows'),
+      agent:   path.join('.windsurf', 'agents'),
     },
     user: {
-      skill:    path.join(os.homedir(), '.windsurf', 'skills'),
-      subagent: path.join(os.homedir(), '.windsurf', 'agents'),
-      prompt:   path.join(os.homedir(), '.windsurf', 'rules'),
+      skill:   path.join(os.homedir(), '.windsurf', 'skills'),
+      rule:    path.join(os.homedir(), '.devin', 'rules'),
+      command: path.join(os.homedir(), '.windsurf', 'workflows'),
+      agent:   path.join(os.homedir(), '.windsurf', 'agents'),
     },
   };
 
-  resolveDir(category: Exclude<ToolCategory, 'mcp-tool'>, scope: InstallScope, cwd: string): string {
-    const p = this.DIRS[scope][category];
+  resolveDir(category: Exclude<ToolCategory, 'mcp-tool' | 'hook'>, scope: InstallScope, cwd: string): string {
+    const fileCategory = resolveFileCategory(category);
+    const p = this.DIRS[scope][fileCategory];
     return scope === 'project' ? path.resolve(cwd, p) : p;
   }
 
   resolveMcpConfig(scope: InstallScope, cwd: string): string {
     if (scope === 'project') return path.resolve(cwd, '.windsurf', 'mcp.json');
     return path.join(os.homedir(), '.windsurf', 'mcp.json');
+  }
+
+  resolveHooksConfig(scope: InstallScope, cwd: string): string {
+    if (scope === 'project') return path.resolve(cwd, '.windsurf', 'hooks.json');
+    return path.join(os.homedir(), '.windsurf', 'hooks.json');
   }
 }

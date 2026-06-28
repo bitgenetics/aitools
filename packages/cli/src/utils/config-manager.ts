@@ -91,7 +91,7 @@ export class ConfigManager {
    * Resolve the absolute install directory for a file-based tool category.
    * Checks installPaths overrides in config before delegating to the adapter.
    */
-  resolveInstallPath(category: Exclude<ToolCategory, 'mcp-tool'>, scope: InstallScope): string {
+  resolveInstallPath(category: Exclude<ToolCategory, 'mcp-tool' | 'hook'>, scope: InstallScope): string {
     const overrideKey = `${scope}.${category}`;
     const override = this.config.installPaths?.[overrideKey];
     if (override) {
@@ -109,6 +109,18 @@ export class ConfigManager {
       return this.expandHome(override);
     }
     return this.adapter.resolveMcpConfig(scope, this.cwd);
+  }
+
+  /**
+   * Resolve the hooks config file path for the current platform + scope.
+   * Returns null when the platform does not support hooks (universal).
+   */
+  resolveHooksConfig(scope: InstallScope): string | null {
+    const override = this.config.installPaths?.[`${scope}.hook`];
+    if (override) {
+      return this.expandHome(override);
+    }
+    return this.adapter.resolveHooksConfig(scope, this.cwd);
   }
 
   /** Expand leading ~/ to the user home directory. */

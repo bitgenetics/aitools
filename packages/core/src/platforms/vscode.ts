@@ -14,16 +14,12 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import type { PlatformSpec } from './types.js';
 
-/**
- * VS Code / GitHub Copilot platform spec.
- * Docs: https://code.visualstudio.com/docs/copilot/customization/agent-skills
- */
 export const vscodeSpec: PlatformSpec = {
   id: 'vscode',
   name: 'VS Code / GitHub Copilot',
-  docsUrl: 'https://code.visualstudio.com/docs/copilot/customization/agent-skills#_skillmd-file-format',
-  lastVerified: '2026-05-15',
-  supportedCategories: ['skill', 'subagent', 'prompt', 'mcp-tool'],
+  docsUrl: 'https://code.visualstudio.com/docs/copilot/customization/agent-skills',
+  lastVerified: '2026-06-01',
+  supportedCategories: ['skill', 'rule', 'command', 'agent', 'hook', 'mcp-tool', 'subagent', 'prompt'],
   skillFrontmatter: {
     name:                       { required: true,  support: 'supported',   platformExtension: false },
     description:                { required: true,  support: 'supported',   platformExtension: false },
@@ -36,9 +32,13 @@ export const vscodeSpec: PlatformSpec = {
     'disable-model-invocation': { required: false, support: 'supported',   platformExtension: true,  note: 'Set true for slash-command-only skills that the agent never auto-loads' },
   },
   installPaths: {
-    skill:     { project: '.agents/skills',  user: '~/.copilot/skills' },
-    subagent:  { project: '.github/agents',  user: '~/.copilot/agents' },
-    prompt:    { project: '.agents/prompts', user: '~/.copilot/prompts' },
-    mcpConfig: { project: '.vscode/mcp.json', user: '~/.vscode/mcp.json' },
+    skill:      { project: '.github/skills',       user: '~/.copilot/skills' },
+    rule:       { project: '.github/instructions', user: '~/.copilot/instructions' },
+    command:    { project: '.github/prompts',      user: '~/.copilot/prompts' },
+    agent:      { project: '.github/agents',       user: '~/.copilot/agents' },
+    prompt:     { project: '.github/prompts',      user: '~/.copilot/prompts' },
+    subagent:   { project: '.github/agents',       user: '~/.copilot/agents' },
+    mcpConfig:  { project: '.vscode/mcp.json',     user: '~/.vscode/mcp.json' },
+    hookConfig: { project: '.github/hooks/hooks.json', user: '~/.copilot/hooks/hooks.json' },
   },
 };

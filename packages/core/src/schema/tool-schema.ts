@@ -51,6 +51,17 @@ export const ToolFileSchema = z.object({
   platform: z.enum(['vscode', 'claude', 'cursor', 'windsurf', 'universal']).optional(),
 });
 
+export const ToolCategorySchema = z.enum([
+  'skill',
+  'rule',
+  'command',
+  'agent',
+  'hook',
+  'mcp-tool',
+  'subagent',
+  'prompt',
+]);
+
 export const ToolManifestSchema = z
   .object({
     name: z
@@ -65,7 +76,8 @@ export const ToolManifestSchema = z
         message: 'version must be a valid semver string',
       }),
     description: z.string().min(1),
-    category: z.enum(['skill', 'subagent', 'prompt', 'mcp-tool']),
+    category: ToolCategorySchema,
+    nativeFor: z.enum(['vscode', 'claude', 'cursor', 'windsurf', 'universal']).optional(),
     files: z.array(ToolFileSchema),
     mcpServer: McpServerConfigSchema.optional(),
     keywords: z.array(z.string()).optional(),

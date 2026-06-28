@@ -54,4 +54,18 @@ describe('init command', () => {
     const raw = fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8');
     expect(JSON.parse(raw)).toEqual(JSON.parse(existing));
   });
+
+  it('installs aitools-convert skill when --with-convert-skill is passed', () => {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'cursor' }),
+      'utf8',
+    );
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    createInitCommand().parse(['--with-convert-skill'], { from: 'user' });
+    const skillPath = path.join(tmp, '.cursor', 'skills', 'aitools-convert', 'SKILL.md');
+    expect(fs.existsSync(skillPath)).toBe(true);
+    const content = fs.readFileSync(skillPath, 'utf8');
+    expect(content).toContain('name: aitools-convert');
+  });
 });

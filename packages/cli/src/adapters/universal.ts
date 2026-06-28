@@ -15,39 +15,36 @@
 import os from 'node:os';
 import path from 'node:path';
 import type { PlatformAdapter } from './types.js';
-import type { ToolCategory, InstallScope } from '@aitools/core';
+import { resolveFileCategory } from './types.js';
+import type { ToolCategory, InstallScope, FileCategory } from '@aitools/core';
 
 /**
- * Universal adapter � internal fallback used when no platform is configured.
+ * Universal adapter ? internal fallback when no platform is configured.
  *
- * ~/.aitools/ is our tool's home directory on the user machine:
- *   cache/     ? downloaded tarballs, extracted to .agents/ structure
- *   tools/     ? user-scope installs when no IDE platform is set
- *
- * Project scope uses .agents/ (visible project-level fallback).
- * User scope uses ~/.aitools/tools/ (our dedicated home dir).
- *
- * Users should always set "platform" in aitools.config.json so files
- * land in the location their IDE expects.
+ * Project scope uses .agents/ convention.
+ * User scope uses ~/.aitools/tools/.
  */
 export class UniversalAdapter implements PlatformAdapter {
   readonly platform = 'universal' as const;
 
-  private readonly DIRS: Record<InstallScope, Record<Exclude<ToolCategory, 'mcp-tool'>, string>> = {
+  private readonly DIRS: Record<InstallScope, Record<FileCategory, string>> = {
     project: {
-      skill:    path.join('.agents', 'skills'),
-      subagent: path.join('.agents', 'agents'),
-      prompt:   path.join('.agents', 'prompts'),
+      skill:   path.join('.agents', 'skills'),
+      rule:    path.join('.agents', 'rules'),
+      command: path.join('.agents', 'commands'),
+      agent:   path.join('.agents', 'agents'),
     },
     user: {
-      skill:    path.join(os.homedir(), '.aitools', 'tools', 'skills'),
-      subagent: path.join(os.homedir(), '.aitools', 'tools', 'agents'),
-      prompt:   path.join(os.homedir(), '.aitools', 'tools', 'prompts'),
+      skill:   path.join(os.homedir(), '.aitools', 'tools', 'skills'),
+      rule:    path.join(os.homedir(), '.aitools', 'tools', 'rules'),
+      command: path.join(os.homedir(), '.aitools', 'tools', 'commands'),
+      agent:   path.join(os.homedir(), '.aitools', 'tools', 'agents'),
     },
   };
 
-  resolveDir(category: Exclude<ToolCategory, 'mcp-tool'>, scope: InstallScope, cwd: string): string {
-    const p = this.DIRS[scope][category];
+  resolveDir(category: Exclude<ToolCategory, 'mcp-tool' | 'hook'>, scope: InstallScope, cwd: string): string {
+    const fileCategory = resolveFileCategory(category);
+    const p = this.DIRS[scope][fileCategory];
     return scope === 'project' ? path.resolve(cwd, p) : p;
   }
 
@@ -55,5 +52,8 @@ export class UniversalAdapter implements PlatformAdapter {
     if (scope === 'project') return path.resolve(cwd, '.agents', 'mcp.json');
     return path.join(os.homedir(), '.aitools', 'mcp.json');
   }
-}
 
+  resolveHooksConfig(_scope: InstallScope, _cwd: string): string | null {
+    return null;
+  }
+}

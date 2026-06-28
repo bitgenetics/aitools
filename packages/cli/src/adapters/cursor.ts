@@ -15,49 +15,51 @@
 import os from 'node:os';
 import path from 'node:path';
 import type { PlatformAdapter } from './types.js';
-import type { ToolCategory, InstallScope } from '@aitools/core';
+import { resolveFileCategory } from './types.js';
+import type { ToolCategory, InstallScope, FileCategory } from '@aitools/core';
 
 /**
  * Cursor IDE adapter.
  *
- * Cursor supports the universal Agent Skills spec (.agents/) so we use those
- * paths for file-based categories for cross-IDE portability.
- *
  * Project scope paths:
- *   skill    ? .agents/skills/   (Agent Skills spec � universal)
- *   subagent ? .agents/agents/
- *   prompt   ? .agents/prompts/
- *   mcp      ? .cursor/mcp.json  (Cursor-specific)
- *
- * User scope paths:
- *   skill    ? ~/.aitools/tools/skills/
- *   subagent ? ~/.aitools/tools/agents/
- *   prompt   ? ~/.aitools/tools/prompts/
- *   mcp      ? ~/.cursor/mcp.json
+ *   skill   → .cursor/skills/ (also .agents/skills/)
+ *   rule    → .cursor/rules/
+ *   command → .cursor/commands/
+ *   agent   → .cursor/agents/
+ *   hook    → .cursor/hooks.json
+ *   mcp     → .cursor/mcp.json
  */
 export class CursorAdapter implements PlatformAdapter {
   readonly platform = 'cursor' as const;
 
-  private readonly DIRS: Record<InstallScope, Record<Exclude<ToolCategory, 'mcp-tool'>, string>> = {
+  private readonly DIRS: Record<InstallScope, Record<FileCategory, string>> = {
     project: {
-      skill:    path.join('.agents', 'skills'),
-      subagent: path.join('.agents', 'agents'),
-      prompt:   path.join('.agents', 'prompts'),
+      skill:   path.join('.cursor', 'skills'),
+      rule:    path.join('.cursor', 'rules'),
+      command: path.join('.cursor', 'commands'),
+      agent:   path.join('.cursor', 'agents'),
     },
     user: {
-      skill:    path.join(os.homedir(), '.aitools', 'tools', 'skills'),
-      subagent: path.join(os.homedir(), '.aitools', 'tools', 'agents'),
-      prompt:   path.join(os.homedir(), '.aitools', 'tools', 'prompts'),
+      skill:   path.join(os.homedir(), '.cursor', 'skills'),
+      rule:    path.join(os.homedir(), '.cursor', 'rules'),
+      command: path.join(os.homedir(), '.cursor', 'commands'),
+      agent:   path.join(os.homedir(), '.cursor', 'agents'),
     },
   };
 
-  resolveDir(category: Exclude<ToolCategory, 'mcp-tool'>, scope: InstallScope, cwd: string): string {
-    const p = this.DIRS[scope][category];
+  resolveDir(category: Exclude<ToolCategory, 'mcp-tool' | 'hook'>, scope: InstallScope, cwd: string): string {
+    const fileCategory = resolveFileCategory(category);
+    const p = this.DIRS[scope][fileCategory];
     return scope === 'project' ? path.resolve(cwd, p) : p;
   }
 
   resolveMcpConfig(scope: InstallScope, cwd: string): string {
     if (scope === 'project') return path.resolve(cwd, '.cursor', 'mcp.json');
     return path.join(os.homedir(), '.cursor', 'mcp.json');
+  }
+
+  resolveHooksConfig(scope: InstallScope, cwd: string): string {
+    if (scope === 'project') return path.resolve(cwd, '.cursor', 'hooks.json');
+    return path.join(os.homedir(), '.cursor', 'hooks.json');
   }
 }

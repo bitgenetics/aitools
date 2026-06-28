@@ -21,9 +21,11 @@ import { ConfigManager, detectPlatformFromEnv } from '../utils/config-manager.js
 describe('ConfigManager.getDefaultScope', () => {
   it('returns "project" when no config files are present', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cm-'));
+    const loadSpy = jest.spyOn(ConfigCascade, 'load').mockReturnValue({});
     try {
       expect(new ConfigManager(tmp).getDefaultScope()).toBe('project');
     } finally {
+      loadSpy.mockRestore();
       fs.rmSync(tmp, { recursive: true });
     }
   });

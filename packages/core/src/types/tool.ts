@@ -15,8 +15,20 @@
 /**
  * Tool categories supported by the aitools registry.
  * Each category has specific install behaviour and target paths.
+ *
+ * Deprecated aliases accepted at parse time and normalized internally:
+ * - subagent → agent
+ * - prompt   → command (ambiguous; prefer explicit rule or command)
  */
-export type ToolCategory = 'skill' | 'subagent' | 'prompt' | 'mcp-tool';
+export type ToolCategory =
+  | 'skill'
+  | 'rule'
+  | 'command'
+  | 'agent'
+  | 'hook'
+  | 'mcp-tool'
+  | 'subagent'
+  | 'prompt';
 
 /**
  * Where the tool is installed relative to the user's environment.
@@ -84,6 +96,11 @@ export interface ToolManifest {
   version: string;
   description: string;
   category: ToolCategory;
+  /**
+   * Platform the tool was originally authored for.
+   * When set and different from the active install platform, content is transformed.
+   */
+  nativeFor?: TargetPlatform;
   /** Files included in this package. Required for non-mcp-tool categories. */
   files: ToolFile[];
   /**

@@ -15,46 +15,51 @@
 import os from 'node:os';
 import path from 'node:path';
 import type { PlatformAdapter } from './types.js';
-import type { ToolCategory, InstallScope } from '@aitools/core';
+import { resolveFileCategory } from './types.js';
+import type { ToolCategory, InstallScope, FileCategory } from '@aitools/core';
 
 /**
  * Claude Code (Anthropic CLI) adapter.
  *
  * Project scope paths:
- *   skill    ? .claude/skills/     (Agent Skills spec — SKILL.md directories)
- *   subagent ? .claude/agents/     (custom agent .md files)
- *   prompt   ? .claude/commands/   (slash commands — legacy; skill is preferred)
- *   mcp      ? .mcp.json           (project-root MCP config)
- *
- * User scope paths:
- *   skill    ? ~/.claude/skills/
- *   subagent ? ~/.claude/agents/
- *   prompt   ? ~/.claude/commands/
- *   mcp      ? ~/.claude/mcp.json
+ *   skill   ? .claude/skills/
+ *   rule    ? .claude/rules/
+ *   command ? .claude/commands/
+ *   agent   ? .claude/agents/
+ *   hook    ? .claude/settings.json (merged under "hooks" key)
+ *   mcp     ? .mcp.json
  */
 export class ClaudeAdapter implements PlatformAdapter {
   readonly platform = 'claude' as const;
 
-  private readonly DIRS: Record<InstallScope, Record<Exclude<ToolCategory, 'mcp-tool'>, string>> = {
+  private readonly DIRS: Record<InstallScope, Record<FileCategory, string>> = {
     project: {
-      skill:    path.join('.claude', 'skills'),
-      subagent: path.join('.claude', 'agents'),
-      prompt:   path.join('.claude', 'commands'),
+      skill:   path.join('.claude', 'skills'),
+      rule:    path.join('.claude', 'rules'),
+      command: path.join('.claude', 'commands'),
+      agent:   path.join('.claude', 'agents'),
     },
     user: {
-      skill:    path.join(os.homedir(), '.claude', 'skills'),
-      subagent: path.join(os.homedir(), '.claude', 'agents'),
-      prompt:   path.join(os.homedir(), '.claude', 'commands'),
+      skill:   path.join(os.homedir(), '.claude', 'skills'),
+      rule:    path.join(os.homedir(), '.claude', 'rules'),
+      command: path.join(os.homedir(), '.claude', 'commands'),
+      agent:   path.join(os.homedir(), '.claude', 'agents'),
     },
   };
 
-  resolveDir(category: Exclude<ToolCategory, 'mcp-tool'>, scope: InstallScope, cwd: string): string {
-    const p = this.DIRS[scope][category];
+  resolveDir(category: Exclude<ToolCategory, 'mcp-tool' | 'hook'>, scope: InstallScope, cwd: string): string {
+    const fileCategory = resolveFileCategory(category);
+    const p = this.DIRS[scope][fileCategory];
     return scope === 'project' ? path.resolve(cwd, p) : p;
   }
 
   resolveMcpConfig(scope: InstallScope, cwd: string): string {
     if (scope === 'project') return path.resolve(cwd, '.mcp.json');
     return path.join(os.homedir(), '.claude', 'mcp.json');
+  }
+
+  resolveHooksConfig(scope: InstallScope, cwd: string): string {
+    if (scope === 'project') return path.resolve(cwd, '.claude', 'settings.json');
+    return path.join(os.homedir(), '.claude', 'settings.json');
   }
 }

@@ -68,6 +68,14 @@ describe('sanitizeToolName', () => {
   });
 });
 
+describe('runGit', () => {
+  it('throws when git command fails', () => {
+    expect(() => runGit(['status'], path.join(os.tmpdir(), 'nonexistent-git-dir-xyz'))).toThrow(
+      'git status failed',
+    );
+  });
+});
+
 describe('createGitRegistryClient', () => {
   let tmpRoot: string;
   let barePath: string;
@@ -128,6 +136,93 @@ describe('createGitRegistryClient', () => {
     await expect(client.publish(FIXTURE_MANIFEST, { 'index.md': '# dup' })).rejects.toThrow(
       'version already exists',
     );
+  });
+
+  it('throws when tool is not found', async () => {
+    const client = createGitRegistryClient(config);
+    await expect(client.getManifest('missing-tool', '1.0.0')).rejects.toThrow('tool not found');
+  });
+
+  it('supports smart search queries', async () => {
+    const client = createGitRegistryClient(config);
+    await client.publish(FIXTURE_MANIFEST, { 'index.md': '# v1' });
+    const results = await client.search('__smart__:git registry');
+    expect(results.some((r) => r.name === FIXTURE_MANIFEST.name)).toBe(true);
+  });
+
+  it('downloads tarball for a published tool', async () => {
+    const client = createGitRegistryClient(config);
+    const published = await client.publish(FIXTURE_MANIFEST, { 'index.md': '# v1' });
+    const { data, integrity } = await client.download(FIXTURE_MANIFEST.name, FIXTURE_MANIFEST.version);
+    expect(integrity).toBe(published.integrity);
+    expect(data.length).toBeGreaterThan(0);
+  });
+
+  it('resolves latest version when version is omitted', async () => {
+    const client = createGitRegistryClient(config);
+    await client.publish(FIXTURE_MANIFEST, { 'index.md': '# v1' });
+    const manifest = await client.getManifest(FIXTURE_MANIFEST.name);
+    expect(manifest.version).toBe('1.0.0');
+  });
+
+  it('reuses existing local clone on subsequent operations', async () => {
+    const client = createGitRegistryClient(config);
+    await client.publish(FIXTURE_MANIFEST, { 'index.md': '# v1' });
+    const versions = await client.listVersions(FIXTURE_MANIFEST.name);
+    const manifest = await client.getManifest(FIXTURE_MANIFEST.name, 'latest');
+    expect(versions).toEqual(['1.0.0']);
+    expect(manifest.name).toBe(FIXTURE_MANIFEST.name);
+  });
+
+  it('returns empty versions for an unknown tool', async () => {
+    const client = createGitRegistryClient(config);
+    await client.publish(FIXTURE_MANIFEST, { 'index.md': '# v1' });
+    const versions = await client.listVersions('unknown-tool');
+    expect(versions).toEqual([]);
+  });
+
+  it('supports custom publish branches that do not exist yet', async () => {
+    const branchConfig: GitRegistryConfig = {
+      ...config,
+      name: `${config.name}-branch`,
+      readBranch: 'develop',
+      publishBranch: 'develop',
+    };
+    const client = createGitRegistryClient(branchConfig);
+    await client.publish(FIXTURE_MANIFEST, { 'index.md': '# branch' });
+    const manifest = await client.getManifest(FIXTURE_MANIFEST.name, FIXTURE_MANIFEST.version);
+    expect(manifest.name).toBe(FIXTURE_MANIFEST.name);
+  });
+
+  it('supports registry path without trailing slash', async () => {
+    const pathConfig: GitRegistryConfig = {
+      ...config,
+      name: `${config.name}-path`,
+      path: 'registry',
+    };
+    const client = createGitRegistryClient(pathConfig);
+    await client.publish(FIXTURE_MANIFEST, { 'index.md': '# path' });
+    const manifest = await client.getManifest(FIXTURE_MANIFEST.name, FIXTURE_MANIFEST.version);
+    expect(manifest.version).toBe('1.0.0');
+  });
+
+  it('returns all published tools for an empty search query', async () => {
+    const client = createGitRegistryClient(config);
+    await client.publish(FIXTURE_MANIFEST, { 'index.md': '# v1' });
+    const results = await client.search('');
+    expect(results.some((r) => r.name === FIXTURE_MANIFEST.name)).toBe(true);
+  });
+
+  it('supports scoped package names', async () => {
+    const scoped: ToolManifest = {
+      ...FIXTURE_MANIFEST,
+      name: '@scope/git-skill',
+      files: [{ src: 'index.md', dest: 'git-skill.md' }],
+    };
+    const client = createGitRegistryClient(config);
+    await client.publish(scoped, { 'index.md': '# scoped' });
+    const manifest = await client.getManifest('@scope/git-skill', '1.0.0');
+    expect(manifest.name).toBe('@scope/git-skill');
   });
 
   it('supports publishing multiple tools from separate local caches', async () => {

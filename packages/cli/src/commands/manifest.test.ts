@@ -69,6 +69,45 @@ describe('manifest command', () => {
         mockExit.mockRestore();
       }
     });
+
+    it('exits when manifest file is missing', () => {
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+        throw new Error(`process.exit(${code})`);
+      });
+      try {
+        expect(() => createManifestCommand().parse(['validate'], { from: 'user' })).toThrow('process.exit(1)');
+      } finally {
+        mockExit.mockRestore();
+      }
+    });
+
+    it('exits when manifest JSON is malformed', () => {
+      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), '{ bad json', 'utf8');
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+        throw new Error(`process.exit(${code})`);
+      });
+      try {
+        expect(() => createManifestCommand().parse(['validate'], { from: 'user' })).toThrow('process.exit(1)');
+      } finally {
+        mockExit.mockRestore();
+      }
+    });
+
+    it('exits when declared source files are missing on disk', () => {
+      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+        throw new Error(`process.exit(${code})`);
+      });
+      try {
+        expect(() => createManifestCommand().parse(['validate'], { from: 'user' })).toThrow('process.exit(1)');
+      } finally {
+        mockExit.mockRestore();
+      }
+    });
   });
 
   describe('bump subcommand', () => {
@@ -95,6 +134,69 @@ describe('manifest command', () => {
       const updated = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8')) as { version: string };
       expect(updated.version).toBe('2.0.0');
     });
+
+    it('sets an explicit semver version', () => {
+      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createManifestCommand().parse(['bump', '3.0.0'], { from: 'user' });
+      const updated = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8')) as { version: string };
+      expect(updated.version).toBe('3.0.0');
+    });
+
+    it('exits for an invalid bump release argument', () => {
+      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+        throw new Error(`process.exit(${code})`);
+      });
+      try {
+        expect(() => createManifestCommand().parse(['bump', 'not-a-version'], { from: 'user' })).toThrow('process.exit(1)');
+      } finally {
+        mockExit.mockRestore();
+      }
+    });
+
+    it('exits when manifest is missing for bump', () => {
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+        throw new Error(`process.exit(${code})`);
+      });
+      try {
+        expect(() => createManifestCommand().parse(['bump', 'patch'], { from: 'user' })).toThrow('process.exit(1)');
+      } finally {
+        mockExit.mockRestore();
+      }
+    });
+
+    it('exits when explicit bump version is not greater than current', () => {
+      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+        throw new Error(`process.exit(${code})`);
+      });
+      try {
+        expect(() => createManifestCommand().parse(['bump', '0.9.0'], { from: 'user' })).toThrow('process.exit(1)');
+      } finally {
+        mockExit.mockRestore();
+      }
+    });
+
+    it('exits when current manifest version is not valid semver', () => {
+      fs.writeFileSync(
+        path.join(tmp, 'aitools.manifest.json'),
+        JSON.stringify({ ...VALID_MANIFEST, version: 'not-semver' }),
+        'utf8',
+      );
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+        throw new Error(`process.exit(${code})`);
+      });
+      try {
+        expect(() => createManifestCommand().parse(['bump', 'patch'], { from: 'user' })).toThrow('process.exit(1)');
+      } finally {
+        mockExit.mockRestore();
+      }
+    });
   });
 
   describe('init subcommand', () => {
@@ -102,6 +204,52 @@ describe('manifest command', () => {
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createManifestCommand().parse(['init', '--name', 'new-skill', '--category', 'skill', '--yes'], { from: 'user' });
       expect(fs.existsSync(path.join(tmp, 'aitools.manifest.json'))).toBe(true);
+    });
+
+    it('creates manifest entries from explicit --file options', () => {
+      fs.writeFileSync(path.join(tmp, 'custom.md'), '# Custom', 'utf8');
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createManifestCommand().parse(
+        ['init', '--name', 'file-skill', '--category', 'skill', '--yes', '--file', 'custom.md:custom.md'],
+        { from: 'user' },
+      );
+      const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8')) as {
+        files: Array<{ src: string; dest: string }>;
+      };
+      expect(manifest.files).toEqual([{ src: 'custom.md', dest: 'custom.md' }]);
+    });
+
+    it('refuses to overwrite an existing manifest without --force', () => {
+      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      createManifestCommand().parse(['init', '--name', 'other', '--yes'], { from: 'user' });
+      const output = logSpy.mock.calls.map((a) => String(a[0])).join('\n');
+      expect(output).toContain('already exists');
+      logSpy.mockRestore();
+    });
+
+    it('auto-detects markdown files during non-interactive init', () => {
+      fs.writeFileSync(path.join(tmp, 'found.md'), '# Found', 'utf8');
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createManifestCommand().parse(['init', '--name', 'found-skill', '--yes'], { from: 'user' });
+      const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8')) as {
+        files: Array<{ src: string; dest: string }>;
+      };
+      expect(manifest.files).toEqual([{ src: 'found.md', dest: 'found.md' }]);
+    });
+
+    it('includes optional author and keywords in non-interactive init', () => {
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createManifestCommand().parse(
+        ['init', '--name', 'meta-skill', '--yes', '--author', 'Me', '--keywords', 'a, b'],
+        { from: 'user' },
+      );
+      const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8')) as {
+        author: string;
+        keywords: string[];
+      };
+      expect(manifest.author).toBe('Me');
+      expect(manifest.keywords).toEqual(['a', 'b']);
     });
 
     it('prompts for each detected skill folder and includes only confirmed ones', async () => {
@@ -234,6 +382,18 @@ describe('manifest update', () => {
         fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8'),
       ) as Record<string, unknown>;
       expect(manifest['platforms']).toBeUndefined();
+    });
+
+    it('replaces tags with comma-separated list', async () => {
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      await createManifestCommand().parseAsync(
+        ['update', '--yes', '--tags', 'lint, refactor'],
+        { from: 'user' },
+      );
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8'),
+      ) as Record<string, unknown>;
+      expect(manifest['tags']).toEqual(['lint', 'refactor']);
     });
 
     it('replaces keywords with comma-separated list', async () => {

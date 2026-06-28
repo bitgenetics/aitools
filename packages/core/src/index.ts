@@ -14,6 +14,8 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 // Types
 export type { ToolCategory, InstallScope, TargetPlatform, ToolFile, ToolManifest, McpServerConfig, InstalledTool } from './types/tool.js';
+export type { NormalizedCategory, FileCategory, CategoryNormalization } from './types/category.js';
+export { normalizeCategory, isFileCategory } from './types/category.js';
 export type {
   RegistryConfig,
   HttpRegistryConfig,
@@ -27,7 +29,7 @@ export type { AiToolsLock, LockEntry } from './types/lock.js';
 export { toLockEntry, emptyLock } from './types/lock.js';
 
 // Schemas
-export { ToolManifestSchema, ToolFileSchema } from './schema/tool-schema.js';
+export { ToolManifestSchema, ToolFileSchema, ToolCategorySchema } from './schema/tool-schema.js';
 export {
   RegistryAuthSchema,
   HttpRegistryConfigSchema,

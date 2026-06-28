@@ -15,8 +15,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { createDevInitCommand, BUNDLED_NAME, BUNDLED_VERSION } from './dev-init.js';
 import { readLockFile, writeLockFile, upsertLockEntry } from '@aitools/core';
-import { BUNDLED_NAME, BUNDLED_VERSION } from './dev-init.js';
 import { ConfigManager } from '../utils/config-manager.js';
 
 describe('dev-init constants', () => {
@@ -89,5 +89,53 @@ describe('dev-init install path', () => {
     fs.mkdirSync(path.dirname(destPath), { recursive: true });
     fs.writeFileSync(destPath, '# Bundled skill', 'utf8');
     expect(fs.readFileSync(destPath, 'utf8')).toBe('# Bundled skill');
+  });
+});
+
+describe('dev-init command action', () => {
+  let tmp: string;
+  const originalCwd = process.cwd();
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-dev-init-cmd-'));
+    process.chdir(tmp);
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'vscode' }),
+      'utf8',
+    );
+  });
+
+  afterEach(() => {
+    process.chdir(originalCwd);
+    fs.rmSync(tmp, { recursive: true });
+    jest.restoreAllMocks();
+  });
+
+  it('installs bundled create-ai-tool files and updates lock', () => {
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    createDevInitCommand().parse([], { from: 'user' });
+
+    const lock = readLockFile(tmp);
+    expect(lock.tools[BUNDLED_NAME]).toBeDefined();
+    expect(fs.existsSync(path.join(tmp, 'aitools.json'))).toBe(true);
+  });
+
+  it('skips reinstall when already installed without --force', () => {
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    createDevInitCommand().parse([], { from: 'user' });
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    createDevInitCommand().parse([], { from: 'user' });
+    const output = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(output).toContain('already installed');
+  });
+
+  it('exits when scope is invalid', () => {
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`process.exit:${code ?? 0}`);
+    }) as never);
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() => createDevInitCommand().parse(['--scope', 'invalid'], { from: 'user' })).toThrow('process.exit:1');
+    exitSpy.mockRestore();
   });
 });
