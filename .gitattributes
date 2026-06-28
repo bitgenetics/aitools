@@ -1,0 +1,108 @@
+# Line endings — cross-platform (Windows + macOS)
+#
+# Canonical storage in Git is LF for all text. Working-tree endings depend on
+# file type and core.autocrlf (see MAINTAINING.md § Line endings).
+#
+#   eol=lf   — always LF in repo and on disk (shell, Docker, CI, compose)
+#   eol=crlf — CRLF on Windows checkout; still normalized for compare in Git
+#   text=auto — text detection only; follow platform via core.autocrlf
+#
+# After changing this file:
+#   git add --renormalize .
+#   git status
+
+# ------------------------------------------------------------------------------
+# Default
+# ------------------------------------------------------------------------------
+
+* text=auto
+
+# ------------------------------------------------------------------------------
+# POSIX / Linux containers — NEVER CRLF (bind mounts, shebangs, CI, Actions)
+# ------------------------------------------------------------------------------
+
+*.sh            text eol=lf
+*.bash          text eol=lf
+Dockerfile      text eol=lf
+Dockerfile.*    text eol=lf
+*.dockerfile    text eol=lf
+docker-compose*.yml text eol=lf
+compose*.yml    text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+.editorconfig   text eol=lf
+.gitattributes  text eol=lf
+.gitignore      text eol=lf
+.env.example    text eol=lf
+
+# GitHub Actions and shell-adjacent CI config
+.github/**      text eol=lf
+
+# ------------------------------------------------------------------------------
+# Windows-native scripts — CRLF in working tree on Windows
+# ------------------------------------------------------------------------------
+
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+*.ps1           text eol=crlf
+
+# ------------------------------------------------------------------------------
+# Source and docs — LF in repo; Windows may checkout CRLF if core.autocrlf=true
+# (no eol= here so platform conversion applies)
+# ------------------------------------------------------------------------------
+
+*.ts            text
+*.tsx           text
+*.mts           text
+*.cts           text
+*.js            text
+*.mjs           text
+*.cjs           text
+*.json          text
+*.md            text
+*.mdc           text
+*.css           text
+*.scss          text
+*.html          text
+*.svg           text
+*.xml           text
+*.txt           text
+*.ini           text
+*.toml          text
+*.sql           text
+LICENSE         text
+AGENTS.md       text
+MAINTAINING.md  text
+README.md       text
+
+# Lockfiles — LF avoids noisy diffs across platforms
+package-lock.json text eol=lf
+pnpm-lock.yaml    text eol=lf
+yarn.lock         text eol=lf
+
+# ------------------------------------------------------------------------------
+# Binary — do not touch line endings
+# ------------------------------------------------------------------------------
+
+*.png           -text
+*.jpg           -text
+*.jpeg          -text
+*.gif           -text
+*.webp          -text
+*.ico           -text
+*.icns          -text
+*.woff          -text
+*.woff2         -text
+*.ttf           -text
+*.eot           -text
+*.pdf           -text
+*.zip           -text
+*.gz            -text
+*.tgz           -text
+*.tar           -text
+*.7z            -text
+*.wasm          -text
+*.exe           -text
+*.dll           -text
+*.so            -text
+*.dylib         -text

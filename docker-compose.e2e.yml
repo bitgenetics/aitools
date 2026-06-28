@@ -54,7 +54,7 @@ services:
       GITEA_ADMIN_USER: e2e
       GITEA_ADMIN_PASSWORD: e2e-test-pass
       GITEA_ADMIN_EMAIL: e2e@test.com
-    entrypoint: ["/bin/bash", "/entrypoint.sh"]
+    entrypoint: ["/bin/bash", "-c", "tr -d '\\r' < /entrypoint.sh | /bin/bash -s --"]
     command: ["/usr/local/bin/gitea", "web"]
     healthcheck:
       test:

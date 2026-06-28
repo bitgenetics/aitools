@@ -1,0 +1,60 @@
+# EditorConfig — https://editorconfig.org
+# Works with VS Code, Cursor, JetBrains, etc. Complements .gitattributes.
+#
+# Container-critical paths use LF on all OSes. Other text follows the OS
+# default unless your editor is configured for LF (recommended on Windows too).
+
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Shell, Docker, compose, CI — always LF (matches .gitattributes eol=lf)
+[*.{sh,bash}]
+end_of_line = lf
+
+[{Dockerfile,Dockerfile.*,*.dockerfile}]
+end_of_line = lf
+
+[{*.yml,*.yaml,docker-compose*.yml,compose*.yml}]
+end_of_line = lf
+
+[.github/**]
+end_of_line = lf
+
+[.editorconfig]
+end_of_line = lf
+
+[.gitattributes]
+end_of_line = lf
+
+[.gitignore]
+end_of_line = lf
+
+# Windows-only scripts
+[*.{bat,cmd,ps1}]
+end_of_line = crlf
+
+# TypeScript / JavaScript — LF is the team default; avoids mixed-ending noise.
+# On Windows, Git may still checkout CRLF when core.autocrlf=true; editors
+# usually normalize on save. Prefer LF locally if Docker e2e bind-mounts apply.
+[*.{ts,tsx,mts,cts,js,mjs,cjs}]
+end_of_line = lf
+
+[*.json]
+end_of_line = lf
+
+[*.md]
+end_of_line = lf
+trim_trailing_whitespace = false
+
+[package-lock.json]
+end_of_line = lf
+indent_size = 2
+
+[Makefile]
+indent_style = tab

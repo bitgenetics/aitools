@@ -124,6 +124,61 @@ starting, so repeated runs always get a clean registry and the publish tests alw
 > **Note:** Re-running against the same local server instance causes 409 conflicts on the
 > publish tests because registry data persists. Delete `$env:TEMP\aitools-e2e-data`
 > (or `/tmp/aitools-e2e-data`) and restart the server before re-running.
+>
+> **CI parity:** Option B does **not** run Gitea git-registry tests (those need Docker).
+> Use `npm run test:e2e` before pushing to match `.github/workflows/e2e.yml`.
+
+---
+
+## Line endings (Windows + macOS)
+
+Git stores text as **LF** in the repository. What you see on disk depends on file type
+and your Git `core.autocrlf` setting.
+
+| File kind | In Git | On disk (Windows) | On disk (macOS) |
+|-----------|--------|-------------------|-----------------|
+| `*.sh`, Docker, `*.yml`, `.github/**` | LF | LF (forced) | LF |
+| `*.ps1`, `*.bat`, `*.cmd` | normalized | CRLF | LF or CRLF per editor |
+| `*.ts`, `*.json`, `*.md`, … | LF | CRLF if `autocrlf=true`, else LF | LF |
+
+### One-time Git setup (each machine)
+
+**Windows (recommended)**
+
+```bash
+git config --global core.autocrlf true
+```
+
+Checkout converts LF → CRLF for general text; commit converts CRLF → LF. Shell scripts
+and compose files stay LF (see `.gitattributes`).
+
+**macOS / Linux**
+
+```bash
+git config --global core.autocrlf input
+```
+
+Checkout keeps LF; commit strips any accidental CRLF.
+
+### Repo controls
+
+| File | Role |
+|------|------|
+| `.gitattributes` | Canonical rules per extension; `eol=lf` for container paths |
+| `.editorconfig` | Editor defaults (Cursor, VS Code, JetBrains) |
+
+After editing `.gitattributes`, renormalize the index:
+
+```bash
+git add --renormalize .
+git status   # expect line-ending-only changes on affected files
+```
+
+### Why shell scripts are always LF
+
+Docker bind-mounts host files into Linux containers. CRLF in `*.sh` breaks bash
+(`set: pipefail\r: invalid option name`) and fails e2e on CI. `compose` also strips
+`\r` when invoking `entrypoint.sh` as a belt-and-suspenders guard.
 
 ---
 
