@@ -19,7 +19,7 @@
  * aitools.config.json. The registry server is started by global-setup.cjs
  * when REGISTRY_URL points at localhost and nothing is listening yet.
  */
-import { execSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -65,8 +65,25 @@ export function isolatedEnv(): NodeJS.ProcessEnv {
   };
 }
 
+export function gitCacheDirFor(registryName: string): string {
+  return path.join(E2E_HOME, '.aitools', 'git-cache', registryName);
+}
+
+function tokenizeCliArgs(args: string): string[] {
+  const tokens: string[] = [];
+  const re = /"([^"]*)"|(\S+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(args.trim())) !== null) {
+    tokens.push(match[1] ?? match[2]!);
+  }
+  return tokens;
+}
+
 export function run(args: string, cwd?: string): string {
-  return execSync(`${resolveCliCommand()} ${args}`, {
+  const cliParts = resolveCliCommand().trim().split(/\s+/);
+  const cliBin = cliParts[0]!;
+  const cliArgs = [...cliParts.slice(1), ...tokenizeCliArgs(args)];
+  return execFileSync(cliBin, cliArgs, {
     cwd,
     encoding: 'utf8',
     env: isolatedEnv(),
@@ -74,7 +91,11 @@ export function run(args: string, cwd?: string): string {
 }
 
 export function runGit(args: string[], cwd: string): void {
-  const result = spawnSync('git', args, { cwd, encoding: 'utf8', env: isolatedEnv() });
+  const result = spawnSync('git', args, {
+    cwd,
+    encoding: 'utf8',
+    env: { ...isolatedEnv(), GIT_TERMINAL_PROMPT: '0' },
+  });
   if (result.status !== 0) {
     throw new Error(
       `git ${args.join(' ')} failed: ${(result.stderr || result.stdout || '').trim()}`,

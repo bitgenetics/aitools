@@ -54,7 +54,8 @@ async function ensureRepository() {
       },
       body: JSON.stringify({
         name: GITEA_REPO_NAME,
-        auto_init: false,
+        auto_init: true,
+        default_branch: 'main',
         private: false,
       }),
     });
@@ -66,6 +67,15 @@ async function ensureRepository() {
     const text = await listRes.text();
     throw new Error(`Failed to query Gitea repo (${listRes.status}): ${text}`);
   }
+}
+
+function branchExists(cwd, branch) {
+  const result = spawnSync('git', ['rev-parse', '--verify', branch], {
+    cwd,
+    encoding: 'utf8',
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+  });
+  return result.status === 0;
 }
 
 function runGit(args, cwd, extraEnv = {}) {
@@ -98,7 +108,9 @@ function seedRegistryTree(cloneUrl) {
     fs.writeFileSync(path.join(registryDir, '.gitkeep'), '\n', 'utf8');
     runGit(['add', 'registry'], workDir);
     runGit(['commit', '-m', 'init git registry root'], workDir);
-    runGit(['branch', '-M', 'main'], workDir);
+    if (!branchExists(workDir, 'main')) {
+      runGit(['branch', '-M', 'main'], workDir);
+    }
     runGit(['push', '-u', 'origin', 'main'], workDir);
   }
 

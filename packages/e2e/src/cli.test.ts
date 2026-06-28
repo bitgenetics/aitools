@@ -31,6 +31,7 @@ import path from 'node:path';
 import {
   REGISTRY_URL,
   getGitRegistryRemote,
+  gitCacheDirFor,
   initGitRegistry,
   makeE2eProjectDir,
   publishFixture,
@@ -581,7 +582,7 @@ describe('aitools git registry', () => {
   });
 
   afterAll(() => {
-    const cache = path.join(os.homedir(), '.aitools', 'git-cache', gitRegName);
+    const cache = gitCacheDirFor(gitRegName);
     if (fs.existsSync(cache)) {
       fs.rmSync(cache, { recursive: true, force: true });
     }
@@ -602,6 +603,7 @@ describe('aitools git registry', () => {
             url: gitRegistryUrl,
             readBranch: 'main',
             publishBranch: 'main',
+            path: 'registry/',
             priority: 1,
           },
         ],
@@ -659,7 +661,7 @@ describe('aitools git registry', () => {
     const regDir = makeE2eProjectDir('aitools-git-reg-add-');
     try {
       run(
-        `registry add "${gitRegistryUrl.replace(/\\/g, '/')}" --name git-added --type=git --read-branch=main --path=registry/`,
+        `registry add "${gitRegistryUrl.replace(/\\/g, '/')}" --name git-added --type git --read-branch main --publish-branch main --path registry/`,
         regDir,
       );
       const cfg = JSON.parse(

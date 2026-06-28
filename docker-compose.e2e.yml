@@ -1,15 +1,12 @@
 # E2E test environment.
 #
 # Usage:
-#   docker compose -f docker-compose.e2e.yml up --build -V --exit-code-from e2e
-#
-# The -V flag (--renew-anon-volumes) ensures the /data volume is fresh each
-# run so tests always start with an empty registry.
+#   docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans
+#   docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from e2e
 #
 # Services:
 #   test-registry — HTTP Fastify registry (@bitgenetics/aitools-server)
-#   gitea-init    — one-shot CLI bootstrap (migrate + admin user) for Gitea
-#   gitea         — Git hosting for git-registry e2e tests
+#   gitea         — Git hosting for git-registry e2e tests (bootstraps on first start)
 #   e2e           — Jest test runner (starts after dependencies are healthy)
 #
 # Git registry tests use Gitea when GITEA_URL is set (Docker). Locally they
@@ -38,11 +35,12 @@ services:
       retries: 15
       start_period: 5s
 
-  gitea-init:
+  gitea:
     image: gitea/gitea:1.22.6
     volumes:
       - gitea-data:/data
       - ./packages/e2e/gitea/bootstrap.sh:/bootstrap.sh:ro
+      - ./packages/e2e/gitea/entrypoint.sh:/entrypoint.sh:ro
     environment:
       USER_UID: "1000"
       USER_GID: "1000"
@@ -56,29 +54,8 @@ services:
       GITEA_ADMIN_USER: e2e
       GITEA_ADMIN_PASSWORD: e2e-test-pass
       GITEA_ADMIN_EMAIL: e2e@test.com
-    entrypoint: ["/usr/bin/entrypoint"]
-    command:
-      - /bin/bash
-      - -c
-      - tr -d '\r' < /bootstrap.sh | /bin/bash
-
-  gitea:
-    image: gitea/gitea:1.22.6
-    volumes:
-      - gitea-data:/data
-    environment:
-      USER_UID: "1000"
-      USER_GID: "1000"
-      GITEA__database__DB_TYPE: sqlite3
-      GITEA__database__PATH: /data/gitea/gitea.db
-      GITEA__server__DOMAIN: gitea
-      GITEA__server__HTTP_PORT: "3000"
-      GITEA__server__ROOT_URL: http://gitea:3000/
-      GITEA__security__INSTALL_LOCK: "true"
-      GITEA__service__DISABLE_REGISTRATION: "true"
-    depends_on:
-      gitea-init:
-        condition: service_completed_successfully
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]
+    command: ["/usr/local/bin/gitea", "web"]
     healthcheck:
       test:
         - CMD
@@ -89,7 +66,7 @@ services:
       interval: 2s
       timeout: 5s
       retries: 30
-      start_period: 10s
+      start_period: 15s
 
   e2e:
     build:
@@ -101,12 +78,12 @@ services:
       GITEA_ADMIN_USER: "e2e"
       GITEA_ADMIN_PASSWORD: "e2e-test-pass"
       GITEA_REPO_NAME: "tools-registry"
+      GIT_REGISTRY_STATE_FILE: "/tmp/aitools-e2e-git-registry.json"
+      GIT_TERMINAL_PROMPT: "0"
       PATH: "/app/packages/cli/node_modules/.bin:/app/node_modules/.bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       AITOOLS_CLI: "node /app/packages/cli/dist/cli.js"
     depends_on:
       test-registry:
         condition: service_healthy
-      gitea-init:
-        condition: service_completed_successfully
       gitea:
         condition: service_healthy

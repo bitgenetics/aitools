@@ -5,3 +5,5 @@ dist/
 *.tmp
 sandbox/
 .tmp-*
+.ci-log.zip
+.docker-e2e.log
