@@ -48,8 +48,8 @@ export function createUpdateCommand(): Command {
       }
 
       const allTools: Record<string, string> = {
-        ...(manifest.tools ?? {}),
-        ...(manifest.devTools ?? {}),
+        ...(manifest.dependencies ?? {}),
+        ...(manifest.devDependencies ?? {}),
       };
 
       const targets = pkg ? [pkg] : Object.keys(allTools);

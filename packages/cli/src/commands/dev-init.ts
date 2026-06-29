@@ -22,7 +22,7 @@ import {
   upsertLockEntry,
   readManifest,
   writeManifest,
-  upsertToolDependency,
+  upsertDependency,
 } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { SKILL_MD, MANIFEST_REFERENCE_MD, PLATFORM_PATHS_MD } from '../bundled/create-ai-tool.js';
@@ -102,7 +102,7 @@ export function createDevInitCommand(): Command {
 
       // Update aitools.json (devTools)
       const manifest = readManifest(cwd) ?? {};
-      const updatedManifest = upsertToolDependency(
+      const updatedManifest = upsertDependency(
         manifest,
         BUNDLED_NAME,
         BUNDLED_VERSION,

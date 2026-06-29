@@ -19,9 +19,8 @@ import { stdin as input, stdout as output } from 'node:process';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import semver from 'semver';
-import { ToolManifestSchema } from '@bitgenetics/aitools-core';
-
-const PUBLISH_MANIFEST_FILE = 'aitools.manifest.json';
+import { ToolManifestSchema, MANIFEST_FILENAME, LEGACY_PUBLISH_MANIFEST_FILENAME, readManifest, writeManifest, isPublishable, AitoolsJsonSchema } from '@bitgenetics/aitools-core';
+import type { AiToolsManifest } from '@bitgenetics/aitools-core';
 
 type Category = 'skill' | 'subagent' | 'prompt' | 'mcp-tool';
 
@@ -43,6 +42,7 @@ const SKIP_FILES = new Set([
   'CODE_OF_CONDUCT.md',
   'SECURITY.md',
   'NOTICE', 'NOTICE.md',
+  'aitools.json',
   'aitools.manifest.json',
   'README.md', 'readme.md',
 ]);
@@ -180,7 +180,7 @@ type ManifestInput = {
   platforms?: string[];
 };
 
-function writeAndPrintManifest(outPath: string, manifest: ManifestInput): void {
+function writeAndPrintManifest(cwd: string, manifest: ManifestInput): void {
   const parsed = ToolManifestSchema.safeParse(manifest);
   if (!parsed.success) {
     console.error(chalk.red('Manifest validation failed:'));
@@ -192,8 +192,10 @@ function writeAndPrintManifest(outPath: string, manifest: ManifestInput): void {
     process.exit(1);
   }
 
-  fs.writeFileSync(outPath, JSON.stringify(parsed.data, null, 2) + '\n', 'utf8');
-  console.log(chalk.green(`\n  ? Created ${PUBLISH_MANIFEST_FILE}`));
+  const existing = readManifest(cwd) ?? {};
+  const merged: AiToolsManifest = { ...existing, ...parsed.data };
+  writeManifest(cwd, merged);
+  console.log(chalk.green(`\n  ? Updated ${MANIFEST_FILENAME}`));
   console.log(`  name:     ${chalk.cyan(parsed.data.name)}`);
   console.log(`  version:  ${chalk.cyan(parsed.data.version)}`);
   console.log(`  category: ${chalk.cyan(parsed.data.category)}`);
@@ -207,7 +209,7 @@ function writeAndPrintManifest(outPath: string, manifest: ManifestInput): void {
   if (parsed.data.tags?.length) {
     console.log(`  tags:     ${chalk.dim(parsed.data.tags.join(', '))}`);
   }
-  console.log(chalk.dim(`\n  Edit ${PUBLISH_MANIFEST_FILE} if needed, then run: aitools publish`));
+  console.log(chalk.dim(`\n  Edit ${MANIFEST_FILENAME} if needed, then run: aitools publish`));
 }
 
 // -- manifest init -------------------------------------------------------------
@@ -228,7 +230,7 @@ interface ManifestInitOptions {
 
 function createManifestInitCommand(): Command {
   return new Command('init')
-    .description('Create an aitools.manifest.json for publishing to a registry')
+    .description(`Create or extend ${MANIFEST_FILENAME} with publish fields`)
     .option('--name <name>', 'Package name')
     .option('--version <version>', 'Package version')
     .option('--description <text>', 'Short description of the tool')
@@ -247,14 +249,17 @@ function createManifestInitCommand(): Command {
     .option('--force', 'Overwrite an existing manifest file')
     .action(async (options: ManifestInitOptions) => {
       const cwd = process.cwd();
-      const outPath = path.join(cwd, PUBLISH_MANIFEST_FILE);
+      const outPath = path.join(cwd, MANIFEST_FILENAME);
 
       if (fs.existsSync(outPath) && !options.force) {
-        console.log(
-          chalk.yellow(`${PUBLISH_MANIFEST_FILE} already exists.`),
-          chalk.dim('Use --force to overwrite.'),
-        );
-        return;
+        const existing = readManifest(cwd);
+        if (existing && isPublishable(existing)) {
+          console.log(
+            chalk.yellow(`${MANIFEST_FILENAME} already has publish fields.`),
+            chalk.dim('Use --force to overwrite them.'),
+          );
+          return;
+        }
       }
 
       const defaultName = path.basename(cwd).toLowerCase().replace(/[^a-z0-9-]/g, '-');
@@ -270,7 +275,7 @@ function createManifestInitCommand(): Command {
 async function initNonInteractive(
   options: ManifestInitOptions,
   cwd: string,
-  outPath: string,
+  _outPath: string,
   defaultName: string,
 ): Promise<void> {
   const category = (options.category ?? 'skill') as Category;
@@ -289,7 +294,7 @@ async function initNonInteractive(
     }
   }
 
-  writeAndPrintManifest(outPath, {
+  writeAndPrintManifest(cwd, {
     name,
     version: options.version ?? '1.0.0',
     description: options.description ?? `A ${category} tool`,
@@ -309,7 +314,7 @@ async function initNonInteractive(
 async function initInteractive(
   options: ManifestInitOptions,
   cwd: string,
-  outPath: string,
+  _outPath: string,
   defaultName: string,
 ): Promise<void> {
   const rl = createInterface({ input, output, terminal: true });
@@ -321,7 +326,7 @@ async function initInteractive(
     return ans || def || '';
   };
 
-  console.log(chalk.bold(`\nCreating ${PUBLISH_MANIFEST_FILE}`));
+  console.log(chalk.bold(`\nCreating publish fields in ${MANIFEST_FILENAME}`));
   console.log(chalk.dim('  Press Enter to accept each default.\n'));
 
   try {
@@ -374,7 +379,7 @@ async function initInteractive(
 
     rl.close();
 
-    writeAndPrintManifest(outPath, {
+    writeAndPrintManifest(cwd, {
       name,
       version,
       description: description || `A ${category} tool`,
@@ -397,30 +402,55 @@ async function initInteractive(
 
 // -- manifest validate ---------------------------------------------------------
 
+function loadPublishDoc(cwd: string): AiToolsManifest {
+  const unifiedPath = path.join(cwd, MANIFEST_FILENAME);
+  const legacyPath = path.join(cwd, LEGACY_PUBLISH_MANIFEST_FILENAME);
+
+  if (fs.existsSync(unifiedPath)) {
+    let doc: AiToolsManifest | null;
+    try {
+      doc = readManifest(cwd);
+    } catch {
+      console.error(chalk.red(`Failed to parse ${MANIFEST_FILENAME}`));
+      process.exit(1);
+    }
+    if (!doc || !isPublishable(doc)) {
+      console.error(chalk.red(`${MANIFEST_FILENAME} has no publish fields.`));
+      console.error(chalk.dim('Run: aitools manifest init'));
+      process.exit(1);
+    }
+    return doc;
+  }
+
+  if (fs.existsSync(legacyPath)) {
+    console.warn(
+      chalk.yellow(
+        `[aitools] Deprecated: ${LEGACY_PUBLISH_MANIFEST_FILENAME} — run: aitools manifest migrate`,
+      ),
+    );
+    const raw = JSON.parse(fs.readFileSync(legacyPath, 'utf8')) as unknown;
+    const parsed = ToolManifestSchema.safeParse(raw);
+    if (!parsed.success) {
+      console.error(chalk.red('Legacy manifest validation failed.'));
+      process.exit(1);
+    }
+    return parsed.data;
+  }
+
+  console.error(chalk.red(`No ${MANIFEST_FILENAME} found.`));
+  console.error(chalk.dim('Run: aitools manifest init'));
+  process.exit(1);
+}
+
 function createManifestValidateCommand(): Command {
   return new Command('validate')
-    .description('Validate an existing aitools.manifest.json against the schema')
+    .description(`Validate publish fields in ${MANIFEST_FILENAME}`)
     .action(() => {
       const cwd = process.cwd();
-      const manifestPath = path.join(cwd, PUBLISH_MANIFEST_FILE);
+      const doc = loadPublishDoc(cwd);
+      const parsed = ToolManifestSchema.safeParse(doc);
 
-      if (!fs.existsSync(manifestPath)) {
-        console.error(chalk.red(`No ${PUBLISH_MANIFEST_FILE} found.`));
-        console.error(chalk.dim('Run: aitools manifest init'));
-        process.exit(1);
-      }
-
-      let raw: unknown;
-      try {
-        raw = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-      } catch {
-        console.error(chalk.red('Failed to parse JSON � check for syntax errors.'));
-        process.exit(1);
-      }
-
-      console.log(chalk.bold(`\nValidating ${PUBLISH_MANIFEST_FILE}\n`));
-
-      const parsed = ToolManifestSchema.safeParse(raw);
+      console.log(chalk.bold(`\nValidating ${MANIFEST_FILENAME}\n`));
 
       if (!parsed.success) {
         console.error(chalk.red('  ? Schema validation failed:\n'));
@@ -436,7 +466,6 @@ function createManifestValidateCommand(): Command {
       console.log(`  ${chalk.green('?')} version:  ${chalk.cyan(parsed.data.version)}`);
       console.log(`  ${chalk.green('?')} category: ${chalk.cyan(parsed.data.category)}`);
 
-      // Check that declared src files actually exist on disk
       let missingCount = 0;
       console.log(`\n  files (${parsed.data.files.length}):`);
       for (const file of parsed.data.files) {
@@ -444,7 +473,7 @@ function createManifestValidateCommand(): Command {
         if (exists) {
           console.log(`    ${chalk.green('?')} ${file.src}`);
         } else {
-          console.log(`    ${chalk.red('?')} ${file.src} ${chalk.red('� not found on disk')}`);
+          console.log(`    ${chalk.red('?')} ${file.src} ${chalk.red('— not found on disk')}`);
           missingCount++;
         }
       }
@@ -466,27 +495,13 @@ type BumpType = 'major' | 'minor' | 'patch';
 
 function createManifestBumpCommand(): Command {
   return new Command('bump')
-    .description('Increment the version in aitools.manifest.json')
+    .description(`Increment the version in ${MANIFEST_FILENAME}`)
     .argument('<release>', 'Release type: patch | minor | major, or an explicit version like 1.2.3')
     .action((release: string) => {
       const cwd = process.cwd();
-      const manifestPath = path.join(cwd, PUBLISH_MANIFEST_FILE);
+      const doc = loadPublishDoc(cwd);
+      const current = doc.version ?? '';
 
-      if (!fs.existsSync(manifestPath)) {
-        console.error(chalk.red(`No ${PUBLISH_MANIFEST_FILE} found.`));
-        console.error(chalk.dim('Run: aitools manifest init'));
-        process.exit(1);
-      }
-
-      let manifest: Record<string, unknown>;
-      try {
-        manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as Record<string, unknown>;
-      } catch {
-        console.error(chalk.red(`Failed to parse ${PUBLISH_MANIFEST_FILE}`));
-        process.exit(1);
-      }
-
-      const current = typeof manifest['version'] === 'string' ? manifest['version'] : '';
       if (!semver.valid(current)) {
         console.error(chalk.red(`Current version "${current}" is not a valid semver string.`));
         process.exit(1);
@@ -517,8 +532,7 @@ function createManifestBumpCommand(): Command {
         process.exit(1);
       }
 
-      manifest['version'] = next;
-      fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
+      writeManifest(cwd, { ...doc, version: next });
       console.log(`${chalk.dim(current)} ? ${chalk.green(next)}`);
     });
 }
@@ -540,7 +554,7 @@ interface ManifestUpdateOptions {
 
 function createManifestUpdateCommand(): Command {
   return new Command('update')
-    .description('Update fields in an existing aitools.manifest.json interactively')
+    .description(`Update publish fields in ${MANIFEST_FILENAME}`)
     .option('--name <name>', 'New package name')
     .option('--description <text>', 'New description')
     .option('--category <category>', 'New category: skill | subagent | prompt | mcp-tool')
@@ -555,33 +569,19 @@ function createManifestUpdateCommand(): Command {
     .option('-y, --yes', 'Non-interactive: apply only the supplied flags, keep everything else unchanged')
     .action(async (options: ManifestUpdateOptions) => {
       const cwd = process.cwd();
-      const manifestPath = path.join(cwd, PUBLISH_MANIFEST_FILE);
-
-      if (!fs.existsSync(manifestPath)) {
-        console.error(chalk.red(`No ${PUBLISH_MANIFEST_FILE} found.`));
-        console.error(chalk.dim('Run: aitools manifest init'));
-        process.exit(1);
-      }
-
-      let existing: Record<string, unknown>;
-      try {
-        existing = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as Record<string, unknown>;
-      } catch {
-        console.error(chalk.red(`Failed to parse ${PUBLISH_MANIFEST_FILE} \u2014 check for syntax errors.`));
-        process.exit(1);
-      }
+      const existing = loadPublishDoc(cwd) as Record<string, unknown>;
 
       if (options.yes) {
-        await updateNonInteractive(options, manifestPath, existing);
+        await updateNonInteractive(options, cwd, existing);
       } else {
-        await updateInteractive(options, manifestPath, existing);
+        await updateInteractive(options, cwd, existing);
       }
     });
 }
 
 async function updateNonInteractive(
   options: ManifestUpdateOptions,
-  manifestPath: string,
+  cwd: string,
   existing: Record<string, unknown>,
 ): Promise<void> {
   const updated: Record<string, unknown> = { ...existing };
@@ -613,13 +613,38 @@ async function updateNonInteractive(
     else delete updated['platforms'];
   }
 
-  writeAndPrintManifest(manifestPath, updated as ManifestInput);
+  writeUpdatedPublishDoc(cwd, updated);
   console.log(chalk.dim(`\n  Tip: run aitools manifest validate to verify all declared files exist.`));
+}
+
+function writeUpdatedPublishDoc(cwd: string, updated: Record<string, unknown>): void {
+  const parsed = ToolManifestSchema.safeParse(updated);
+  if (!parsed.success) {
+    console.error(chalk.red('Manifest validation failed:'));
+    for (const issue of parsed.error.issues) {
+      const field = issue.path.join('.') || 'root';
+      console.error(`  ${chalk.red('?')} ${chalk.bold(field)}: ${issue.message}`);
+    }
+    process.exit(1);
+  }
+
+  const existing = readManifest(cwd) ?? {};
+  const merged: AiToolsManifest = {
+    dependencies: existing.dependencies,
+    devDependencies: existing.devDependencies,
+    registries: existing.registries,
+    ...parsed.data,
+  };
+  writeManifest(cwd, merged);
+  console.log(chalk.green(`\n  ? Updated ${MANIFEST_FILENAME}`));
+  console.log(`  name:     ${chalk.cyan(parsed.data.name)}`);
+  console.log(`  version:  ${chalk.cyan(parsed.data.version)}`);
+  console.log(`  category: ${chalk.cyan(parsed.data.category)}`);
 }
 
 async function updateInteractive(
   options: ManifestUpdateOptions,
-  manifestPath: string,
+  cwd: string,
   existing: Record<string, unknown>,
 ): Promise<void> {
   const rl = createInterface({ input, output, terminal: true });
@@ -631,7 +656,7 @@ async function updateInteractive(
     return raw || def || '';
   };
 
-  console.log(chalk.bold(`\nUpdating ${PUBLISH_MANIFEST_FILE}\n`));
+  console.log(chalk.bold(`\nUpdating ${MANIFEST_FILENAME}\n`));
   console.log(chalk.dim('  Press Enter to keep the current value.\n'));
 
   try {
@@ -683,7 +708,7 @@ async function updateInteractive(
     const platforms = platformsRaw.split(',').map((p) => p.trim()).filter(Boolean);
     if (platforms.length > 0) updated['platforms'] = platforms; else delete updated['platforms'];
 
-    writeAndPrintManifest(manifestPath, updated as ManifestInput);
+    writeUpdatedPublishDoc(cwd, updated);
     console.log(chalk.dim(`\n  Tip: run aitools manifest validate to verify all declared files exist.`));
   } catch (err) {
     rl.close();
@@ -691,15 +716,89 @@ async function updateInteractive(
   }
 }
 
+// -- manifest migrate ----------------------------------------------------------
+
+function createManifestMigrateCommand(): Command {
+  return new Command('migrate')
+    .description(`Merge ${LEGACY_PUBLISH_MANIFEST_FILENAME} into ${MANIFEST_FILENAME}`)
+    .option('--force', 'Overwrite conflicting publish fields in aitools.json')
+    .action((options: { force?: boolean }) => {
+      const cwd = process.cwd();
+      const legacyPath = path.join(cwd, LEGACY_PUBLISH_MANIFEST_FILENAME);
+      const unifiedPath = path.join(cwd, MANIFEST_FILENAME);
+
+      if (!fs.existsSync(legacyPath)) {
+        console.error(chalk.red(`No ${LEGACY_PUBLISH_MANIFEST_FILENAME} found to migrate.`));
+        process.exit(1);
+      }
+
+      let legacyRaw: unknown;
+      try {
+        legacyRaw = JSON.parse(fs.readFileSync(legacyPath, 'utf8'));
+      } catch {
+        console.error(chalk.red(`Failed to parse ${LEGACY_PUBLISH_MANIFEST_FILENAME}`));
+        process.exit(1);
+      }
+
+      const legacyParsed = ToolManifestSchema.safeParse(legacyRaw);
+      if (!legacyParsed.success) {
+        console.error(chalk.red('Legacy manifest failed schema validation.'));
+        process.exit(1);
+      }
+
+      let unified: AiToolsManifest = {};
+      if (fs.existsSync(unifiedPath)) {
+        let rawUnified: unknown;
+        try {
+          rawUnified = JSON.parse(fs.readFileSync(unifiedPath, 'utf8'));
+        } catch {
+          console.error(chalk.red(`Failed to parse ${MANIFEST_FILENAME}`));
+          process.exit(1);
+        }
+        const parsedUnified = AitoolsJsonSchema.safeParse(rawUnified);
+        if (!parsedUnified.success) {
+          console.error(chalk.red(`Invalid ${MANIFEST_FILENAME}: ${parsedUnified.error.message}`));
+          process.exit(1);
+        }
+        unified = parsedUnified.data;
+      }
+
+      if (
+        unified.name &&
+        legacyParsed.data.name &&
+        unified.name !== legacyParsed.data.name &&
+        !options.force
+      ) {
+        console.error(
+          chalk.red(
+            `Name conflict: ${MANIFEST_FILENAME} has "${unified.name}" but legacy manifest has "${legacyParsed.data.name}".`,
+          ),
+        );
+        console.error(chalk.dim('Resolve manually or re-run with --force.'));
+        process.exit(1);
+      }
+
+      const merged: AiToolsManifest = { ...unified, ...legacyParsed.data };
+      writeManifest(cwd, merged);
+      console.log(chalk.green(`Merged publish fields into ${MANIFEST_FILENAME}`));
+      console.warn(
+        chalk.yellow(
+          `[aitools] Remove ${LEGACY_PUBLISH_MANIFEST_FILENAME} when you are satisfied with the migration.`,
+        ),
+      );
+    });
+}
+
 // -- Command export ------------------------------------------------------------
 
 export function createManifestCommand(): Command {
   const cmd = new Command('manifest').description(
-    'Manage the tool publish manifest (aitools.manifest.json)',
+    `Manage the unified publish manifest (${MANIFEST_FILENAME})`,
   );
   cmd.addCommand(createManifestInitCommand());
   cmd.addCommand(createManifestValidateCommand());
   cmd.addCommand(createManifestBumpCommand());
   cmd.addCommand(createManifestUpdateCommand());
+  cmd.addCommand(createManifestMigrateCommand());
   return cmd;
 }

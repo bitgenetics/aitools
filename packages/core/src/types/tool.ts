@@ -86,8 +86,8 @@ export interface McpServerConfig {
 
 /**
  * The canonical manifest for a publishable AITools package.
- * This is stored as `aitools.manifest.json` at the root of a tool package
- * and served by the registry.
+ * This is the publish subset stored in the registry as aitools.json
+ * and written into installed package directories.
  */
 export interface ToolManifest {
   /** Scoped or unscoped name, e.g. "@company/my-skill" or "my-skill". */

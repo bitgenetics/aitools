@@ -17,14 +17,18 @@ import path from 'node:path';
 import { Command } from 'commander';
 import ora from 'ora';
 import chalk from 'chalk';
+import {
+  MANIFEST_FILENAME,
+  resolvePublishSource,
+  toPublishManifest,
+  ToolManifestSchema,
+} from '@bitgenetics/aitools-core';
+import type { ToolManifest } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { createRegistryClient } from '../utils/registry-client.js';
-import type { ToolManifest } from '@bitgenetics/aitools-core';
-import { ToolManifestSchema, PLATFORM_SPECS } from '@bitgenetics/aitools-core';
-import type { TargetPlatform } from '@bitgenetics/aitools-core';
 import { parseSkillFrontmatter, analyzeCompat } from './compat.js';
-
-const MANIFEST_FILE = 'aitools.manifest.json';
+import { PLATFORM_SPECS } from '@bitgenetics/aitools-core';
+import type { TargetPlatform } from '@bitgenetics/aitools-core';
 
 interface PublishOptions {
   manifest?: string;
@@ -33,24 +37,54 @@ interface PublishOptions {
   strict?: boolean;
 }
 
+function warnDeprecated(message: string): void {
+  console.warn(chalk.yellow(message));
+}
+
+function resolveToolManifest(
+  cwd: string,
+  explicitPath?: string,
+): { manifest: ToolManifest; manifestDir: string } | null {
+  let source;
+  try {
+    source = resolvePublishSource(cwd, explicitPath, warnDeprecated);
+  } catch {
+    return null;
+  }
+  if (!source) return null;
+
+  if (source.unified) {
+    try {
+      return { manifest: toPublishManifest(source.unified), manifestDir: source.manifestDir };
+    } catch (err) {
+      console.error(chalk.red((err as Error).message));
+      return null;
+    }
+  }
+
+  const parsed = ToolManifestSchema.safeParse(source.legacyRaw);
+  if (!parsed.success) {
+    console.error(chalk.red('Manifest validation failed:'));
+    for (const issue of parsed.error.issues) {
+      console.error(`  ${chalk.dim(issue.path.join('.'))} ${issue.message}`);
+    }
+    return null;
+  }
+  return { manifest: parsed.data, manifestDir: source.manifestDir };
+}
+
 /**
  * aitools publish [options]
  *
- * Reads aitools.manifest.json (or the file given by --manifest), reads all
- * declared source files from disk, and publishes the package to the primary
- * configured registry (or the one given by --registry).
- *
- * File layout expected on disk (relative to the manifest file):
- *   aitools.manifest.json
- *   skill.md           <- manifest.files[0].src
- *   assets/icon.png    <- manifest.files[1].src
+ * Reads aitools.json (or legacy aitools.manifest.json), extracts the publish
+ * subset, reads declared source files, and publishes to the configured registry.
  */
 export function createPublishCommand(): Command {
   return new Command('publish')
     .description('Publish a tool package to the registry')
     .option(
       '-m, --manifest <path>',
-      `Path to the manifest file (default: ./${MANIFEST_FILE})`,
+      `Path to the manifest file (default: ./${MANIFEST_FILENAME})`,
     )
     .option(
       '-r, --registry <url>',
@@ -63,40 +97,15 @@ export function createPublishCommand(): Command {
         cmd.help();
       }
       const cwd = process.cwd();
-      const manifestPath = options.manifest
-        ? path.resolve(options.manifest)
-        : path.join(cwd, MANIFEST_FILE);
-      const manifestDir = path.dirname(manifestPath);
 
-      // -- Read & validate manifest -----------------------------------------------
-      if (!fs.existsSync(manifestPath)) {
-        console.error(
-          chalk.red(`No manifest found at ${manifestPath}`),
-          `\n  Run ${chalk.cyan('aitools publish --manifest <path>')} to specify a different file.`,
-        );
+      const resolved = resolveToolManifest(cwd, options.manifest);
+      if (!resolved) {
+        console.error(chalk.red(`No publish manifest found.`));
         process.exit(1);
       }
 
-      let raw: unknown;
-      try {
-        raw = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-      } catch {
-        console.error(chalk.red(`Cannot parse ${manifestPath}: invalid JSON`));
-        process.exit(1);
-      }
+      const { manifest, manifestDir } = resolved;
 
-      const parsed = ToolManifestSchema.safeParse(raw);
-      if (!parsed.success) {
-        console.error(chalk.red('Manifest validation failed:'));
-        for (const issue of parsed.error.issues) {
-          console.error(`  ${chalk.dim(issue.path.join('.'))} ${issue.message}`);
-        }
-        process.exit(1);
-      }
-
-      const manifest: ToolManifest = parsed.data;
-
-      // -- Read source files -------------------------------------------------------
       const files: Record<string, string> = {};
       const missing: string[] = [];
 
@@ -115,7 +124,6 @@ export function createPublishCommand(): Command {
         process.exit(1);
       }
 
-      // -- Compat check (skill only) -----------------------------------------------
       if (manifest.category === 'skill') {
         const skillFile = manifest.files.find((f) => f.src.endsWith('SKILL.md'));
         if (skillFile) {
@@ -144,7 +152,6 @@ export function createPublishCommand(): Command {
         }
       }
 
-      // -- Dry-run output ---------------------------------------------------------
       if (options.dryRun) {
         console.log(chalk.bold(`Would publish ${manifest.name}@${manifest.version}`));
         console.log(`  category: ${chalk.cyan(manifest.category)}`);
@@ -155,11 +162,9 @@ export function createPublishCommand(): Command {
         return;
       }
 
-      // -- Resolve registry --------------------------------------------------------
       const configManager = new ConfigManager(cwd);
       const config = configManager.get();
 
-      // Pick registry with the lowest priority number (highest priority), falling back to first entry.
       const sorted = [...(config.registries ?? [])].sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100));
       let registryConfig = sorted[0];
 
@@ -176,7 +181,6 @@ export function createPublishCommand(): Command {
         process.exit(1);
       }
 
-      // -- Publish ----------------------------------------------------------------
       const spinner = ora(
         `Publishing ${chalk.bold(manifest.name)}@${manifest.version} to ${chalk.dim(registryConfig.url)}`,
       ).start();

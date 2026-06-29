@@ -325,17 +325,17 @@ describe('install command action', () => {
 
   it('installs a package and writes aitools.json', async () => {
     await createInstallCommand().parseAsync(['test-skill'], { from: 'user' });
-    const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as { tools: Record<string, string> };
-    expect(manifest.tools['test-skill']).toBe('^2.0.0');
+    const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as { dependencies: Record<string, string> };
+    expect(manifest.dependencies['test-skill']).toBe('^2.0.0');
     expect(readLockFile(tmp).tools['test-skill']).toBeDefined();
   });
 
   it('saves dev dependencies when --dev is passed', async () => {
     await createInstallCommand().parseAsync(['test-skill', '--dev'], { from: 'user' });
     const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
-      devTools: Record<string, string>;
+      devDependencies: Record<string, string>;
     };
-    expect(manifest.devTools['test-skill']).toBe('^2.0.0');
+    expect(manifest.devDependencies['test-skill']).toBe('^2.0.0');
   });
 
   function mockExit(): jest.SpiedFunction<typeof process.exit> {
@@ -359,13 +359,13 @@ describe('install command action', () => {
   });
 
   it('installs all tools listed in aitools.json', async () => {
-    writeManifest(tmp, { tools: { 'test-skill': '^2.0.0' } });
+    writeManifest(tmp, { dependencies: { 'test-skill': '^2.0.0' } });
     await createInstallCommand().parseAsync([], { from: 'user' });
     expect(readLockFile(tmp).tools['test-skill']).toBeDefined();
   });
 
   it('reports when aitools.json has no tools to install', async () => {
-    writeManifest(tmp, { tools: {} });
+    writeManifest(tmp, { dependencies: {} });
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     await createInstallCommand().parseAsync([], { from: 'user' });
     const output = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
@@ -415,7 +415,7 @@ describe('install command action', () => {
   });
 
   it('skips tools already satisfied during install-all', async () => {
-    writeManifest(tmp, { tools: { 'test-skill': '^2.0.0' } });
+    writeManifest(tmp, { dependencies: { 'test-skill': '^2.0.0' } });
     writeLockFile(
       tmp,
       upsertLockEntry(emptyLock(), 'test-skill', {
@@ -433,7 +433,7 @@ describe('install command action', () => {
   });
 
   it('reports failure for tools that cannot be resolved during install-all', async () => {
-    writeManifest(tmp, { tools: { 'missing-skill': '^1.0.0' } });
+    writeManifest(tmp, { dependencies: { 'missing-skill': '^1.0.0' } });
     mockGetManifest.mockRejectedValue(new Error('Not found'));
     mockListVersions.mockRejectedValue(new Error('Not found'));
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});

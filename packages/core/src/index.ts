@@ -23,6 +23,7 @@ export type {
   RegistryAuth,
   AiToolsConfig,
   AiToolsManifest,
+  AitoolsJson,
 } from './types/config.js';
 export { isGitRegistryConfig } from './types/config.js';
 export type { AiToolsLock, LockEntry } from './types/lock.js';
@@ -36,6 +37,7 @@ export {
   GitRegistryConfigSchema,
   RegistryConfigSchema,
   AiToolsConfigSchema,
+  AitoolsJsonSchema,
   AiToolsManifestSchema,
   AiToolsLockSchema,
 } from './schema/config-schema.js';
@@ -55,11 +57,24 @@ export {
 // Manifest utilities
 export {
   MANIFEST_FILENAME,
+  LEGACY_PUBLISH_MANIFEST_FILENAME,
+  REGISTRY_MANIFEST_FILENAME,
+  LEGACY_REGISTRY_MANIFEST_FILENAME,
   readManifest,
+  readAitoolsJson,
   writeManifest,
+  upsertDependency,
+  removeDependency,
   upsertToolDependency,
   removeToolDependency,
+  resolvePublishSource,
 } from './manifest/manifest-file.js';
+export type { ReadManifestOptions, ResolvedPublishSource } from './manifest/manifest-file.js';
+export { isPublishable, toPublishManifest } from './manifest/publish-manifest.js';
+export {
+  REGISTRY_MANIFEST_CANDIDATES,
+  pickRegistryManifestBasename,
+} from './manifest/registry-manifest.js';
 
 // Platform specs
 export type { PlatformSpec, SkillFieldSpec, FieldSupport, InstallPathSpec } from './platforms/index.js';

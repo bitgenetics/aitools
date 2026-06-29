@@ -15,7 +15,7 @@
 import { Command } from 'commander';
 import ora from 'ora';
 import chalk from 'chalk';
-import { readManifest, writeManifest, removeToolDependency } from '@bitgenetics/aitools-core';
+import { readManifest, writeManifest, removeDependency } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { Installer } from '../utils/installer.js';
 
@@ -54,7 +54,7 @@ export function createUninstallCommand(): Command {
       // Remove from aitools.json if present
       const manifest = readManifest(cwd);
       if (manifest) {
-        const updated = removeToolDependency(manifest, pkg);
+        const updated = removeDependency(manifest, pkg);
         writeManifest(cwd, updated);
         console.log(chalk.dim('  Removed from aitools.json'));
       }

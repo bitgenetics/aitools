@@ -43,8 +43,10 @@ describe('SimpleAuthProvider', () => {
 
   it('creates and validates admin sessions', async () => {
     const provider = new SimpleAuthProvider(undefined, undefined, 'admin-secret');
-    const sessionId = await provider.admin.createSession('admin-secret');
+    const sessionId = await provider.admin.createSession!('admin-secret');
     expect(sessionId).toMatch(/^[a-f0-9]{64}$/);
-    expect(await provider.admin.check({ cookies: { admin_session: sessionId! } })).toBe(true);
+    expect(
+      await provider.admin.check({ cookies: { admin_session: sessionId! }, headers: {} }),
+    ).toBe(true);
   });
 });

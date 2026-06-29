@@ -180,7 +180,7 @@ describe('compat command action', () => {
 
   function writeManifest(dir: string, manifest: Record<string, unknown>, skillContent?: string) {
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'aitools.manifest.json'), JSON.stringify(manifest), 'utf8');
+    fs.writeFileSync(path.join(dir, 'aitools.json'), JSON.stringify(manifest), 'utf8');
     if (skillContent) {
       fs.mkdirSync(path.join(dir, 'skill'), { recursive: true });
       fs.writeFileSync(path.join(dir, 'skill', 'SKILL.md'), skillContent, 'utf8');
@@ -298,7 +298,7 @@ describe('compat command action', () => {
   });
 
   it('exits when manifest JSON is invalid', async () => {
-    fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), '{ invalid', 'utf8');
+    fs.writeFileSync(path.join(tmp, 'aitools.json'), '{ invalid', 'utf8');
     const exitSpy = mockExit();
     jest.spyOn(console, 'error').mockImplementation(() => {});
     await expect(createCompatCommand().parseAsync([], { from: 'user' })).rejects.toThrow('process.exit:1');

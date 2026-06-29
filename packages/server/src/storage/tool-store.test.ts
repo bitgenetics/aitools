@@ -42,9 +42,24 @@ describe('ToolStore', () => {
   });
 
   describe('publish', () => {
-    it('stores a tool so that get() can retrieve it', async () => {
+    it('stores publish subset as aitools.json on disk', async () => {
       await store.publish(BASE_MANIFEST, BASE_FILES);
-      expect((await store.get('my-skill', '1.0.0'))?.manifest.name).toBe('my-skill');
+      const versionDir = path.join(tmp, 'my-skill', '1.0.0');
+      expect(fs.existsSync(path.join(versionDir, 'aitools.json'))).toBe(true);
+      expect(fs.existsSync(path.join(versionDir, 'manifest.json'))).toBe(false);
+    });
+
+    it('reads legacy manifest.json when aitools.json is absent', async () => {
+      const versionDir = path.join(tmp, 'legacy-skill', '1.0.0');
+      fs.mkdirSync(versionDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(versionDir, 'manifest.json'),
+        JSON.stringify({ ...BASE_MANIFEST, name: 'legacy-skill' }),
+        'utf8',
+      );
+      fs.writeFileSync(path.join(versionDir, 'files.json'), JSON.stringify(BASE_FILES), 'utf8');
+      const stored = await store.get('legacy-skill', '1.0.0');
+      expect(stored?.manifest.name).toBe('legacy-skill');
     });
 
     it('throws when the same version is published twice', async () => {

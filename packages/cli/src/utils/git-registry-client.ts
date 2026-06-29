@@ -19,6 +19,10 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import semver from 'semver';
 import type { ToolManifest, GitRegistryConfig } from '@bitgenetics/aitools-core';
+import {
+  REGISTRY_MANIFEST_FILENAME,
+  LEGACY_REGISTRY_MANIFEST_FILENAME,
+} from '@bitgenetics/aitools-core';
 import type { RegistryClient, SearchResult, PublishResult, DownloadResult } from './registry-client.js';
 
 /** Convert a scoped package name like "@scope/name" to a safe directory name. */
@@ -135,6 +139,18 @@ function pushWithRebase(dir: string, branch: string): void {
   runGit(['push', 'origin', branch], dir);
 }
 
+function resolveRegistryManifestPath(versionDirectory: string): string | null {
+  for (const name of [REGISTRY_MANIFEST_FILENAME, LEGACY_REGISTRY_MANIFEST_FILENAME]) {
+    const candidate = path.join(versionDirectory, name);
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+function registryVersionExists(versionDirectory: string): boolean {
+  return resolveRegistryManifestPath(versionDirectory) !== null;
+}
+
 async function walkManifests(
   config: GitRegistryConfig,
   cloneRoot: string,
@@ -157,8 +173,8 @@ async function walkManifests(
     const latest = versions[0];
     if (!latest) continue;
 
-    const manifestPath = path.join(toolPath, latest, 'manifest.json');
-    if (!fs.existsSync(manifestPath)) continue;
+    const manifestPath = resolveRegistryManifestPath(path.join(toolPath, latest));
+    if (!manifestPath) continue;
 
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as ToolManifest;
     manifests.push(manifest);
@@ -196,11 +212,9 @@ export function createGitRegistryClient(config: GitRegistryConfig): RegistryClie
         throw new Error(`Registry ${config.name}: tool not found: ${name}@${version}`);
       }
 
-      const manifestPath = path.join(
-        versionDir(config, cloneRoot, name, resolvedVersion),
-        'manifest.json',
-      );
-      if (!fs.existsSync(manifestPath)) {
+      const versionDirectory = versionDir(config, cloneRoot, name, resolvedVersion);
+      const manifestPath = resolveRegistryManifestPath(versionDirectory);
+      if (!manifestPath) {
         throw new Error(`Registry ${config.name}: tool not found: ${name}@${version}`);
       }
 
@@ -279,7 +293,7 @@ export function createGitRegistryClient(config: GitRegistryConfig): RegistryClie
       const cloneRoot = ensureClone(config, branch);
       const versionDirectory = versionDir(config, cloneRoot, manifest.name, manifest.version);
 
-      if (fs.existsSync(path.join(versionDirectory, 'manifest.json'))) {
+      if (registryVersionExists(versionDirectory)) {
         throw new Error(
           `Registry ${config.name}: version already exists: ${manifest.name}@${manifest.version}`,
         );
@@ -291,7 +305,7 @@ export function createGitRegistryClient(config: GitRegistryConfig): RegistryClie
       const integrity = computeIntegrity(tarball);
 
       fs.writeFileSync(
-        path.join(versionDirectory, 'manifest.json'),
+        path.join(versionDirectory, REGISTRY_MANIFEST_FILENAME),
         JSON.stringify(manifest, null, 2) + '\n',
         'utf8',
       );

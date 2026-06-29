@@ -13,7 +13,21 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import { z } from 'zod';
-import { ToolCategorySchema } from './tool-schema.js';
+import { McpServerConfigSchema, ToolCategorySchema, ToolFileSchema } from './tool-schema.js';
+
+function normalizeLegacyDepFields(val: unknown): unknown {
+  if (!val || typeof val !== 'object' || Array.isArray(val)) return val;
+  const obj = { ...(val as Record<string, unknown>) };
+  if ('tools' in obj && !('dependencies' in obj)) {
+    obj.dependencies = obj.tools;
+    delete obj.tools;
+  }
+  if ('devTools' in obj && !('devDependencies' in obj)) {
+    obj.devDependencies = obj.devTools;
+    delete obj.devTools;
+  }
+  return obj;
+}
 
 // -- Registry auth -----------------------------------------------------------
 
@@ -86,12 +100,34 @@ export const AiToolsConfigSchema = z.object({
 
 // -- aitools.json -----------------------------------------------------------
 
-export const AiToolsManifestSchema = z.object({
-  name: z.string().optional(),
-  tools: z.record(z.string()).optional(),
-  devTools: z.record(z.string()).optional(),
-  registries: z.array(RegistryConfigSchema).optional(),
-});
+const PlatformWithUniversalSchema = z.enum(['vscode', 'claude', 'cursor', 'windsurf', 'universal']);
+
+/** Unified per-project manifest: dependencies + optional publish fields. */
+export const AitoolsJsonSchema = z.preprocess(
+  normalizeLegacyDepFields,
+  z.object({
+    name: z.string().optional(),
+    dependencies: z.record(z.string()).optional(),
+    devDependencies: z.record(z.string()).optional(),
+    registries: z.array(RegistryConfigSchema).optional(),
+    // Publish fields (optional until publishing)
+    version: z.string().optional(),
+    description: z.string().min(1).optional(),
+    category: ToolCategorySchema.optional(),
+    nativeFor: PlatformWithUniversalSchema.optional(),
+    files: z.array(ToolFileSchema).optional(),
+    mcpServer: McpServerConfigSchema.optional(),
+    keywords: z.array(z.string()).optional(),
+    author: z.string().optional(),
+    repository: z.string().url().optional(),
+    tags: z.array(z.string()).optional(),
+    platforms: z.array(PlatformWithUniversalSchema).optional(),
+    private: z.boolean().optional(),
+  }),
+);
+
+/** @deprecated Use AitoolsJsonSchema — alias kept for internal references. */
+export const AiToolsManifestSchema = AitoolsJsonSchema;
 
 // -- aitools-lock.json ------------------------------------------------------
 
@@ -114,6 +150,7 @@ export const AiToolsLockSchema = z.object({
 });
 
 export type AiToolsConfigInput = z.input<typeof AiToolsConfigSchema>;
-export type AiToolsManifestInput = z.input<typeof AiToolsManifestSchema>;
+export type AitoolsJsonInput = z.input<typeof AitoolsJsonSchema>;
+export type AiToolsManifestInput = AitoolsJsonInput;
 export type AiToolsLockInput = z.input<typeof AiToolsLockSchema>;
 

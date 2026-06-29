@@ -22,6 +22,7 @@ import {
   removeLockEntry,
   toLockEntry,
   normalizeCategory,
+  MANIFEST_FILENAME,
 } from '@bitgenetics/aitools-core';
 import type { ConfigManager } from './config-manager.js';
 import type { RegistryClient } from './registry-client.js';
@@ -257,6 +258,17 @@ export class Installer {
       fileResults.push({ dest: writtenRel, transform: transformResult });
     }
 
+    if (writtenFiles.length > 0) {
+      const descriptorDir = lowestCommonInstallDir(this.cwd, writtenFiles);
+      const descriptorPath = path.join(descriptorDir, MANIFEST_FILENAME);
+      fs.mkdirSync(descriptorDir, { recursive: true });
+      fs.writeFileSync(descriptorPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
+      const descriptorRel = path.relative(this.cwd, descriptorPath).replace(/\\/g, '/');
+      if (!writtenFiles.includes(descriptorRel)) {
+        writtenFiles.push(descriptorRel);
+      }
+    }
+
     const installedTool: InstalledTool = {
       name: manifest.name,
       version: manifest.version,
@@ -436,6 +448,20 @@ function removeMcpEntry(configPath: string, toolName: string): void {
   const serverKey = toolName.replace(/^@[^/]+\//, '');
   delete mcpJson.servers[serverKey];
   fs.writeFileSync(configPath, JSON.stringify(mcpJson, null, 2) + '\n', 'utf8');
+}
+
+function lowestCommonInstallDir(cwd: string, writtenRelPaths: string[]): string {
+  if (writtenRelPaths.length === 0) return cwd;
+  const absDirs = writtenRelPaths.map((f) => path.dirname(path.resolve(cwd, f)));
+  const splitDirs = absDirs.map((d) => d.split(path.sep));
+  let common = splitDirs[0]!;
+  for (const parts of splitDirs.slice(1)) {
+    const len = Math.min(common.length, parts.length);
+    let i = 0;
+    while (i < len && common[i] === parts[i]) i++;
+    common = common.slice(0, i);
+  }
+  return common.join(path.sep) || absDirs[0]!;
 }
 
 function cleanEmptyDirs(dir: string, stopAt: string): void {

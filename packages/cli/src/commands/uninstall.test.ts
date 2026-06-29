@@ -81,8 +81,8 @@ describe('uninstall command', () => {
     jest.spyOn(console, 'log').mockImplementation(() => {});
     createUninstallCommand().parse(['my-skill'], { from: 'user' });
 
-    const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as { tools: Record<string, string> };
-    expect(manifest.tools['my-skill']).toBeUndefined();
+    const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as { dependencies: Record<string, string> };
+    expect(manifest.dependencies['my-skill']).toBeUndefined();
   });
 
   it('exits with error when the tool is not installed', () => {

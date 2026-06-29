@@ -139,7 +139,7 @@ describe('aitools init', () => {
   it('does not overwrite an existing aitools.json without --force', () => {
     fs.writeFileSync(
       path.join(tmpDir, 'aitools.json'),
-      JSON.stringify({ name: 'original', tools: {} }),
+      JSON.stringify({ name: 'original', dependencies: {} }),
     );
     run('init', tmpDir);
     const content = JSON.parse(
@@ -151,7 +151,7 @@ describe('aitools init', () => {
   it('overwrites an existing aitools.json with --force', () => {
     fs.writeFileSync(
       path.join(tmpDir, 'aitools.json'),
-      JSON.stringify({ name: 'original', tools: {} }),
+      JSON.stringify({ name: 'original', dependencies: {} }),
     );
     run('init --force', tmpDir);
     const manifest = JSON.parse(
@@ -303,8 +303,8 @@ describe('aitools update', () => {
       path.join(tmpDir, 'aitools.json'),
       JSON.stringify({
         name: 'test-project',
-        tools: { [`${fixtureName}`]: '^1.0.0' },
-        devTools: {},
+        dependencies: { [`${fixtureName}`]: '^1.0.0' },
+        devDependencies: {},
       }),
     );
 
@@ -332,7 +332,7 @@ describe('aitools manifest bump', () => {
 
   function writeManifest(version: string): void {
     fs.writeFileSync(
-      path.join(tmpDir, 'aitools.manifest.json'),
+      path.join(tmpDir, 'aitools.json'),
       JSON.stringify({
         name: 'bump-test',
         version,
@@ -345,7 +345,7 @@ describe('aitools manifest bump', () => {
 
   function readVersion(): string {
     const m = JSON.parse(
-      fs.readFileSync(path.join(tmpDir, 'aitools.manifest.json'), 'utf8'),
+      fs.readFileSync(path.join(tmpDir, 'aitools.json'), 'utf8'),
     ) as { version: string };
     return m.version;
   }
@@ -394,7 +394,7 @@ describe('aitools manifest validate', () => {
 
   it('succeeds for a valid manifest with all source files present', () => {
     fs.writeFileSync(
-      path.join(tmpDir, 'aitools.manifest.json'),
+      path.join(tmpDir, 'aitools.json'),
       JSON.stringify({
         name: 'validate-test',
         version: '1.0.0',
@@ -410,7 +410,7 @@ describe('aitools manifest validate', () => {
 
   it('exits non-zero when a declared source file is missing from disk', () => {
     fs.writeFileSync(
-      path.join(tmpDir, 'aitools.manifest.json'),
+      path.join(tmpDir, 'aitools.json'),
       JSON.stringify({
         name: 'validate-test',
         version: '1.0.0',
@@ -443,7 +443,7 @@ describe('aitools publish', () => {
 
   it('--dry-run shows what would be published without uploading', () => {
     fs.writeFileSync(
-      path.join(tmpDir, 'aitools.manifest.json'),
+      path.join(tmpDir, 'aitools.json'),
       JSON.stringify({
         name: 'cli-e2e-dry-run-tool',
         version: '1.0.0',
@@ -460,7 +460,7 @@ describe('aitools publish', () => {
   it('publishes a tool to the registry', async () => {
     const toolName = 'cli-e2e-publish-via-cli';
     fs.writeFileSync(
-      path.join(tmpDir, 'aitools.manifest.json'),
+      path.join(tmpDir, 'aitools.json'),
       JSON.stringify({
         name: toolName,
         version: '1.0.0',
@@ -536,7 +536,7 @@ describe('aitools git registry', () => {
 
   it('publishes and installs a tool through a git registry', () => {
     fs.writeFileSync(
-      path.join(tmpDir, 'aitools.manifest.json'),
+      path.join(tmpDir, 'aitools.json'),
       JSON.stringify({
         name: fixtureName,
         version: '1.0.0',
@@ -560,7 +560,7 @@ describe('aitools git registry', () => {
 
   it('finds a published tool via search', () => {
     fs.writeFileSync(
-      path.join(tmpDir, 'aitools.manifest.json'),
+      path.join(tmpDir, 'aitools.json'),
       JSON.stringify({
         name: `${fixtureName}-search`,
         version: '1.0.0',

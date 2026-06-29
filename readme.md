@@ -121,7 +121,7 @@ my-tools-registry/
 └── registry/
     └── @scope__tool-name/
         └── 1.0.0/
-            ├── manifest.json
+            ├── aitools.json
             └── tool.json      # JSON tarball: [{ "path", "content" }, ...]
 ```
 
@@ -339,7 +339,8 @@ aitools dev-init
 | `aitools config unset <key> --project` | Remove a config key from project config |
 | `aitools config edit` | Open user config in your editor |
 | `aitools config edit --project` | Open project config in your editor |
-| `aitools manifest init` | Create an `aitools.manifest.json` for publishing |
+| `aitools manifest init` | Add publish fields to `aitools.json` |
+| `aitools manifest migrate` | Merge legacy `aitools.manifest.json` into `aitools.json` |
 | `aitools manifest validate` | Validate an existing manifest against the schema |
 | `aitools manifest bump <patch\|minor\|major\|x.y.z>` | Bump the manifest version |
 | `aitools publish` | Publish the tool to a registry |
@@ -402,7 +403,7 @@ aitools dev-init
 
 | Flag | Description |
 |---|---|
-| `-m, --manifest <path>` | Path to manifest file (default: `./aitools.manifest.json`) |
+| `-m, --manifest <path>` | Path to manifest file (default: `./aitools.json`) |
 | `-p, --platform <platform>` | Check a specific platform only |
 | `--fix` | Rewrite the SKILL.md file, stripping frontmatter fields unsupported on the target platform(s) |
 
@@ -416,7 +417,7 @@ aitools dev-init
 # 1. Create the publish manifest (once)
 aitools manifest init --category skill --description "My skill"
 
-# 2. Edit aitools.manifest.json and add your files, then publish
+# 2. Edit aitools.json publish fields and add your files, then publish
 aitools publish
 
 # 3. To release an update, bump the version first
@@ -447,17 +448,27 @@ aitools publish
 aitools publish --registry http://localhost:4873
 ```
 
-### `aitools.manifest.json`
+### Publish fields in `aitools.json`
+
+Consumer projects and publishable packages share one file. Publish fields (`version`, `category`, `files`, …) are optional until you publish. `aitools publish` sends a publish subset to the registry (omits `devDependencies`).
+
+Legacy `aitools.manifest.json` is still read with a deprecation warning — run `aitools manifest migrate` to merge it.
 
 ```json
 {
-  "name": "my-skill",
+  "name": "@team/my-skill",
   "version": "1.0.0",
   "description": "Does something useful",
   "category": "skill",
   "files": [
     { "src": "skill.md", "dest": "my-skill.md" }
   ],
+  "dependencies": {
+    "@team/base-skill": "^1.0.0"
+  },
+  "devDependencies": {
+    "@team/create-ai-tool": "^1.0.0"
+  },
   "keywords": ["code-review", "typescript"],
   "author": "Your Name"
 }
@@ -495,21 +506,23 @@ Each entry may include an optional `platform` field (`vscode`, `claude`, `cursor
 
 ## Project files
 
-### `aitools.json` — dependency manifest
+### `aitools.json` — unified manifest (npm-style)
 
-Tracks which tools your project depends on, similar to `package.json`.
+Tracks registry dependencies and optional publish fields in one file.
 
 ```json
 {
   "name": "my-project",
-  "tools": {
+  "dependencies": {
     "@scope/my-skill": "^1.0.0"
   },
-  "devTools": {
+  "devDependencies": {
     "@scope/review-agent": "^2.1.0"
   }
 }
 ```
+
+Installed packages include a publish-subset `aitools.json` beside their content (like `package.json` in `node_modules`).
 
 ### `aitools-lock.json` — lock file
 
@@ -653,7 +666,7 @@ Point the CLI at any git remote URL. No `@bitgenetics/aitools-server` process is
 
 1. On first use, the CLI clones the repo into `~/.aitools/git-cache/<registry-name>/`.
 2. **Install** and **search** read semver directories under `<path>/<scoped-name>/<version>/`.
-3. **Publish** writes `manifest.json` and `tool.json`, commits, rebases onto the remote branch if needed, then pushes.
+3. **Publish** writes `aitools.json` and `tool.json`, commits, rebases onto the remote branch if needed, then pushes.
 4. Separate **read** and **publish** branches are supported (useful for a `releases` branch fed by CI).
 
 **Repository layout**
@@ -663,10 +676,10 @@ tools-registry/                 # your git repo
 └── registry/                   # default path (override with --path)
     └── @acme__review-skill/    # @acme/review-skill — / becomes __
         ├── 1.0.0/
-        │   ├── manifest.json     # standard tool manifest
+        │   ├── aitools.json      # publish subset
         │   └── tool.json       # JSON tarball: [{ "path", "content" }, ...]
         └── 1.1.0/
-            ├── manifest.json
+            ├── aitools.json
             └── tool.json
 ```
 

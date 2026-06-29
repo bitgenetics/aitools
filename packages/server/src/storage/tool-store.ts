@@ -16,6 +16,10 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import semver from 'semver';
 import type { ToolManifest } from '@bitgenetics/aitools-core';
+import {
+  REGISTRY_MANIFEST_FILENAME,
+  LEGACY_REGISTRY_MANIFEST_FILENAME,
+} from '@bitgenetics/aitools-core';
 import type { IStorageProvider } from '../providers/storage/types.js';
 import { LocalStorageProvider } from '../providers/storage/local.js';
 
@@ -52,7 +56,7 @@ export class ToolStoreError extends Error {
 /**
  * Tool store backed by an IStorageProvider.
  *
- * Layout: <root>/<name>/<version>/manifest.json
+ * Layout: <root>/<name>/<version>/aitools.json
  *                                /files.json
  *         <root>/<name>/owner.json
  *
@@ -77,7 +81,7 @@ export class ToolStore {
   ): Promise<void> {
     const dir = this.versionPath(manifest.name, manifest.version);
 
-    if (await this.provider.exists(path.join(dir, 'manifest.json'))) {
+    if (await this.versionManifestExists(dir)) {
       throw new Error(`${manifest.name}@${manifest.version} already published`);
     }
 
@@ -112,7 +116,7 @@ export class ToolStore {
     }
 
     await this.provider.write(
-      path.join(dir, 'manifest.json'),
+      path.join(dir, REGISTRY_MANIFEST_FILENAME),
       JSON.stringify(manifest, null, 2) + '\n',
     );
     await this.provider.write(
@@ -168,8 +172,8 @@ export class ToolStore {
     if (!resolvedVersion) return null;
 
     const dir = this.versionPath(name, resolvedVersion);
-    const manifestPath = path.join(dir, 'manifest.json');
-    if (!(await this.provider.exists(manifestPath))) return null;
+    const manifestPath = await this.resolveVersionManifestPath(dir);
+    if (!manifestPath) return null;
 
     const manifest = JSON.parse(await this.provider.readText(manifestPath)) as ToolManifest;
     const files = JSON.parse(
@@ -254,7 +258,7 @@ export class ToolStore {
   /** Mark a tool version as deprecated. */
   async deprecate(name: string, version: string): Promise<void> {
     const versionDir = this.versionPath(name, version);
-    if (!(await this.provider.exists(path.join(versionDir, 'manifest.json')))) {
+    if (!(await this.versionManifestExists(versionDir))) {
       throw new Error(`Version not found: ${name}@${version}`);
     }
     await this.provider.write(
@@ -266,7 +270,7 @@ export class ToolStore {
   /** Remove a specific version of a tool. */
   async unpublish(name: string, version: string): Promise<void> {
     const versionDir = this.versionPath(name, version);
-    if (!(await this.provider.exists(path.join(versionDir, 'manifest.json')))) {
+    if (!(await this.versionManifestExists(versionDir))) {
       throw new Error(`Version not found: ${name}@${version}`);
     }
 
@@ -279,6 +283,18 @@ export class ToolStore {
   }
 
   // -- Private helpers ------------------------------------------------------
+
+  private async versionManifestExists(versionDir: string): Promise<boolean> {
+    return (await this.resolveVersionManifestPath(versionDir)) !== null;
+  }
+
+  private async resolveVersionManifestPath(versionDir: string): Promise<string | null> {
+    for (const name of [REGISTRY_MANIFEST_FILENAME, LEGACY_REGISTRY_MANIFEST_FILENAME]) {
+      const candidate = path.join(versionDir, name);
+      if (await this.provider.exists(candidate)) return candidate;
+    }
+    return null;
+  }
 
   private toolPath(name: string): string {
     return sanitizeName(name);

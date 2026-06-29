@@ -87,16 +87,32 @@ export interface AiToolsConfig {
 }
 
 /**
- * aitools.json � the per-project tool dependency manifest.
- * Analogous to package.json for npm.
+ * aitools.json — unified per-project manifest (npm-style).
+ * Consumer deps + optional publish fields in one file.
  */
 export interface AiToolsManifest {
-  /** Optional project name. */
+  /** Optional project or package name. */
   name?: string;
-  /** Tools required for this project, name -> semver range. */
-  tools?: Record<string, string>;
-  /** Dev-only tools (not installed in CI unless --include-dev). */
-  devTools?: Record<string, string>;
+  /** Registry packages required for this project, name -> semver range. */
+  dependencies?: Record<string, string>;
+  /** Dev-only registry packages (aitools install --dev). */
+  devDependencies?: Record<string, string>;
   /** Registry overrides specific to this project. */
   registries?: RegistryConfig[];
+  // Publish fields (optional until publishing)
+  version?: string;
+  description?: string;
+  category?: import('./tool.js').ToolCategory;
+  nativeFor?: import('./tool.js').TargetPlatform;
+  files?: import('./tool.js').ToolFile[];
+  mcpServer?: import('./tool.js').McpServerConfig;
+  keywords?: string[];
+  author?: string;
+  repository?: string;
+  tags?: string[];
+  platforms?: import('./tool.js').TargetPlatform[];
+  private?: boolean;
 }
+
+/** Alias for unified manifest type. */
+export type AitoolsJson = AiToolsManifest;

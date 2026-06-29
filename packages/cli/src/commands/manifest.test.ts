@@ -47,7 +47,7 @@ describe('manifest command', () => {
 
   describe('validate subcommand', () => {
     it('succeeds for a valid manifest', () => {
-      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
       // validate also checks declared files exist on disk
       fs.writeFileSync(path.join(tmp, 'skill.md'), '# Skill', 'utf8');
       const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -58,7 +58,7 @@ describe('manifest command', () => {
     });
 
     it('exits with error for an invalid manifest', () => {
-      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify({ name: 'bad' }), 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify({ name: 'bad' }), 'utf8');
       jest.spyOn(console, 'error').mockImplementation(() => {});
       const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
         throw new Error(`process.exit(${code})`);
@@ -83,7 +83,7 @@ describe('manifest command', () => {
     });
 
     it('exits when manifest JSON is malformed', () => {
-      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), '{ bad json', 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.json'), '{ bad json', 'utf8');
       jest.spyOn(console, 'error').mockImplementation(() => {});
       const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
         throw new Error(`process.exit(${code})`);
@@ -96,7 +96,7 @@ describe('manifest command', () => {
     });
 
     it('exits when declared source files are missing on disk', () => {
-      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
       jest.spyOn(console, 'error').mockImplementation(() => {});
       jest.spyOn(console, 'log').mockImplementation(() => {});
       const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
@@ -112,39 +112,39 @@ describe('manifest command', () => {
 
   describe('bump subcommand', () => {
     it('increments the patch version', () => {
-      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createManifestCommand().parse(['bump', 'patch'], { from: 'user' });
-      const updated = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8')) as { version: string };
+      const updated = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as { version: string };
       expect(updated.version).toBe('1.0.1');
     });
 
     it('increments the minor version', () => {
-      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createManifestCommand().parse(['bump', 'minor'], { from: 'user' });
-      const updated = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8')) as { version: string };
+      const updated = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as { version: string };
       expect(updated.version).toBe('1.1.0');
     });
 
     it('increments the major version', () => {
-      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createManifestCommand().parse(['bump', 'major'], { from: 'user' });
-      const updated = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8')) as { version: string };
+      const updated = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as { version: string };
       expect(updated.version).toBe('2.0.0');
     });
 
     it('sets an explicit semver version', () => {
-      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createManifestCommand().parse(['bump', '3.0.0'], { from: 'user' });
-      const updated = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8')) as { version: string };
+      const updated = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as { version: string };
       expect(updated.version).toBe('3.0.0');
     });
 
     it('exits for an invalid bump release argument', () => {
-      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
       jest.spyOn(console, 'error').mockImplementation(() => {});
       const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
         throw new Error(`process.exit(${code})`);
@@ -169,7 +169,7 @@ describe('manifest command', () => {
     });
 
     it('exits when explicit bump version is not greater than current', () => {
-      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
       jest.spyOn(console, 'error').mockImplementation(() => {});
       const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
         throw new Error(`process.exit(${code})`);
@@ -183,7 +183,7 @@ describe('manifest command', () => {
 
     it('exits when current manifest version is not valid semver', () => {
       fs.writeFileSync(
-        path.join(tmp, 'aitools.manifest.json'),
+        path.join(tmp, 'aitools.json'),
         JSON.stringify({ ...VALID_MANIFEST, version: 'not-semver' }),
         'utf8',
       );
@@ -200,10 +200,10 @@ describe('manifest command', () => {
   });
 
   describe('init subcommand', () => {
-    it('creates aitools.manifest.json in the current directory', () => {
+    it('creates aitools.json in the current directory', () => {
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createManifestCommand().parse(['init', '--name', 'new-skill', '--category', 'skill', '--yes'], { from: 'user' });
-      expect(fs.existsSync(path.join(tmp, 'aitools.manifest.json'))).toBe(true);
+      expect(fs.existsSync(path.join(tmp, 'aitools.json'))).toBe(true);
     });
 
     it('creates manifest entries from explicit --file options', () => {
@@ -213,18 +213,18 @@ describe('manifest command', () => {
         ['init', '--name', 'file-skill', '--category', 'skill', '--yes', '--file', 'custom.md:custom.md'],
         { from: 'user' },
       );
-      const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8')) as {
+      const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
         files: Array<{ src: string; dest: string }>;
       };
       expect(manifest.files).toEqual([{ src: 'custom.md', dest: 'custom.md' }]);
     });
 
     it('refuses to overwrite an existing manifest without --force', () => {
-      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
       const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
       createManifestCommand().parse(['init', '--name', 'other', '--yes'], { from: 'user' });
       const output = logSpy.mock.calls.map((a) => String(a[0])).join('\n');
-      expect(output).toContain('already exists');
+      expect(output).toMatch(/publish fields/);
       logSpy.mockRestore();
     });
 
@@ -232,7 +232,7 @@ describe('manifest command', () => {
       fs.writeFileSync(path.join(tmp, 'found.md'), '# Found', 'utf8');
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createManifestCommand().parse(['init', '--name', 'found-skill', '--yes'], { from: 'user' });
-      const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8')) as {
+      const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
         files: Array<{ src: string; dest: string }>;
       };
       expect(manifest.files).toEqual([{ src: 'found.md', dest: 'found.md' }]);
@@ -244,7 +244,7 @@ describe('manifest command', () => {
         ['init', '--name', 'meta-skill', '--yes', '--author', 'Me', '--keywords', 'a, b'],
         { from: 'user' },
       );
-      const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8')) as {
+      const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
         author: string;
         keywords: string[];
       };
@@ -276,7 +276,7 @@ describe('manifest command', () => {
       await createManifestCommand().parseAsync(['init'], { from: 'user' });
 
       const manifest = JSON.parse(
-        fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8'),
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { files: Array<{ src: string; dest: string }> };
       expect(manifest.files).toEqual([{ src: 'other-skill/SKILL.md', dest: 'other-skill/SKILL.md' }]);
     });
@@ -301,7 +301,7 @@ describe('manifest command', () => {
       await createManifestCommand().parseAsync(['init'], { from: 'user' });
 
       const manifest = JSON.parse(
-        fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8'),
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { files: Array<{ src: string; dest: string }> };
       expect(manifest.files).toEqual([{ src: 'my-tool.md', dest: 'my-tool.md' }]);
     });
@@ -335,7 +335,7 @@ describe('manifest update', () => {
   describe('--yes (non-interactive)', () => {
     beforeEach(() => {
       fs.writeFileSync(
-        path.join(tmp, 'aitools.manifest.json'),
+        path.join(tmp, 'aitools.json'),
         JSON.stringify(VALID_MANIFEST),
         'utf8',
       );
@@ -348,7 +348,7 @@ describe('manifest update', () => {
         { from: 'user' },
       );
       const manifest = JSON.parse(
-        fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8'),
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as Record<string, unknown>;
       expect(manifest['description']).toBe('Updated description');
       expect(manifest['name']).toBe('my-skill');
@@ -362,14 +362,14 @@ describe('manifest update', () => {
         { from: 'user' },
       );
       const manifest = JSON.parse(
-        fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8'),
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as Record<string, unknown>;
       expect(manifest['platforms']).toEqual(['vscode', 'claude']);
     });
 
     it('removes platforms when --platforms is passed an empty string', async () => {
       fs.writeFileSync(
-        path.join(tmp, 'aitools.manifest.json'),
+        path.join(tmp, 'aitools.json'),
         JSON.stringify({ ...VALID_MANIFEST, platforms: ['vscode'] }),
         'utf8',
       );
@@ -379,7 +379,7 @@ describe('manifest update', () => {
         { from: 'user' },
       );
       const manifest = JSON.parse(
-        fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8'),
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as Record<string, unknown>;
       expect(manifest['platforms']).toBeUndefined();
     });
@@ -391,7 +391,7 @@ describe('manifest update', () => {
         { from: 'user' },
       );
       const manifest = JSON.parse(
-        fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8'),
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as Record<string, unknown>;
       expect(manifest['tags']).toEqual(['lint', 'refactor']);
     });
@@ -403,14 +403,14 @@ describe('manifest update', () => {
         { from: 'user' },
       );
       const manifest = JSON.parse(
-        fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8'),
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as Record<string, unknown>;
       expect(manifest['keywords']).toEqual(['jest', 'tdd', 'typescript']);
     });
 
     it('removes keywords when --keywords is empty', async () => {
       fs.writeFileSync(
-        path.join(tmp, 'aitools.manifest.json'),
+        path.join(tmp, 'aitools.json'),
         JSON.stringify({ ...VALID_MANIFEST, keywords: ['old'] }),
         'utf8',
       );
@@ -420,7 +420,7 @@ describe('manifest update', () => {
         { from: 'user' },
       );
       const manifest = JSON.parse(
-        fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8'),
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as Record<string, unknown>;
       expect(manifest['keywords']).toBeUndefined();
     });
@@ -429,7 +429,7 @@ describe('manifest update', () => {
   describe('interactive', () => {
     it('prompts with existing values as defaults and writes updated manifest', async () => {
       fs.writeFileSync(
-        path.join(tmp, 'aitools.manifest.json'),
+        path.join(tmp, 'aitools.json'),
         JSON.stringify({ ...VALID_MANIFEST, author: 'Old Author', platforms: ['vscode'] }),
         'utf8',
       );
@@ -449,7 +449,7 @@ describe('manifest update', () => {
       await createManifestCommand().parseAsync(['update'], { from: 'user' });
 
       const manifest = JSON.parse(
-        fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8'),
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as Record<string, unknown>;
       expect(manifest['author']).toBe('New Author');
       expect(manifest['platforms']).toEqual(['vscode', 'claude']);
@@ -458,7 +458,7 @@ describe('manifest update', () => {
 
     it('removes platforms when user types - on the platforms prompt', async () => {
       fs.writeFileSync(
-        path.join(tmp, 'aitools.manifest.json'),
+        path.join(tmp, 'aitools.json'),
         JSON.stringify({ ...VALID_MANIFEST, platforms: ['vscode'] }),
         'utf8',
       );
@@ -478,9 +478,47 @@ describe('manifest update', () => {
       await createManifestCommand().parseAsync(['update'], { from: 'user' });
 
       const manifest = JSON.parse(
-        fs.readFileSync(path.join(tmp, 'aitools.manifest.json'), 'utf8'),
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as Record<string, unknown>;
       expect(manifest['platforms']).toBeUndefined();
+    });
+  });
+
+  describe('migrate subcommand', () => {
+    it('merges aitools.manifest.json into aitools.json', () => {
+      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+      fs.writeFileSync(
+        path.join(tmp, 'aitools.json'),
+        JSON.stringify({ dependencies: { 'other-skill': '^1.0.0' } }),
+        'utf8',
+      );
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
+      createManifestCommand().parse(['migrate'], { from: 'user' });
+      const merged = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
+        name: string;
+        dependencies: Record<string, string>;
+      };
+      expect(merged.name).toBe('my-skill');
+      expect(merged.dependencies['other-skill']).toBe('^1.0.0');
+    });
+
+    it('errors on conflicting name without --force', () => {
+      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+      fs.writeFileSync(
+        path.join(tmp, 'aitools.json'),
+        JSON.stringify({ name: 'different-name' }),
+        'utf8',
+      );
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+        throw new Error(`process.exit(${code})`);
+      });
+      try {
+        expect(() => createManifestCommand().parse(['migrate'], { from: 'user' })).toThrow('process.exit(1)');
+      } finally {
+        mockExit.mockRestore();
+      }
     });
   });
 });

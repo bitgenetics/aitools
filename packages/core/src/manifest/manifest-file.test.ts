@@ -18,8 +18,8 @@ import path from 'node:path';
 import {
   readManifest,
   writeManifest,
-  upsertToolDependency,
-  removeToolDependency,
+  upsertDependency,
+  removeDependency,
   MANIFEST_FILENAME,
 } from '../manifest/manifest-file.js';
 import type { AiToolsManifest } from '../types/config.js';
@@ -47,7 +47,7 @@ describe('readManifest', () => {
   it('throws when the manifest fails schema validation', () => {
     fs.writeFileSync(
       path.join(tmp, MANIFEST_FILENAME),
-      JSON.stringify({ tools: 'not-an-object' }),
+      JSON.stringify({ dependencies: 'not-an-object' }),
       'utf8',
     );
     expect(() => readManifest(tmp)).toThrow('Invalid manifest');
@@ -56,7 +56,21 @@ describe('readManifest', () => {
   it('round-trips a manifest through writeManifest', () => {
     const manifest: AiToolsManifest = {
       name: 'my-project',
-      tools: { 'my-skill': '^1.0.0' },
+      dependencies: { 'my-skill': '^1.0.0' },
+    };
+    writeManifest(tmp, manifest);
+    expect(readManifest(tmp)).toEqual(manifest);
+  });
+
+  it('round-trips publish fields and dependencies together', () => {
+    const manifest: AiToolsManifest = {
+      name: '@team/pkg',
+      version: '1.0.0',
+      description: 'Pkg',
+      category: 'skill',
+      files: [{ src: 'SKILL.md', dest: 'SKILL.md' }],
+      dependencies: { '@team/base': '^1.0.0' },
+      devDependencies: { '@team/dev': '^1.0.0' },
     };
     writeManifest(tmp, manifest);
     expect(readManifest(tmp)).toEqual(manifest);
@@ -69,74 +83,87 @@ describe('readManifest', () => {
   });
 });
 
-describe('upsertToolDependency', () => {
-  it('adds a tool to the tools record', () => {
-    const updated = upsertToolDependency({ name: 'project' }, 'my-skill', '^1.0.0');
-    expect(updated.tools?.['my-skill']).toBe('^1.0.0');
+describe('upsertDependency', () => {
+  it('adds a package to dependencies by default', () => {
+    const updated = upsertDependency({ name: 'project' }, 'my-skill', '^1.0.0');
+    expect(updated.dependencies?.['my-skill']).toBe('^1.0.0');
   });
 
-  it('adds a tool to devTools when dev is true', () => {
-    const updated = upsertToolDependency({ name: 'project' }, 'my-skill', '^1.0.0', true);
-    expect(updated.devTools?.['my-skill']).toBe('^1.0.0');
-    expect(updated.tools?.['my-skill']).toBeUndefined();
+  it('adds a package to devDependencies when dev is true', () => {
+    const updated = upsertDependency({ name: 'project' }, 'my-skill', '^1.0.0', true);
+    expect(updated.devDependencies?.['my-skill']).toBe('^1.0.0');
+    expect(updated.dependencies?.['my-skill']).toBeUndefined();
   });
 
   it('overwrites an existing version range', () => {
-    const base: AiToolsManifest = { tools: { 'my-skill': '^1.0.0' } };
-    const updated = upsertToolDependency(base, 'my-skill', '^2.0.0');
-    expect(updated.tools?.['my-skill']).toBe('^2.0.0');
+    const base: AiToolsManifest = { dependencies: { 'my-skill': '^1.0.0' } };
+    const updated = upsertDependency(base, 'my-skill', '^2.0.0');
+    expect(updated.dependencies?.['my-skill']).toBe('^2.0.0');
   });
 
-  it('removes the tool from devTools when promoting it to tools', () => {
-    const base: AiToolsManifest = { devTools: { 'my-skill': '^1.0.0' } };
-    const updated = upsertToolDependency(base, 'my-skill', '^1.0.0', false);
-    expect(updated.tools?.['my-skill']).toBe('^1.0.0');
-    expect(updated.devTools?.['my-skill']).toBeUndefined();
+  it('removes the package from devDependencies when promoting to dependencies', () => {
+    const base: AiToolsManifest = { devDependencies: { 'my-skill': '^1.0.0' } };
+    const updated = upsertDependency(base, 'my-skill', '^1.0.0', false);
+    expect(updated.dependencies?.['my-skill']).toBe('^1.0.0');
+    expect(updated.devDependencies?.['my-skill']).toBeUndefined();
   });
 
-  it('removes the tool from tools when demoting it to devTools', () => {
-    const base: AiToolsManifest = { tools: { 'my-skill': '^1.0.0' } };
-    const updated = upsertToolDependency(base, 'my-skill', '^1.0.0', true);
-    expect(updated.devTools?.['my-skill']).toBe('^1.0.0');
-    expect(updated.tools?.['my-skill']).toBeUndefined();
+  it('removes the package from dependencies when demoting to devDependencies', () => {
+    const base: AiToolsManifest = { dependencies: { 'my-skill': '^1.0.0' } };
+    const updated = upsertDependency(base, 'my-skill', '^1.0.0', true);
+    expect(updated.devDependencies?.['my-skill']).toBe('^1.0.0');
+    expect(updated.dependencies?.['my-skill']).toBeUndefined();
   });
 
   it('does not mutate the original manifest', () => {
     const original: AiToolsManifest = { name: 'project' };
-    upsertToolDependency(original, 'my-skill', '^1.0.0');
-    expect(original.tools).toBeUndefined();
+    upsertDependency(original, 'my-skill', '^1.0.0');
+    expect(original.dependencies).toBeUndefined();
+  });
+
+  it('preserves publish fields when upserting a dependency', () => {
+    const base: AiToolsManifest = {
+      name: '@team/pkg',
+      version: '1.0.0',
+      description: 'Pkg',
+      category: 'skill',
+      files: [{ src: 'SKILL.md', dest: 'SKILL.md' }],
+    };
+    const updated = upsertDependency(base, 'other-skill', '^1.0.0');
+    expect(updated.version).toBe('1.0.0');
+    expect(updated.category).toBe('skill');
   });
 });
 
-describe('removeToolDependency', () => {
-  it('removes a tool from the tools record', () => {
+describe('removeDependency', () => {
+  it('removes a package from dependencies', () => {
     const manifest: AiToolsManifest = {
-      tools: { 'my-skill': '^1.0.0', other: '^2.0.0' },
+      dependencies: { 'my-skill': '^1.0.0', other: '^2.0.0' },
     };
-    const updated = removeToolDependency(manifest, 'my-skill');
-    expect(updated.tools?.['my-skill']).toBeUndefined();
-    expect(updated.tools?.['other']).toBe('^2.0.0');
+    const updated = removeDependency(manifest, 'my-skill');
+    expect(updated.dependencies?.['my-skill']).toBeUndefined();
+    expect(updated.dependencies?.['other']).toBe('^2.0.0');
   });
 
-  it('removes a tool from the devTools record', () => {
-    const manifest: AiToolsManifest = { devTools: { 'my-skill': '^1.0.0' } };
-    const updated = removeToolDependency(manifest, 'my-skill');
-    expect(updated.devTools?.['my-skill']).toBeUndefined();
+  it('removes a package from devDependencies', () => {
+    const manifest: AiToolsManifest = { devDependencies: { 'my-skill': '^1.0.0' } };
+    const updated = removeDependency(manifest, 'my-skill');
+    expect(updated.devDependencies?.['my-skill']).toBeUndefined();
   });
 
-  it('removes the tool from both tools and devTools if present in both', () => {
+  it('removes the package from both buckets if present in both', () => {
     const manifest: AiToolsManifest = {
-      tools: { 'my-skill': '^1.0.0' },
-      devTools: { 'my-skill': '^1.0.0' },
+      dependencies: { 'my-skill': '^1.0.0' },
+      devDependencies: { 'my-skill': '^1.0.0' },
     };
-    const updated = removeToolDependency(manifest, 'my-skill');
-    expect(updated.tools?.['my-skill']).toBeUndefined();
-    expect(updated.devTools?.['my-skill']).toBeUndefined();
+    const updated = removeDependency(manifest, 'my-skill');
+    expect(updated.dependencies?.['my-skill']).toBeUndefined();
+    expect(updated.devDependencies?.['my-skill']).toBeUndefined();
   });
 
   it('does not mutate the original manifest', () => {
-    const manifest: AiToolsManifest = { tools: { 'my-skill': '^1.0.0' } };
-    removeToolDependency(manifest, 'my-skill');
-    expect(manifest.tools?.['my-skill']).toBe('^1.0.0');
+    const manifest: AiToolsManifest = { dependencies: { 'my-skill': '^1.0.0' } };
+    removeDependency(manifest, 'my-skill');
+    expect(manifest.dependencies?.['my-skill']).toBe('^1.0.0');
   });
 });

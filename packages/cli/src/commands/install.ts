@@ -19,7 +19,10 @@ import semver from 'semver';
 import {
   readManifest,
   writeManifest,
+  upsertDependency,
+  removeDependency,
   upsertToolDependency,
+  removeToolDependency,
 } from '@bitgenetics/aitools-core';
 import type { InstallScope } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
@@ -138,7 +141,7 @@ async function installSingle(
   // Update aitools.json
   const existing = readManifest(cwd) ?? {};
   const versionRange = `^${manifest.version}`;
-  const updated = upsertToolDependency(existing, name, versionRange, options.dev ?? false);
+  const updated = upsertDependency(existing, name, versionRange, options.dev ?? false);
   writeManifest(cwd, updated);
   console.log(chalk.dim(`  Saved to aitools.json`));
 }
@@ -156,8 +159,8 @@ async function installAll(
   }
 
   const allTools: Record<string, string> = {
-    ...(manifest.tools ?? {}),
-    ...(manifest.devTools ?? {}),
+    ...(manifest.dependencies ?? {}),
+    ...(manifest.devDependencies ?? {}),
   };
 
   const toolNames = Object.keys(allTools);

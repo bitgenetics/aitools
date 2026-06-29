@@ -46,7 +46,7 @@ describe('init command', () => {
   });
 
   it('does not overwrite an existing aitools.json when --force is not given', () => {
-    const existing = JSON.stringify({ tools: { 'existing-skill': '^1.0.0' } });
+    const existing = JSON.stringify({ dependencies: { 'existing-skill': '^1.0.0' } });
     fs.writeFileSync(path.join(tmp, 'aitools.json'), existing, 'utf8');
     jest.spyOn(console, 'log').mockImplementation(() => {});
     createInitCommand().parse([], { from: 'user' });

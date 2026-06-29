@@ -153,7 +153,7 @@ async function runMcpServer(): Promise<void> {
         inputSchema: {
           type: 'object',
           properties: {
-            manifestPath: { type: 'string', description: 'Path to aitools.manifest.json' },
+            manifestPath: { type: 'string', description: 'Path to aitools.json (publish fields)' },
           },
           required: ['manifestPath'],
         },

@@ -88,8 +88,8 @@ export function createInitCommand(): Command {
         const projectName = path.basename(cwd);
         const manifest = {
           name: projectName,
-          tools: {},
-          devTools: {},
+          dependencies: {},
+          devDependencies: {},
         };
         fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
         console.log(chalk.green('Created aitools.json'));

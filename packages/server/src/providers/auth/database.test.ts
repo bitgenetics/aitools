@@ -54,15 +54,15 @@ describe('DatabaseAuthProvider', () => {
 
   it('creates and validates an admin session cookie', async () => {
     const provider = new DatabaseAuthProvider(createMockUserStore(), 'admin-secret');
-    const sessionId = await provider.admin.createSession('admin-secret');
+    const sessionId = await provider.admin.createSession!('admin-secret');
     expect(sessionId).toMatch(/^[a-f0-9]{64}$/);
     expect(await provider.admin.check({ cookies: { admin_session: sessionId! }, headers: {} })).toBe(true);
   });
 
   it('invalidates an admin session cookie', async () => {
     const provider = new DatabaseAuthProvider(createMockUserStore(), 'admin-secret');
-    const sessionId = await provider.admin.createSession('admin-secret');
-    await provider.admin.invalidateSession(sessionId!);
+    const sessionId = await provider.admin.createSession!('admin-secret');
+    await provider.admin.invalidateSession!(sessionId!);
     expect(await provider.admin.check({ cookies: { admin_session: sessionId! }, headers: {} })).toBe(
       false,
     );
@@ -74,7 +74,9 @@ describe('DatabaseAuthProvider', () => {
     userStore.loginUser.mockResolvedValue({ id: 1, username: 'alice', createdAt: new Date() });
     userStore.getUserByUsername.mockResolvedValue({ id: 1, username: 'alice', createdAt: new Date() });
     userStore.createToken.mockResolvedValue({ token: 'tok', id: 9 });
-    userStore.listTokens.mockResolvedValue([{ id: 9, org: 'team-a', description: null, createdAt: new Date() }]);
+    userStore.listTokens.mockResolvedValue([
+      { id: 9, org: 'team-a', description: null, createdAt: new Date(), expiresAt: null },
+    ]);
     userStore.deleteToken.mockResolvedValue(true);
 
     const provider = new DatabaseAuthProvider(userStore, 'admin-secret');

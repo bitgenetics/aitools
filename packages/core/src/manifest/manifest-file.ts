@@ -15,31 +15,61 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { AiToolsManifest } from '../types/config.js';
-import { AiToolsManifestSchema } from '../schema/config-schema.js';
+import { AitoolsJsonSchema } from '../schema/config-schema.js';
+import {
+  MANIFEST_FILENAME,
+  LEGACY_PUBLISH_MANIFEST_FILENAME,
+} from './manifest-constants.js';
 
-export const MANIFEST_FILENAME = 'aitools.json';
+export {
+  MANIFEST_FILENAME,
+  LEGACY_PUBLISH_MANIFEST_FILENAME,
+  REGISTRY_MANIFEST_FILENAME,
+  LEGACY_REGISTRY_MANIFEST_FILENAME,
+} from './manifest-constants.js';
+
+export interface ReadManifestOptions {
+  /** Emit deprecation warnings to stderr when legacy keys or files are used. */
+  warn?: (message: string) => void;
+}
+
+function detectLegacyDepKeys(raw: unknown): boolean {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
+  const obj = raw as Record<string, unknown>;
+  return 'tools' in obj || 'devTools' in obj;
+}
 
 /**
  * Read an aitools.json manifest from a directory.
  * Returns null if the file does not exist.
  */
-export function readManifest(dir: string): AiToolsManifest | null {
+export function readManifest(dir: string, options?: ReadManifestOptions): AiToolsManifest | null {
   const filePath = path.join(dir, MANIFEST_FILENAME);
   if (!fs.existsSync(filePath)) return null;
 
-  const raw = fs.readFileSync(filePath, 'utf8');
+  const rawText = fs.readFileSync(filePath, 'utf8');
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(rawText);
   } catch (err) {
     throw new Error(`Failed to parse ${filePath}: ${(err as Error).message}`);
   }
-  const result = AiToolsManifestSchema.safeParse(parsed);
+
+  if (detectLegacyDepKeys(parsed) && options?.warn) {
+    options.warn(
+      '[aitools] Deprecated: aitools.json uses "tools"/"devTools". Rename to "dependencies"/"devDependencies".',
+    );
+  }
+
+  const result = AitoolsJsonSchema.safeParse(parsed);
   if (!result.success) {
     throw new Error(`Invalid manifest at ${filePath}: ${result.error.message}`);
   }
   return result.data;
 }
+
+/** Alias for readManifest. */
+export const readAitoolsJson = readManifest;
 
 /**
  * Write an aitools.json manifest to disk.
@@ -50,31 +80,99 @@ export function writeManifest(dir: string, manifest: AiToolsManifest): void {
   fs.writeFileSync(filePath, content, 'utf8');
 }
 
-/** Add or update a tool dependency in the manifest.
- * If the tool already exists in the opposite bucket (tools vs devTools),
- * it is removed from there to prevent the same tool appearing in both.
- */
-export function upsertToolDependency(
+/** Add or update a registry dependency in the manifest. */
+export function upsertDependency(
   manifest: AiToolsManifest,
   name: string,
   version: string,
   dev = false,
 ): AiToolsManifest {
   if (dev) {
-    const tools = { ...(manifest.tools ?? {}) };
-    delete tools[name];
-    return { ...manifest, tools, devTools: { ...(manifest.devTools ?? {}), [name]: version } };
+    const dependencies = { ...(manifest.dependencies ?? {}) };
+    delete dependencies[name];
+    return {
+      ...manifest,
+      dependencies,
+      devDependencies: { ...(manifest.devDependencies ?? {}), [name]: version },
+    };
   }
-  const devTools = { ...(manifest.devTools ?? {}) };
-  delete devTools[name];
-  return { ...manifest, tools: { ...(manifest.tools ?? {}), [name]: version }, devTools };
+  const devDependencies = { ...(manifest.devDependencies ?? {}) };
+  delete devDependencies[name];
+  return {
+    ...manifest,
+    dependencies: { ...(manifest.dependencies ?? {}), [name]: version },
+    devDependencies,
+  };
 }
 
-/** Remove a tool dependency from the manifest. */
-export function removeToolDependency(manifest: AiToolsManifest, name: string): AiToolsManifest {
-  const tools = { ...(manifest.tools ?? {}) };
-  const devTools = { ...(manifest.devTools ?? {}) };
-  delete tools[name];
-  delete devTools[name];
-  return { ...manifest, tools, devTools };
+/** @deprecated Use upsertDependency */
+export const upsertToolDependency = upsertDependency;
+
+/** Remove a registry dependency from the manifest. */
+export function removeDependency(manifest: AiToolsManifest, name: string): AiToolsManifest {
+  const dependencies = { ...(manifest.dependencies ?? {}) };
+  const devDependencies = { ...(manifest.devDependencies ?? {}) };
+  delete dependencies[name];
+  delete devDependencies[name];
+  return { ...manifest, dependencies, devDependencies };
+}
+
+/** @deprecated Use removeDependency */
+export const removeToolDependency = removeDependency;
+
+export interface ResolvedPublishSource {
+  manifestDir: string;
+  /** Unified doc when read from aitools.json */
+  unified?: AiToolsManifest;
+  /** Raw legacy ToolManifest when read from aitools.manifest.json */
+  legacyRaw?: unknown;
+  usedLegacyFile: boolean;
+}
+
+/**
+ * Resolve the publish manifest source directory and document.
+ * Prefers aitools.json; falls back to legacy aitools.manifest.json.
+ */
+export function resolvePublishSource(
+  cwd: string,
+  explicitPath?: string,
+  warn?: (message: string) => void,
+): ResolvedPublishSource | null {
+  if (explicitPath) {
+    const manifestPath = path.resolve(explicitPath);
+    const manifestDir = path.dirname(manifestPath);
+    if (!fs.existsSync(manifestPath)) return null;
+    const raw = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as unknown;
+    if (path.basename(manifestPath) === LEGACY_PUBLISH_MANIFEST_FILENAME) {
+      return { manifestDir, legacyRaw: raw, usedLegacyFile: true };
+    }
+    const parsed = AitoolsJsonSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new Error(`Invalid manifest at ${manifestPath}: ${parsed.error.message}`);
+    }
+    return { manifestDir, unified: parsed.data, usedLegacyFile: false };
+  }
+
+  const unifiedPath = path.join(cwd, MANIFEST_FILENAME);
+  if (fs.existsSync(unifiedPath)) {
+    let doc: AiToolsManifest | null;
+    try {
+      doc = readManifest(cwd, { warn });
+    } catch (err) {
+      throw err;
+    }
+    return doc ? { manifestDir: cwd, unified: doc, usedLegacyFile: false } : null;
+  }
+
+  const legacyPath = path.join(cwd, LEGACY_PUBLISH_MANIFEST_FILENAME);
+  if (fs.existsSync(legacyPath)) {
+    warn?.(
+      `[aitools] Deprecated: ${LEGACY_PUBLISH_MANIFEST_FILENAME} is deprecated. ` +
+        `Run: aitools manifest migrate`,
+    );
+    const raw = JSON.parse(fs.readFileSync(legacyPath, 'utf8')) as unknown;
+    return { manifestDir: cwd, legacyRaw: raw, usedLegacyFile: true };
+  }
+
+  return null;
 }

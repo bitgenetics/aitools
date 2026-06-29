@@ -21,13 +21,16 @@ import {
   isSpecStale,
   ToolManifestSchema,
   normalizeCategory,
+  MANIFEST_FILENAME,
+  resolvePublishSource,
+  toPublishManifest,
 } from '@bitgenetics/aitools-core';
 import type { PlatformSpec, FieldSupport } from '@bitgenetics/aitools-core';
 import type { TargetPlatform } from '@bitgenetics/aitools-core';
 import { estimateCategoryConfidence } from '../transformers/index.js';
 import type { TransformConfidence } from '../transformers/index.js';
 
-const MANIFEST_FILE = 'aitools.manifest.json';
+const MANIFEST_FILE = MANIFEST_FILENAME;
 
 interface CompatOptions {
   platform?: string;
@@ -192,31 +195,39 @@ export function createCompatCommand(): Command {
     .option('--fix', 'Rewrite the skill file, stripping frontmatter fields unsupported on the target platform(s)')
     .action(async (options: CompatOptions) => {
       const cwd = process.cwd();
-      const manifestPath = options.manifest
-        ? path.resolve(options.manifest)
-        : path.join(cwd, MANIFEST_FILE);
-
-      if (!fs.existsSync(manifestPath)) {
-        console.error(chalk.red(`No manifest found at ${manifestPath}`));
-        process.exit(1);
-      }
-
-      let raw: unknown;
+      let source;
       try {
-        raw = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        source = resolvePublishSource(cwd, options.manifest, (msg) =>
+          console.warn(chalk.yellow(msg)),
+        );
       } catch {
-        console.error(chalk.red(`Cannot parse ${manifestPath}: invalid JSON`));
+        console.error(chalk.red(`Cannot parse manifest JSON`));
         process.exit(1);
       }
 
-      const parsed = ToolManifestSchema.safeParse(raw);
-      if (!parsed.success) {
-        console.error(chalk.red('Manifest validation failed � run `aitools manifest validate` first'));
+      if (!source) {
+        console.error(chalk.red(`No manifest found at ${options.manifest ?? path.join(cwd, MANIFEST_FILE)}`));
         process.exit(1);
       }
 
-      const manifest = parsed.data;
-      const manifestDir = path.dirname(manifestPath);
+      let manifest;
+      if (source.unified) {
+        try {
+          manifest = toPublishManifest(source.unified);
+        } catch (err) {
+          console.error(chalk.red((err as Error).message));
+          process.exit(1);
+        }
+      } else {
+        const parsed = ToolManifestSchema.safeParse(source.legacyRaw);
+        if (!parsed.success) {
+          console.error(chalk.red('Manifest validation failed — run `aitools manifest validate` first'));
+          process.exit(1);
+        }
+        manifest = parsed.data;
+      }
+
+      const manifestDir = source.manifestDir;
 
       // Read SKILL.md frontmatter when category is skill
       let skillFields: Record<string, string | boolean> = {};

@@ -44,7 +44,7 @@ describe('publish command', () => {
 
   beforeEach(() => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-publish-'));
-    fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+    fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
     fs.writeFileSync(path.join(tmp, 'skill.md'), '# Skill', 'utf8');
     fs.writeFileSync(
       path.join(tmp, 'aitools.config.json'),
@@ -67,8 +67,25 @@ describe('publish command', () => {
     expect(manifest.name).toBe('my-skill');
   });
 
+  it('omits devDependencies from registry publish payload', async () => {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.json'),
+      JSON.stringify({
+        ...VALID_MANIFEST,
+        dependencies: { '@team/base': '^1.0.0' },
+        devDependencies: { '@team/dev': '^1.0.0' },
+      }),
+      'utf8',
+    );
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createPublishCommand().parseAsync([], { from: 'user' });
+    const [manifest] = mockPublish.mock.calls[0] as [Record<string, unknown>, Record<string, string>];
+    expect(manifest.dependencies).toEqual({ '@team/base': '^1.0.0' });
+    expect(manifest.devDependencies).toBeUndefined();
+  });
+
   it('exits with 1 when manifest file does not exist', async () => {
-    fs.unlinkSync(path.join(tmp, 'aitools.manifest.json'));
+    fs.unlinkSync(path.join(tmp, 'aitools.json'));
     jest.spyOn(console, 'error').mockImplementation(() => {});
     const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
       throw new Error(`process.exit(${code})`);
@@ -81,7 +98,7 @@ describe('publish command', () => {
   });
 
   it('exits with 1 when manifest fails schema validation', async () => {
-    fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify({ name: 'bad' }), 'utf8');
+    fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify({ name: 'bad' }), 'utf8');
     jest.spyOn(console, 'error').mockImplementation(() => {});
     const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
       throw new Error(`process.exit(${code})`);
@@ -133,7 +150,7 @@ describe('publish command', () => {
   });
 
   it('exits with 1 when manifest JSON is invalid', async () => {
-    fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), '{ invalid', 'utf8');
+    fs.writeFileSync(path.join(tmp, 'aitools.json'), '{ invalid', 'utf8');
     jest.spyOn(console, 'error').mockImplementation(() => {});
     const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
       throw new Error(`process.exit(${code})`);
@@ -166,7 +183,7 @@ describe('publish command', () => {
 
   it('warns about skill compat issues without blocking publish', async () => {
     fs.writeFileSync(
-      path.join(tmp, 'aitools.manifest.json'),
+      path.join(tmp, 'aitools.json'),
       JSON.stringify({
         ...VALID_MANIFEST,
         files: [{ src: 'SKILL.md', dest: 'SKILL.md' }],
@@ -188,7 +205,7 @@ describe('publish command', () => {
 
   it('blocks publish with --strict when compat issues exist', async () => {
     fs.writeFileSync(
-      path.join(tmp, 'aitools.manifest.json'),
+      path.join(tmp, 'aitools.json'),
       JSON.stringify({
         ...VALID_MANIFEST,
         files: [{ src: 'SKILL.md', dest: 'SKILL.md' }],

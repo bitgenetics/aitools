@@ -129,7 +129,8 @@ describe('Installer.install', () => {
     const installed = await installer.install(mockClient as never, SKILL_MANIFEST, 'project');
 
     expect(installed.name).toBe('my-skill');
-    expect(installed.files).toHaveLength(1);
+    expect(installed.files).toHaveLength(2);
+    expect(installed.files.some((f) => f.endsWith('aitools.json'))).toBe(true);
     expect(fs.existsSync(path.resolve(tmp, installed.files[0]!))).toBe(true);
     expect(installer.getLock().tools['my-skill']).toBeDefined();
   });
@@ -412,7 +413,8 @@ describe('Installer.install (platform-aware file selection)', () => {
       'utf8',
     );
     const installed = await installer.install(makeClient(tarball) as never, manifest, 'project');
-    expect(installed.files).toHaveLength(1);
+    expect(installed.files).toHaveLength(2);
+    expect(installed.files.some((f) => f.endsWith('aitools.json'))).toBe(true);
   });
 
 
@@ -435,7 +437,8 @@ describe('Installer.install (platform-aware file selection)', () => {
       'utf8',
     );
     const installed = await installer.install(makeClient(tarball) as never, manifest, 'project');
-    expect(installed.files).toHaveLength(1);
+    expect(installed.files).toHaveLength(2);
+    expect(installed.files.some((f) => f.endsWith('aitools.json'))).toBe(true);
   });
 
   it('strips the install-base prefix from dest when manifest uses project-relative paths', async () => {
@@ -611,7 +614,8 @@ describe('Installer.install (cross-platform transformation)', () => {
 
     const result = await installer.install(makeClient(tarball) as never, manifest, 'project');
 
-    expect(result.files).toHaveLength(1);
+    expect(result.files).toHaveLength(2);
+    expect(result.files.some((f) => f.endsWith('aitools.json'))).toBe(true);
     const written = fs.readFileSync(path.resolve(tmp, result.files[0]!), 'utf8');
     expect(written).toBe('# Rule body');
     expect(result.fileResults[0]?.transform?.confidence).toBe('medium');
@@ -806,7 +810,8 @@ describe('Installer.install (cross-platform transformation)', () => {
 
     const result = await installer.install(makeClient(tarball) as never, manifest, 'project');
 
-    expect(result.files).toHaveLength(1);
+    expect(result.files).toHaveLength(2);
+    expect(result.files.some((f) => f.endsWith('aitools.json'))).toBe(true);
     const written = fs.readFileSync(path.resolve(tmp, result.files[0]!), 'utf8');
     expect(written).toBe('# Rule body');
     expect(result.fileResults[0]?.transform?.confidence).toBe('medium');
