@@ -11,7 +11,7 @@ metadata:
   author: ai-tools
 ---
 
-Every package needs a folder with `aitools.manifest.json` + at least one content file.
+Every package needs a folder with `aitools.json` + at least one content file. Legacy `aitools.manifest.json` is still readable — run `aitools manifest migrate`.
 
 ## Creating a package
 
@@ -42,6 +42,8 @@ For a **subagent** — create a `.md` file with YAML frontmatter (name, descript
 For a **prompt** — create a `.md` file with the reusable instruction or template.
 
 For an **mcp-tool** — the manifest needs an `mcpServer` block. Content files are optional. Read [references/manifest-reference.md](references/manifest-reference.md) for the `mcpServer` field spec.
+
+For a **plugin** — a multi-file bundle (`.cursor-plugin/plugin.json`, skills, rules, etc.) published as one package. Use `manifest init --category plugin --nativeFor cursor`. aitools install lands in `.agents/plugins/<pkg>/` — not Cursor marketplace paths. See [docs/design/plugin-marketplaces-comparison.md](../../docs/design/plugin-marketplaces-comparison.md).
 
 ### Step 2: Initialise the manifest
 
@@ -126,6 +128,6 @@ After: `"Use this skill when asked to create, package, or publish a reusable AI 
 
 ## References
 
-Read [references/manifest-reference.md](references/manifest-reference.md) for the full `aitools.manifest.json` field reference, including the `mcpServer` block and all optional fields.
+Read [references/manifest-reference.md](references/manifest-reference.md) for the full `aitools.json` field reference, including the `mcpServer` block and all optional fields.
 
 Read [references/platform-paths.md](references/platform-paths.md) if you need to know exactly where files land per platform (vscode, claude, cursor, windsurf, universal) — useful when writing `dest` values or advising users on where tools install.

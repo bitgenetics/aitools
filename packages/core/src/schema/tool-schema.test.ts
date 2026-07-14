@@ -90,7 +90,43 @@ describe('ToolManifestSchema', () => {
   });
 
   it('rejects a manifest with an unknown category', () => {
-    const result = ToolManifestSchema.safeParse({ ...VALID_MANIFEST, category: 'plugin' });
+    const result = ToolManifestSchema.safeParse({ ...VALID_MANIFEST, category: 'widget' });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts a valid plugin manifest with nativeFor and cursor plugin descriptor', () => {
+    const result = ToolManifestSchema.safeParse({
+      name: '@team/code-review-plugin',
+      version: '1.0.0',
+      description: 'Review plugin bundle',
+      category: 'plugin',
+      nativeFor: 'cursor',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'skills/review/SKILL.md', dest: 'skills/review/SKILL.md' },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a plugin manifest without nativeFor', () => {
+    const result = ToolManifestSchema.safeParse({
+      ...VALID_MANIFEST,
+      category: 'plugin',
+      files: [{ src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a cursor plugin manifest without .cursor-plugin/plugin.json in files', () => {
+    const result = ToolManifestSchema.safeParse({
+      name: '@team/my-plugin',
+      version: '1.0.0',
+      description: 'Plugin',
+      category: 'plugin',
+      nativeFor: 'cursor',
+      files: [{ src: 'skills/review/SKILL.md', dest: 'skills/review/SKILL.md' }],
+    });
     expect(result.success).toBe(false);
   });
 

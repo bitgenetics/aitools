@@ -1,4 +1,6 @@
-# aitools.manifest.json — Full Field Reference
+# aitools.json — Full Field Reference
+
+Publish fields live in the unified `aitools.json` at the package root (same file as `dependencies` / `devDependencies` for author repos). `aitools publish` sends a publish subset only (`devDependencies` omitted).
 
 ## Required fields
 
@@ -7,8 +9,15 @@
 | `name` | string | npm-style: lowercase, hyphens, numbers. Scoped (`@scope/name`) allowed. |
 | `version` | string | Semver: `1.0.0`, `1.0.0-beta.1`, `1.0.0+build.1` |
 | `description` | string | One-liner shown in registry search results. Non-empty. |
-| `category` | enum | `skill` \| `subagent` \| `prompt` \| `mcp-tool` |
-| `files` | array | At least one entry. See File entries below. |
+| `category` | enum | `skill` \| `subagent` \| `prompt` \| `mcp-tool` \| `plugin` |
+| `files` | array | At least one entry (except `mcp-tool` with no extra files). See File entries below. |
+
+### Plugin-specific
+
+| Field | Type | Rules |
+|---|---|---|
+| `nativeFor` | enum | **Required** when `category` is `plugin`. Source layout family: `cursor` \| `vscode` \| `claude` \| `windsurf` \| `universal` |
+| `files` | array | When `nativeFor` is `cursor`, must include `.cursor-plugin/plugin.json` |
 
 ## Optional fields
 

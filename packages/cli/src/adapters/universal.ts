@@ -42,7 +42,7 @@ export class UniversalAdapter implements PlatformAdapter {
     },
   };
 
-  resolveDir(category: Exclude<ToolCategory, 'mcp-tool' | 'hook'>, scope: InstallScope, cwd: string): string {
+  resolveDir(category: Exclude<ToolCategory, 'mcp-tool' | 'hook' | 'plugin'>, scope: InstallScope, cwd: string): string {
     const fileCategory = resolveFileCategory(category);
     const p = this.DIRS[scope][fileCategory];
     return scope === 'project' ? path.resolve(cwd, p) : p;

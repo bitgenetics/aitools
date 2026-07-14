@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ConfigCascade, CONFIG_FILENAME } from '@bitgenetics/aitools-core';
+import { ConfigCascade, CONFIG_FILENAME, resolvePluginInstallDir } from '@bitgenetics/aitools-core';
 import type { AiToolsConfig, InstallScope, TargetPlatform, ToolCategory } from '@bitgenetics/aitools-core';
 import { getAdapter } from '../adapters/index.js';
 import type { PlatformAdapter } from '../adapters/index.js';
@@ -91,13 +91,25 @@ export class ConfigManager {
    * Resolve the absolute install directory for a file-based tool category.
    * Checks installPaths overrides in config before delegating to the adapter.
    */
-  resolveInstallPath(category: Exclude<ToolCategory, 'mcp-tool' | 'hook'>, scope: InstallScope): string {
+  resolveInstallPath(
+    category: Exclude<ToolCategory, 'mcp-tool' | 'hook' | 'plugin'>,
+    scope: InstallScope,
+  ): string {
     const overrideKey = `${scope}.${category}`;
     const override = this.config.installPaths?.[overrideKey];
     if (override) {
       return this.expandHome(override);
     }
     return this.adapter.resolveDir(category, scope, this.cwd);
+  }
+
+  /**
+   * Resolve the install directory for a plugin package (platform-agnostic aitools paths).
+   */
+  resolvePluginInstallPath(scope: InstallScope, packageName: string): string {
+    const override = this.config.installPaths?.[`${scope}.plugin`];
+    const overrideBase = override ? this.expandHome(override) : undefined;
+    return resolvePluginInstallDir(scope, this.cwd, packageName, overrideBase);
   }
 
   /**

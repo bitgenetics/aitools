@@ -15,7 +15,7 @@
 import type { ToolCategory } from './tool.js';
 
 /** Canonical categories after normalizing deprecated aliases. */
-export type NormalizedCategory = 'skill' | 'rule' | 'command' | 'agent' | 'hook' | 'mcp-tool';
+export type NormalizedCategory = 'skill' | 'rule' | 'command' | 'agent' | 'hook' | 'mcp-tool' | 'plugin';
 
 export interface CategoryNormalization {
   category: NormalizedCategory;
@@ -48,9 +48,9 @@ export function normalizeCategory(category: ToolCategory): CategoryNormalization
   }
 }
 
-/** File-based categories installed as regular files (not MCP config or hook merge). */
-export type FileCategory = Exclude<NormalizedCategory, 'mcp-tool' | 'hook'>;
+/** File-based categories installed as regular files (not MCP config, hook merge, or plugin bundle). */
+export type FileCategory = Exclude<NormalizedCategory, 'mcp-tool' | 'hook' | 'plugin'>;
 
 export function isFileCategory(category: NormalizedCategory): category is FileCategory {
-  return category !== 'mcp-tool' && category !== 'hook';
+  return category !== 'mcp-tool' && category !== 'hook' && category !== 'plugin';
 }

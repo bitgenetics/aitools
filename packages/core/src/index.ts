@@ -72,6 +72,11 @@ export {
 export type { ReadManifestOptions, ResolvedPublishSource } from './manifest/manifest-file.js';
 export { isPublishable, toPublishManifest } from './manifest/publish-manifest.js';
 export {
+  sanitizePackageDirName,
+  resolvePluginInstallDir,
+  PLUGIN_PLATFORM_DESCRIPTOR,
+} from './manifest/plugin-install.js';
+export {
   REGISTRY_MANIFEST_CANDIDATES,
   pickRegistryManifestBasename,
 } from './manifest/registry-manifest.js';

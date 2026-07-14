@@ -252,6 +252,32 @@ describe('manifest command', () => {
       expect(manifest.keywords).toEqual(['a', 'b']);
     });
 
+    it('auto-detects plugin tree files and skips aitools bookkeeping files', () => {
+      fs.mkdirSync(path.join(tmp, '.cursor-plugin'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, '.cursor-plugin', 'plugin.json'), '{}', 'utf8');
+      fs.mkdirSync(path.join(tmp, 'skills', 'review'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'skills', 'review', 'SKILL.md'), '# Review', 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools-lock.json'), '{}', 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.config.json'), '{}', 'utf8');
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createManifestCommand().parse(
+        ['init', '--name', '@team/my-plugin', '--category', 'plugin', '--nativeFor', 'cursor', '--yes'],
+        { from: 'user' },
+      );
+      const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
+        category: string;
+        nativeFor: string;
+        files: Array<{ src: string }>;
+      };
+      expect(manifest.category).toBe('plugin');
+      expect(manifest.nativeFor).toBe('cursor');
+      const srcs = manifest.files.map((f) => f.src);
+      expect(srcs).toContain('.cursor-plugin/plugin.json');
+      expect(srcs).toContain('skills/review/SKILL.md');
+      expect(srcs).not.toContain('aitools-lock.json');
+      expect(srcs).not.toContain('aitools.config.json');
+    });
+
     it('prompts for each detected skill folder and includes only confirmed ones', async () => {
       // Create two skill folders � detectSkillFolders looks for subdirs with direct content files
       fs.mkdirSync(path.join(tmp, 'my-skill'), { recursive: true });

@@ -28,7 +28,7 @@ export interface PlatformAdapter {
    * Does not apply to mcp-tool (use resolveMcpConfig) or hook (use resolveHooksConfig).
    */
   resolveDir(
-    category: Exclude<ToolCategory, 'mcp-tool' | 'hook'>,
+    category: Exclude<ToolCategory, 'mcp-tool' | 'hook' | 'plugin'>,
     scope: InstallScope,
     cwd: string,
   ): string;
@@ -46,9 +46,11 @@ export interface PlatformAdapter {
 }
 
 /** Map manifest category (including deprecated aliases) to adapter directory key. */
-export function resolveFileCategory(category: Exclude<ToolCategory, 'mcp-tool' | 'hook'>): FileCategory {
+export function resolveFileCategory(
+  category: Exclude<ToolCategory, 'mcp-tool' | 'hook' | 'plugin'>,
+): FileCategory {
   const { category: normalized } = normalizeCategory(category);
-  if (normalized === 'hook' || normalized === 'mcp-tool') {
+  if (normalized === 'hook' || normalized === 'mcp-tool' || normalized === 'plugin') {
     throw new Error(`Category "${category}" is not file-based`);
   }
   return normalized;

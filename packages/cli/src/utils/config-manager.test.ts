@@ -86,6 +86,43 @@ describe('ConfigManager.resolveInstallPath', () => {
   });
 });
 
+describe('ConfigManager.resolvePluginInstallPath', () => {
+  let tmp: string;
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cm-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  it('resolves project scope to .agents/plugins/<sanitized-pkg>/', () => {
+    const manager = new ConfigManager(tmp);
+    const resolved = manager.resolvePluginInstallPath('project', '@team/my-plugin');
+    expect(resolved).toBe(path.join(tmp, '.agents', 'plugins', '@team__my-plugin'));
+  });
+
+  it('resolves user scope under ~/.aitools/tools/plugins/', () => {
+    const manager = new ConfigManager(tmp);
+    const resolved = manager.resolvePluginInstallPath('user', 'my-plugin');
+    expect(resolved).toBe(path.join(os.homedir(), '.aitools', 'tools', 'plugins', 'my-plugin'));
+  });
+
+  it('honours project.plugin installPaths override as the plugins base directory', () => {
+    const customBase = path.join(tmp, 'custom-plugins');
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ installPaths: { 'project.plugin': customBase } }),
+      'utf8',
+    );
+    const manager = new ConfigManager(tmp);
+    expect(manager.resolvePluginInstallPath('project', 'my-plugin')).toBe(
+      path.join(customBase, 'my-plugin'),
+    );
+  });
+});
+
 describe('ConfigManager.getRegistries', () => {
   let tmp: string;
   let resolveConfigSpy: jest.SpyInstance;

@@ -58,6 +58,7 @@ export const ToolCategorySchema = z.enum([
   'agent',
   'hook',
   'mcp-tool',
+  'plugin',
   'subagent',
   'prompt',
 ]);
@@ -96,6 +97,33 @@ export const ToolManifestSchema = z
           code: z.ZodIssueCode.custom,
           message: 'mcp-tool manifests must include an mcpServer descriptor',
           path: ['mcpServer'],
+        });
+      }
+    } else if (data.category === 'plugin') {
+      if (!data.nativeFor) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'plugin manifests must include nativeFor (source layout family)',
+          path: ['nativeFor'],
+        });
+      }
+      if (data.nativeFor === 'cursor') {
+        const hasCursorPlugin = data.files.some(
+          (f) => f.src.replace(/\\/g, '/') === '.cursor-plugin/plugin.json',
+        );
+        if (!hasCursorPlugin) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'cursor plugins must include .cursor-plugin/plugin.json in files',
+            path: ['files'],
+          });
+        }
+      }
+      if (data.files.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'files must contain at least one entry for plugin category',
+          path: ['files'],
         });
       }
     } else {

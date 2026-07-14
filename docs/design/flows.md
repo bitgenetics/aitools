@@ -109,8 +109,8 @@ sequenceDiagram
     participant Registry
 
     User->>CLI: aitools publish
-    CLI->>FS: read aitools.manifest.json
-    CLI->>CLI: validate with ToolManifestSchema (Zod)
+    CLI->>FS: read aitools.json
+    CLI->>CLI: toPublishManifest() + validate with ToolManifestSchema (Zod)
 
     alt validation fails
         CLI-->>User: ✖ validation errors
@@ -202,7 +202,7 @@ sequenceDiagram
     participant PLATFORM_SPECS
 
     User->>CLI: aitools compat [--platform vscode]
-    CLI->>FS: read aitools.manifest.json
+    CLI->>FS: read aitools.json
     CLI->>CLI: validate with ToolManifestSchema
 
     alt category === "skill"

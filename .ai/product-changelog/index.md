@@ -24,6 +24,7 @@
 
 ## Recent Changes
 
+- **2026-06-28** — `plugin` category: aitools-managed install paths, `manifest init --category plugin`, comparison doc — see `features.md`, `docs/design/plugin-marketplaces-comparison.md`
 - **2026-06-28** `e0a753f` — Config layer model (settings write to user by default, project override on read; install defaults project scope), `config-layers` e2e, `test:coverage` CI gate, server coverage thresholds — see `architecture.md`, `features.md`, `patterns.md`, `integrations.md`, `constraints.md`
 - **2026-06-27** `f2a0a54` — npm/GitHub org finalized as `@bitgenetics/aitools-*` — see `architecture.md`
 - **2026-06-27** `6eba41d` — Cross-platform install transforms (rule/command/agent/hook), `aitools mcp`, `nativeFor` manifest field — see `architecture.md`, `features.md`, `integrations.md`, `patterns.md`, `constraints.md`

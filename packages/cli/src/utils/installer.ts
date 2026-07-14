@@ -23,6 +23,7 @@ import {
   toLockEntry,
   normalizeCategory,
   MANIFEST_FILENAME,
+  toPublishManifest,
 } from '@bitgenetics/aitools-core';
 import type { ConfigManager } from './config-manager.js';
 import type { RegistryClient } from './registry-client.js';
@@ -71,6 +72,10 @@ export class Installer {
 
     if (normalized === 'hook') {
       return this.installHooks(client, manifest, scope);
+    }
+
+    if (normalized === 'plugin') {
+      return this.installPlugin(client, manifest, scope);
     }
 
     const installed = await this.installFiles(client, { ...manifest, category: normalized }, scope);
@@ -196,7 +201,7 @@ export class Installer {
       integrity = entry.integrity;
     }
 
-    const category = manifest.category as Exclude<typeof manifest.category, 'mcp-tool' | 'hook'>;
+    const category = manifest.category as Exclude<typeof manifest.category, 'mcp-tool' | 'hook' | 'plugin'>;
     const installBase = this.configManager.resolveInstallPath(category, scope);
     fs.mkdirSync(installBase, { recursive: true });
 
@@ -273,6 +278,86 @@ export class Installer {
       name: manifest.name,
       version: manifest.version,
       category: manifest.category,
+      scope,
+      platform: activePlatform,
+      installedAt: new Date().toISOString(),
+      files: writtenFiles,
+      registry: client.config.url,
+      integrity,
+    };
+
+    const lock = readLockFile(this.cwd);
+    const previousEntry = lock.tools[manifest.name];
+    if (previousEntry) {
+      const newFileSet = new Set(writtenFiles);
+      for (const oldFile of previousEntry.files) {
+        const absOldFile = path.isAbsolute(oldFile)
+          ? oldFile
+          : path.resolve(this.cwd, oldFile);
+        const relOldFile = path.relative(this.cwd, absOldFile).replace(/\\/g, '/');
+        if (!newFileSet.has(relOldFile) && fs.existsSync(absOldFile)) {
+          fs.rmSync(absOldFile);
+          cleanEmptyDirs(path.dirname(absOldFile), this.cwd);
+        }
+      }
+    }
+
+    const updated = upsertLockEntry(lock, manifest.name, toLockEntry(installedTool, client.config.url));
+    writeLockFile(this.cwd, updated);
+    return { ...installedTool, fileResults };
+  }
+
+  private async installPlugin(
+    client: RegistryClient,
+    manifest: ToolManifest,
+    scope: InstallScope,
+  ): Promise<InstallResult> {
+    let agentsDir: string;
+    let integrity: string;
+
+    if (this.cache.has(manifest.name, manifest.version)) {
+      agentsDir = this.cache.agentsDir(manifest.name, manifest.version);
+      integrity = this.cache.getMetadata(manifest.name, manifest.version).integrity;
+    } else {
+      const { data, integrity: serverIntegrity } = await client.download(manifest.name, manifest.version);
+      const entry = this.cache.store(manifest.name, manifest.version, data, manifest, serverIntegrity);
+      agentsDir = entry.agentsDir;
+      integrity = entry.integrity;
+    }
+
+    const installBase = this.configManager.resolvePluginInstallPath(scope, manifest.name);
+    fs.mkdirSync(installBase, { recursive: true });
+
+    const writtenFiles: string[] = [];
+    const fileResults: InstallFileResult[] = [];
+
+    for (const file of manifest.files) {
+      const srcPath = path.join(agentsDir, file.src);
+      if (!fs.existsSync(srcPath)) {
+        throw new Error(`Package "${manifest.name}@${manifest.version}" missing file: ${file.src}`);
+      }
+      const normalizedDest = file.dest.replace(/\\/g, '/');
+      const destPath = path.join(installBase, normalizedDest);
+      fs.mkdirSync(path.dirname(destPath), { recursive: true });
+      fs.writeFileSync(destPath, fs.readFileSync(srcPath, 'utf8'), 'utf8');
+      const writtenRel = path.relative(this.cwd, destPath).replace(/\\/g, '/');
+      writtenFiles.push(writtenRel);
+      fileResults.push({ dest: writtenRel });
+    }
+
+    const descriptorPath = path.join(installBase, MANIFEST_FILENAME);
+    const publishSubset = toPublishManifest(manifest);
+    fs.writeFileSync(descriptorPath, JSON.stringify(publishSubset, null, 2) + '\n', 'utf8');
+    const descriptorRel = path.relative(this.cwd, descriptorPath).replace(/\\/g, '/');
+    if (!writtenFiles.includes(descriptorRel)) {
+      writtenFiles.push(descriptorRel);
+    }
+
+    const activePlatform = this.configManager.getPlatform();
+    const installedTool: InstalledTool = {
+      name: manifest.name,
+      version: manifest.version,
+      category: 'plugin',
       scope,
       platform: activePlatform,
       installedAt: new Date().toISOString(),

@@ -148,6 +148,46 @@ describe('Installer.install', () => {
       installer.install(mockClient as never, SKILL_MANIFEST, 'project'),
     ).rejects.toThrow('missing file: skill.md');
   });
+
+  it('installs a plugin bundle under .agents/plugins/<pkg>/ with descriptor at package root', async () => {
+    const PLUGIN_MANIFEST: ToolManifest = {
+      name: '@team/my-plugin',
+      version: '1.0.0',
+      description: 'A plugin',
+      category: 'plugin',
+      nativeFor: 'cursor',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'skills/review/SKILL.md', dest: 'skills/review/SKILL.md' },
+      ],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([
+        { path: '.cursor-plugin/plugin.json', content: '{}' },
+        { path: 'skills/review/SKILL.md', content: '# Review' },
+      ]),
+      'utf8',
+    );
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+
+    const installed = await installer.install(mockClient as never, PLUGIN_MANIFEST, 'project');
+
+    const pluginRoot = path.join(tmp, '.agents', 'plugins', '@team__my-plugin');
+    expect(fs.existsSync(path.join(pluginRoot, '.cursor-plugin', 'plugin.json'))).toBe(true);
+    expect(fs.existsSync(path.join(pluginRoot, 'skills', 'review', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(pluginRoot, 'aitools.json'))).toBe(true);
+    const descriptor = JSON.parse(
+      fs.readFileSync(path.join(pluginRoot, 'aitools.json'), 'utf8'),
+    ) as { category: string; devDependencies?: unknown };
+    expect(descriptor.category).toBe('plugin');
+    expect(descriptor.devDependencies).toBeUndefined();
+    expect(installed.files.some((f) => f.includes('.agents/plugins/@team__my-plugin/aitools.json'))).toBe(true);
+  });
 });
 
 describe('Installer.getLock', () => {

@@ -22,13 +22,14 @@ import semver from 'semver';
 import { ToolManifestSchema, MANIFEST_FILENAME, LEGACY_PUBLISH_MANIFEST_FILENAME, readManifest, writeManifest, isPublishable, AitoolsJsonSchema } from '@bitgenetics/aitools-core';
 import type { AiToolsManifest } from '@bitgenetics/aitools-core';
 
-type Category = 'skill' | 'subagent' | 'prompt' | 'mcp-tool';
+type Category = 'skill' | 'subagent' | 'prompt' | 'mcp-tool' | 'plugin';
 
 const CATEGORY_EXT: Record<Category, string[]> = {
   skill: ['.md'],
   subagent: ['.md'],
   prompt: ['.md'],
   'mcp-tool': ['.ts', '.js', '.json'],
+  plugin: ['.md', '.mdc', '.json', '.ts', '.js', '.yaml', '.yml', '.toml', '.sh'],
 };
 
 /**
@@ -44,6 +45,8 @@ const SKIP_FILES = new Set([
   'NOTICE', 'NOTICE.md',
   'aitools.json',
   'aitools.manifest.json',
+  'aitools-lock.json',
+  'aitools.config.json',
   'README.md', 'readme.md',
 ]);
 
@@ -172,6 +175,7 @@ type ManifestInput = {
   version: string;
   description: string;
   category: string;
+  nativeFor?: string;
   files: Array<{ src: string; dest: string }>;
   author?: string;
   repository?: string;
@@ -219,6 +223,7 @@ interface ManifestInitOptions {
   version?: string;
   description?: string;
   category?: string;
+  nativeFor?: string;
   author?: string;
   keywords?: string;
   tags?: string;
@@ -234,7 +239,8 @@ function createManifestInitCommand(): Command {
     .option('--name <name>', 'Package name')
     .option('--version <version>', 'Package version')
     .option('--description <text>', 'Short description of the tool')
-    .option('--category <category>', 'Tool category: skill | subagent | prompt | mcp-tool')
+    .option('--category <category>', 'Tool category: skill | subagent | prompt | mcp-tool | plugin')
+    .option('--nativeFor <platform>', 'Source layout family (required for plugin): cursor | vscode | claude | windsurf | universal')
     .option('--author <author>', 'Author name or email')
     .option('--keywords <list>', 'Comma-separated list of keywords')
     .option('--tags <list>', 'Comma-separated tags for AI discovery')
@@ -284,6 +290,14 @@ async function initNonInteractive(
   let files: Array<{ src: string; dest: string }>;
   if (options.file && options.file.length > 0) {
     files = options.file.map(parseFileEntry);
+  } else if (category === 'plugin') {
+    const detected = detectFiles(cwd, CATEGORY_EXT.plugin);
+    if (detected.length > 0) {
+      files = detected.map((f) => ({ src: f, dest: f }));
+    } else {
+      files = [{ src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' }];
+      console.log(chalk.dim('  Note: no matching files found — using placeholder plugin.json'));
+    }
   } else {
     const detected = detectFiles(cwd, CATEGORY_EXT[category] ?? ['.md']);
     if (detected.length > 0) {
@@ -300,6 +314,9 @@ async function initNonInteractive(
     description: options.description ?? `A ${category} tool`,
     category,
     files,
+    ...(category === 'plugin'
+      ? { nativeFor: options.nativeFor ?? 'cursor' }
+      : {}),
     ...(options.author ? { author: options.author } : {}),
     ...(options.repository ? { repository: options.repository } : {}),
     ...(options.keywords
@@ -334,10 +351,17 @@ async function initInteractive(
     const version = await ask('version', options.version ?? '1.0.0');
     const description = await ask('description', options.description ?? '');
     const categoryRaw = await ask(
-      'category (skill|subagent|prompt|mcp-tool)',
+      'category (skill|subagent|prompt|mcp-tool|plugin)',
       options.category ?? 'skill',
     );
     const category = (categoryRaw || 'skill') as Category;
+    let nativeFor: string | undefined;
+    if (category === 'plugin') {
+      nativeFor = await ask(
+        'nativeFor (cursor|vscode|claude|windsurf|universal)',
+        options.nativeFor ?? 'cursor',
+      ) || options.nativeFor || 'cursor';
+    }
     const author = await ask('author', options.author ?? '');
     const repository = await ask('repository (URL)', options.repository ?? '');
     const keywordsRaw = await ask('keywords, comma-separated', options.keywords ?? '');
@@ -348,6 +372,17 @@ async function initInteractive(
 
     if (options.file && options.file.length > 0) {
       files = options.file.map(parseFileEntry);
+    } else if (category === 'plugin') {
+      const exts = CATEGORY_EXT.plugin;
+      const detected = detectFiles(cwd, exts);
+      if (detected.length > 0) {
+        files = detected.map((f) => ({ src: f, dest: f }));
+      } else {
+        files = [
+          { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        ];
+        console.log(chalk.dim('  Note: no matching files found — using placeholder plugin.json'));
+      }
     } else {
       const exts = CATEGORY_EXT[category] ?? ['.md'];
       const skillFolders = detectSkillFolders(cwd, exts);
@@ -385,6 +420,7 @@ async function initInteractive(
       description: description || `A ${category} tool`,
       category,
       files,
+      ...(nativeFor ? { nativeFor } : {}),
       ...(author ? { author } : {}),
       ...(repository ? { repository } : {}),
       ...(keywordsRaw

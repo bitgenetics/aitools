@@ -49,6 +49,7 @@ classDiagram
         subagent
         prompt
         mcp-tool
+        plugin
     }
 
     ToolManifest "1" *-- "1..*" ToolFile : files

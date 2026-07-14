@@ -14,8 +14,9 @@ The AITools registry distributes four types of AI tool packages:
 | `subagent` | An agent definition file describing a reusable specialised agent | `.agents/agents/` |
 | `prompt` | A reusable prompt template (slash command / instruction file) | `.agents/prompts/` |
 | `mcp-tool` | An MCP server registration + optional server files | platform `mcp.json` |
+| `plugin` | A multi-file plugin bundle (skills, rules, platform descriptor) | `.agents/plugins/<pkg>/` (aitools-managed; not Cursor marketplace paths) |
 
-Every package must have an `aitools.manifest.json` at its root.
+Every package must have an `aitools.json` at its root (unified publish + dependency fields). Legacy `aitools.manifest.json` is still readable — run `aitools manifest migrate`.
 
 ---
 
@@ -26,7 +27,7 @@ Every package must have an `aitools.manifest.json` at its root.
   "name": "@scope/my-skill",          // required — npm-style, lowercase, hyphens allowed
   "version": "1.0.0",                  // required — semver
   "description": "One-line summary",  // required
-  "category": "skill",                 // required — skill | subagent | prompt | mcp-tool
+  "category": "skill",                 // required — skill | subagent | prompt | mcp-tool | plugin
   "files": [                           // required (except mcp-tool with no extra files)
     {
       "src": "SKILL.md",               // path relative to manifest file
@@ -62,7 +63,7 @@ A skill is a Markdown file (`SKILL.md` by convention) that gives an AI agent ste
 **File structure:**
 ```
 my-skill/
-├── aitools.manifest.json
+├── aitools.json
 └── SKILL.md
 ```
 
@@ -124,7 +125,7 @@ A subagent is a Markdown agent definition file — loaded by the IDE as a custom
 **File structure:**
 ```
 my-agent/
-├── aitools.manifest.json
+├── aitools.json
 └── agent.md
 ```
 
@@ -184,7 +185,7 @@ A prompt is a reusable instruction template — a slash command, system prompt f
 **File structure:**
 ```
 my-prompt/
-├── aitools.manifest.json
+├── aitools.json
 └── prompt.md
 ```
 
@@ -279,7 +280,7 @@ Checks schema validity and confirms every `src` file exists on disk. Fix all rep
 ```bash
 aitools publish
 ```
-Reads `aitools.manifest.json`, bundles all declared files, and uploads to the configured registry.
+Reads `aitools.json`, bundles all declared files, and uploads to the configured registry.
 
 Preview what would be published without uploading:
 ```bash
@@ -308,8 +309,14 @@ When a user runs `aitools install <name>`, files land at:
 | claude | project | `.claude/skills/` | `.claude/agents/` | `.claude/commands/` | `.mcp.json` |
 | claude | user | `~/.claude/skills/` | `~/.claude/agents/` | `~/.claude/commands/` | `~/.claude/mcp.json` |
 | cursor | project | `.agents/skills/` | `.agents/agents/` | `.agents/prompts/` | `.cursor/mcp.json` |
+| plugin (any platform) | project | `.agents/plugins/<pkg>/` | — | — | — |
+| plugin (any platform) | user | `~/.aitools/tools/plugins/<pkg>/` | — | — | — |
 
-The `dest` path in the manifest is appended to whichever category dir the platform resolves. Design `dest` values to be meaningful subdirectory paths (e.g. `my-skill/SKILL.md`) so they don't collide with other installed tools.
+**Plugin vs marketplace:** `aitools install` for `category: plugin` uses the aitools plugin paths above. Cursor marketplace install (`/add-plugin`) is a separate channel — see [docs/design/plugin-marketplaces-comparison.md](../../../../docs/design/plugin-marketplaces-comparison.md).
+
+**Publish exclusions for plugins:** `manifest init --category plugin` must not add `aitools.json`, `aitools-lock.json`, or `aitools.config.json` to `files[]`. Only bundle content (e.g. `.cursor-plugin/plugin.json`, `skills/`).
+
+The `dest` path in the manifest is appended to whichever category dir the platform resolves. Design `dest` values to be meaningful subdirectory paths (e.g. `my-skill/SKILL.md`) so they don't collide with other installed tools. **Exception:** plugin `dest` paths are relative to the package root under `.agents/plugins/<pkg>/` (preserve tree layout).
 
 ---
 

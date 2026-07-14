@@ -17,9 +17,17 @@
 
 ---
 
-### publish — 2026-04-26 `d0b6f60`
-**What**: `aitools publish` packages the current directory's `aitools.manifest.json` + declared files into a tarball and POSTs it to the configured registry. Requires `Bearer` token auth when the registry has `publishToken` set. Shows a meaningful error when the registry is unreachable (ECONNREFUSED / ENOTFOUND / ETIMEDOUT).  
-**Key files**: `packages/cli/src/commands/publish.ts`, `packages/cli/src/utils/registry-client.ts`
+### publish — 2026-04-26 `d0b6f60` (updated unified `aitools.json`)
+**What**: `aitools publish` reads `aitools.json`, extracts the publish subset via `toPublishManifest()`, bundles declared files into a tarball, and POSTs to the configured registry. Requires `Bearer` token auth when the registry has `publishToken` set.  
+**Key files**: `packages/cli/src/commands/publish.ts`, `packages/cli/src/utils/registry-client.ts`, `packages/core/src/manifest/publish-manifest.ts`
+
+---
+
+### plugin category — 2026-06-28
+**What**: `category: plugin` for multi-file plugin bundles. `manifest init --category plugin --nativeFor cursor` walks the plugin tree; `aitools install` copies the full tree to `.agents/plugins/<pkg>/` (project) or `~/.aitools/tools/plugins/<pkg>/` (user) with publish-subset `aitools.json` at package root. Never writes to Cursor marketplace paths (`.cursor/plugins/local/`). `nativeFor` is required for validation only.
+**Key APIs**: `resolvePluginInstallDir()`, `Installer.installPlugin()`, `ConfigManager.resolvePluginInstallPath()`
+**Key files**: `packages/core/src/schema/tool-schema.ts`, `packages/core/src/manifest/plugin-install.ts`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/commands/manifest.ts`
+**Design doc**: `docs/design/plugin-marketplaces-comparison.md`
 
 ---
 

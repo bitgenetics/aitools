@@ -493,7 +493,7 @@ Each entry may include an optional `platform` field (`vscode`, `claude`, `cursor
 | `name` | Yes | Scoped package name (`@scope/name` or `name`) — lowercase, hyphens |
 | `version` | Yes | Semver string |
 | `description` | Yes | Short description |
-| `category` | Yes | `skill`, `subagent`, `prompt`, or `mcp-tool` |
+| `category` | Yes | `skill`, `subagent`, `prompt`, `mcp-tool`, or `plugin` |
 | `files` | Yes | Array of `{ src, dest, platform? }` file entries |
 | `keywords` | | Array of strings for search |
 | `author` | | Author name or email |
@@ -640,6 +640,17 @@ MCP tools inject a server entry into the platform's `mcp.json` config file.
 | `claude` | `.mcp.json` | `~/.claude/mcp.json` |
 | `cursor` | `.cursor/mcp.json` | `~/.cursor/mcp.json` |
 | `windsurf` | `.windsurf/mcp.json` | `~/.codeium/windsurf/mcp_config.json` |
+
+### `plugin`
+
+Plugin bundles install to **aitools-managed paths** (not Cursor marketplace / `.cursor/plugins/local/`). The full tree is preserved; `aitools.json` is written at the package root.
+
+| Scope | Install root |
+|---|---|
+| project | `.agents/plugins/<package-dir>/` |
+| user | `~/.aitools/tools/plugins/<package-dir>/` |
+
+`<package-dir>` is the sanitized package name (`@team/my-plugin` → `@team__my-plugin`). Use `manifest init --category plugin --nativeFor cursor` for Cursor-style plugin layouts. See [docs/design/plugin-marketplaces-comparison.md](docs/design/plugin-marketplaces-comparison.md).
 
 ---
 

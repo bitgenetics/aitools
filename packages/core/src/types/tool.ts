@@ -27,6 +27,7 @@ export type ToolCategory =
   | 'agent'
   | 'hook'
   | 'mcp-tool'
+  | 'plugin'
   | 'subagent'
   | 'prompt';
 
