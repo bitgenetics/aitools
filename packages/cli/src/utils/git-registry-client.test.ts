@@ -143,6 +143,11 @@ describe('createGitRegistryClient', () => {
     await expect(client.getManifest('missing-tool', '1.0.0')).rejects.toThrow('tool not found');
   });
 
+  it('throws when latest version cannot be resolved', async () => {
+    const client = createGitRegistryClient(config);
+    await expect(client.getManifest('missing-tool', 'latest')).rejects.toThrow('tool not found');
+  });
+
   it('supports smart search queries', async () => {
     const client = createGitRegistryClient(config);
     await client.publish(FIXTURE_MANIFEST, { 'index.md': '# v1' });

@@ -33,6 +33,26 @@ describe('toPublishManifest', () => {
     expect(result.dependencies).toEqual({ '@team/base': '^1.0.0' });
   });
 
+  it('includes optional publish metadata when present', () => {
+    const result = toPublishManifest({
+      ...FULL_DOC,
+      nativeFor: 'cursor',
+      keywords: ['review'],
+      author: 'team',
+      repository: 'https://example.com/repo',
+      tags: ['lint'],
+      platforms: ['cursor'],
+      private: true,
+    });
+    expect(result.nativeFor).toBe('cursor');
+    expect(result.keywords).toEqual(['review']);
+    expect(result.author).toBe('team');
+    expect(result.repository).toBe('https://example.com/repo');
+    expect(result.tags).toEqual(['lint']);
+    expect(result.platforms).toEqual(['cursor']);
+    expect(result.private).toBe(true);
+  });
+
   it('omits devDependencies from registry payload', () => {
     const result = toPublishManifest(FULL_DOC);
     expect(result).not.toHaveProperty('devDependencies');
@@ -40,6 +60,14 @@ describe('toPublishManifest', () => {
 
   it('throws when publish fields are missing', () => {
     expect(() => toPublishManifest({ dependencies: { foo: '^1.0.0' } })).toThrow(/missing publish fields/i);
+  });
+
+  it('throws when publish subset fails tool manifest validation', () => {
+    const invalid = {
+      ...FULL_DOC,
+      repository: 'not-a-valid-url',
+    };
+    expect(() => toPublishManifest(invalid)).toThrow(/Publish manifest validation failed/);
   });
 });
 
@@ -50,6 +78,19 @@ describe('isPublishable', () => {
 
   it('returns false for consumer-only doc', () => {
     expect(isPublishable({ name: 'my-app', dependencies: { foo: '^1.0.0' } })).toBe(false);
+  });
+
+  it('returns true for mcp-tool with empty files when mcpServer is present', () => {
+    expect(
+      isPublishable({
+        name: '@team/server',
+        version: '1.0.0',
+        description: 'MCP',
+        category: 'mcp-tool',
+        files: [],
+        mcpServer: { command: 'node', args: ['server.js'] },
+      }),
+    ).toBe(true);
   });
 });
 

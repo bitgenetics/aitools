@@ -60,6 +60,33 @@ describe('rewriteRelativePaths', () => {
     expect(result.confidence).toBe('medium');
   });
 
+  it('returns content unchanged when the path map is empty', () => {
+    const input = '{"command":"./scripts/format.sh"}';
+    const result = rewriteRelativePaths(input, {});
+    expect(result.content).toBe(input);
+    expect(result.confidence).toBe('native');
+  });
+
+  it('skips absolute and remote references', () => {
+    const map = buildPluginPathMap([{ src: 'scripts/x.sh', finalRel: 'out/x.sh' }]);
+    expect(resolveMappedPath('https://example.com/x', map)).toBeUndefined();
+    expect(resolveMappedPath('C:/tools/x.sh', map)).toBeUndefined();
+    expect(resolveMappedPath('/usr/bin/x', map)).toBeUndefined();
+    expect(resolveMappedPath('${HOME}/bin/x', map)).toBeUndefined();
+  });
+
+  it('matches map keys by suffix when refs omit leading segments', () => {
+    const map = buildPluginPathMap([
+      { src: 'scripts/nested/format.sh', finalRel: '.cursor/skills/p/scripts/nested/format.sh' },
+    ]);
+    expect(resolveMappedPath('nested/format.sh', map)).toBe('.cursor/skills/p/scripts/nested/format.sh');
+  });
+
+  it('warns on unresolved markdown asset links', () => {
+    const result = rewriteRelativePaths('See ![missing](./assets/missing.svg)', pathMap);
+    expect(result.warnings.some((w) => w.includes('assets/missing.svg'))).toBe(true);
+  });
+
   it('rewrites layout paths even when platforms match (explode relocate)', () => {
     const result = rewriteRelativePaths('{"command":"scripts/format.sh"}', pathMap);
     expect(result.content).toContain('.cursor/skills/my-plugin/scripts/format.sh');

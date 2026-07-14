@@ -211,20 +211,11 @@ export function createCompatCommand(): Command {
       }
 
       let manifest;
-      if (source.unified) {
-        try {
-          manifest = toPublishManifest(source.unified);
-        } catch (err) {
-          console.error(chalk.red((err as Error).message));
-          process.exit(1);
-        }
-      } else {
-        const parsed = ToolManifestSchema.safeParse(source.legacyRaw);
-        if (!parsed.success) {
-          console.error(chalk.red('Manifest validation failed — run `aitools manifest validate` first'));
-          process.exit(1);
-        }
-        manifest = parsed.data;
+      try {
+        manifest = toPublishManifest(source.unified);
+      } catch (err) {
+        console.error(chalk.red((err as Error).message));
+        process.exit(1);
       }
 
       const manifestDir = source.manifestDir;

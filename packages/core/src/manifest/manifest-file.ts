@@ -122,16 +122,17 @@ export const removeToolDependency = removeDependency;
 
 export interface ResolvedPublishSource {
   manifestDir: string;
-  /** Unified doc when read from aitools.json */
-  unified?: AiToolsManifest;
-  /** Raw legacy ToolManifest when read from aitools.manifest.json */
-  legacyRaw?: unknown;
-  usedLegacyFile: boolean;
+  unified: AiToolsManifest;
+}
+
+function rejectLegacyPublishManifest(): never {
+  throw new Error(
+    `${LEGACY_PUBLISH_MANIFEST_FILENAME} is no longer supported. Run: aitools manifest migrate`,
+  );
 }
 
 /**
- * Resolve the publish manifest source directory and document.
- * Prefers aitools.json; falls back to legacy aitools.manifest.json.
+ * Resolve the publish manifest source directory and document from aitools.json.
  */
 export function resolvePublishSource(
   cwd: string,
@@ -142,36 +143,26 @@ export function resolvePublishSource(
     const manifestPath = path.resolve(explicitPath);
     const manifestDir = path.dirname(manifestPath);
     if (!fs.existsSync(manifestPath)) return null;
-    const raw = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as unknown;
     if (path.basename(manifestPath) === LEGACY_PUBLISH_MANIFEST_FILENAME) {
-      return { manifestDir, legacyRaw: raw, usedLegacyFile: true };
+      rejectLegacyPublishManifest();
     }
+    const raw = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as unknown;
     const parsed = AitoolsJsonSchema.safeParse(raw);
     if (!parsed.success) {
       throw new Error(`Invalid manifest at ${manifestPath}: ${parsed.error.message}`);
     }
-    return { manifestDir, unified: parsed.data, usedLegacyFile: false };
+    return { manifestDir, unified: parsed.data };
   }
 
   const unifiedPath = path.join(cwd, MANIFEST_FILENAME);
   if (fs.existsSync(unifiedPath)) {
-    let doc: AiToolsManifest | null;
-    try {
-      doc = readManifest(cwd, { warn });
-    } catch (err) {
-      throw err;
-    }
-    return doc ? { manifestDir: cwd, unified: doc, usedLegacyFile: false } : null;
+    const doc = readManifest(cwd, { warn });
+    return doc ? { manifestDir: cwd, unified: doc } : null;
   }
 
   const legacyPath = path.join(cwd, LEGACY_PUBLISH_MANIFEST_FILENAME);
   if (fs.existsSync(legacyPath)) {
-    warn?.(
-      `[aitools] Deprecated: ${LEGACY_PUBLISH_MANIFEST_FILENAME} is deprecated. ` +
-        `Run: aitools manifest migrate`,
-    );
-    const raw = JSON.parse(fs.readFileSync(legacyPath, 'utf8')) as unknown;
-    return { manifestDir: cwd, legacyRaw: raw, usedLegacyFile: true };
+    rejectLegacyPublishManifest();
   }
 
   return null;

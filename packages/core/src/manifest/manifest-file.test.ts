@@ -20,7 +20,9 @@ import {
   writeManifest,
   upsertDependency,
   removeDependency,
+  resolvePublishSource,
   MANIFEST_FILENAME,
+  LEGACY_PUBLISH_MANIFEST_FILENAME,
 } from '../manifest/manifest-file.js';
 import type { AiToolsManifest } from '../types/config.js';
 
@@ -80,6 +82,17 @@ describe('readManifest', () => {
     const manifest: AiToolsManifest = {};
     writeManifest(tmp, manifest);
     expect(readManifest(tmp)).toEqual({});
+  });
+
+  it('warns when legacy tools/devTools keys are present', () => {
+    fs.writeFileSync(
+      path.join(tmp, MANIFEST_FILENAME),
+      JSON.stringify({ tools: { foo: '^1.0.0' }, devTools: { bar: '^2.0.0' } }),
+      'utf8',
+    );
+    const warn = jest.fn();
+    readManifest(tmp, { warn });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('tools'));
   });
 });
 
@@ -165,5 +178,85 @@ describe('removeDependency', () => {
     const manifest: AiToolsManifest = { dependencies: { 'my-skill': '^1.0.0' } };
     removeDependency(manifest, 'my-skill');
     expect(manifest.dependencies?.['my-skill']).toBe('^1.0.0');
+  });
+});
+
+describe('resolvePublishSource', () => {
+  let tmp: string;
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-publish-src-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  it('returns null when no manifest exists', () => {
+    expect(resolvePublishSource(tmp)).toBeNull();
+  });
+
+  it('prefers aitools.json in cwd', () => {
+    writeManifest(tmp, {
+      name: '@team/pkg',
+      version: '1.0.0',
+      description: 'Pkg',
+      category: 'skill',
+      files: [{ src: 'SKILL.md', dest: 'SKILL.md' }],
+    });
+    const result = resolvePublishSource(tmp);
+    expect(result?.unified?.name).toBe('@team/pkg');
+  });
+
+  it('rejects legacy aitools.manifest.json when it is the only manifest', () => {
+    fs.writeFileSync(
+      path.join(tmp, LEGACY_PUBLISH_MANIFEST_FILENAME),
+      JSON.stringify({ name: '@team/legacy', version: '1.0.0' }),
+      'utf8',
+    );
+    expect(() => resolvePublishSource(tmp)).toThrow(/no longer supported/);
+  });
+
+  it('rejects an explicit legacy manifest path', () => {
+    const manifestPath = path.join(tmp, LEGACY_PUBLISH_MANIFEST_FILENAME);
+    fs.writeFileSync(
+      manifestPath,
+      JSON.stringify({
+        name: '@team/legacy',
+        version: '1.0.0',
+        description: 'Legacy',
+        category: 'skill',
+        files: [{ src: 'SKILL.md', dest: 'SKILL.md' }],
+      }),
+      'utf8',
+    );
+    expect(() => resolvePublishSource(tmp, manifestPath)).toThrow(/no longer supported/);
+  });
+
+  it('reads an explicit unified manifest path', () => {
+    const manifestPath = path.join(tmp, 'custom.json');
+    fs.writeFileSync(
+      manifestPath,
+      JSON.stringify({
+        name: '@team/custom',
+        version: '1.0.0',
+        description: 'Custom',
+        category: 'skill',
+        files: [{ src: 'SKILL.md', dest: 'SKILL.md' }],
+      }),
+      'utf8',
+    );
+    const result = resolvePublishSource(tmp, manifestPath);
+    expect(result?.unified?.name).toBe('@team/custom');
+  });
+
+  it('returns null when an explicit manifest path is missing', () => {
+    expect(resolvePublishSource(tmp, path.join(tmp, 'missing.json'))).toBeNull();
+  });
+
+  it('throws when an explicit unified manifest fails validation', () => {
+    const manifestPath = path.join(tmp, 'bad.json');
+    fs.writeFileSync(manifestPath, JSON.stringify({ dependencies: 'not-an-object' }), 'utf8');
+    expect(() => resolvePublishSource(tmp, manifestPath)).toThrow(/Invalid manifest/);
   });
 });

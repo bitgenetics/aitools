@@ -110,6 +110,21 @@ describe('publish command', () => {
     }
   });
 
+  it('exits with 1 when only legacy aitools.manifest.json is present', async () => {
+    fs.unlinkSync(path.join(tmp, 'aitools.json'));
+    fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+    fs.writeFileSync(path.join(tmp, 'skill.md'), '# Skill', 'utf8');
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      await expect(createPublishCommand().parseAsync([], { from: 'user' })).rejects.toThrow('process.exit(1)');
+    } finally {
+      mockExit.mockRestore();
+    }
+  });
+
   it('exits with 1 when a declared file is missing', async () => {
     fs.unlinkSync(path.join(tmp, 'skill.md'));
     jest.spyOn(console, 'error').mockImplementation(() => {});

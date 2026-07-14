@@ -21,7 +21,6 @@ import {
   MANIFEST_FILENAME,
   resolvePublishSource,
   toPublishManifest,
-  ToolManifestSchema,
 } from '@bitgenetics/aitools-core';
 import type { ToolManifest } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
@@ -37,47 +36,32 @@ interface PublishOptions {
   strict?: boolean;
 }
 
-function warnDeprecated(message: string): void {
-  console.warn(chalk.yellow(message));
-}
-
 function resolveToolManifest(
   cwd: string,
   explicitPath?: string,
 ): { manifest: ToolManifest; manifestDir: string } | null {
   let source;
   try {
-    source = resolvePublishSource(cwd, explicitPath, warnDeprecated);
-  } catch {
+    source = resolvePublishSource(cwd, explicitPath, (message) => console.warn(chalk.yellow(message)));
+  } catch (err) {
+    console.error(chalk.red((err as Error).message));
     return null;
   }
   if (!source) return null;
 
-  if (source.unified) {
-    try {
-      return { manifest: toPublishManifest(source.unified), manifestDir: source.manifestDir };
-    } catch (err) {
-      console.error(chalk.red((err as Error).message));
-      return null;
-    }
-  }
-
-  const parsed = ToolManifestSchema.safeParse(source.legacyRaw);
-  if (!parsed.success) {
-    console.error(chalk.red('Manifest validation failed:'));
-    for (const issue of parsed.error.issues) {
-      console.error(`  ${chalk.dim(issue.path.join('.'))} ${issue.message}`);
-    }
+  try {
+    return { manifest: toPublishManifest(source.unified), manifestDir: source.manifestDir };
+  } catch (err) {
+    console.error(chalk.red((err as Error).message));
     return null;
   }
-  return { manifest: parsed.data, manifestDir: source.manifestDir };
 }
 
 /**
  * aitools publish [options]
  *
- * Reads aitools.json (or legacy aitools.manifest.json), extracts the publish
- * subset, reads declared source files, and publishes to the configured registry.
+ * Reads aitools.json, extracts the publish subset, reads declared source
+ * files, and publishes to the configured registry.
  */
 export function createPublishCommand(): Command {
   return new Command('publish')

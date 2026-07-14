@@ -459,18 +459,11 @@ function loadPublishDoc(cwd: string): AiToolsManifest {
   }
 
   if (fs.existsSync(legacyPath)) {
-    console.warn(
-      chalk.yellow(
-        `[aitools] Deprecated: ${LEGACY_PUBLISH_MANIFEST_FILENAME} — run: aitools manifest migrate`,
-      ),
+    console.error(
+      chalk.red(`${LEGACY_PUBLISH_MANIFEST_FILENAME} is no longer supported.`),
     );
-    const raw = JSON.parse(fs.readFileSync(legacyPath, 'utf8')) as unknown;
-    const parsed = ToolManifestSchema.safeParse(raw);
-    if (!parsed.success) {
-      console.error(chalk.red('Legacy manifest validation failed.'));
-      process.exit(1);
-    }
-    return parsed.data;
+    console.error(chalk.dim('Run: aitools manifest migrate'));
+    process.exit(1);
   }
 
   console.error(chalk.red(`No ${MANIFEST_FILENAME} found.`));

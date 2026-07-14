@@ -104,6 +104,67 @@ describe('classifyPluginMembers', () => {
     });
     expect(errors).toEqual(['plugin file has no install home: random/orphan.bin']);
   });
+
+  it('classifies root SKILL.md as a single-skill plugin', () => {
+    const { members, errors } = classifyPluginMembers({
+      packageName: 'solo-skill',
+      sources: ['SKILL.md'],
+    });
+    expect(errors).toEqual([]);
+    expect(members.find((m) => m.src === 'SKILL.md')).toMatchObject({
+      kind: 'skill',
+      destWithinCategory: 'solo-skill/SKILL.md',
+    });
+  });
+
+  it('deduplicates duplicate and empty source paths', () => {
+    const { members } = classifyPluginMembers({
+      packageName: 'my-plugin',
+      sources: ['skills/x/SKILL.md', 'skills/x/SKILL.md', ''],
+    });
+    expect(members.filter((m) => m.src === 'skills/x/SKILL.md')).toHaveLength(1);
+  });
+
+  it('honours custom mcp path from plugin.json', () => {
+    const { members, errors } = classifyPluginMembers({
+      packageName: 'my-plugin',
+      sources: ['config/custom-mcp.json'],
+      pluginJson: { mcpServers: 'config/custom-mcp.json' },
+    });
+    expect(errors).toEqual([]);
+    expect(members.find((m) => m.src === 'config/custom-mcp.json')?.kind).toBe('mcp');
+  });
+
+  it('derives hooks root from a file path override', () => {
+    const { members, errors } = classifyPluginMembers({
+      packageName: 'my-plugin',
+      sources: ['custom-hooks/hooks.json'],
+      pluginJson: { hooks: 'custom-hooks/hooks.json' },
+    });
+    expect(errors).toEqual([]);
+    expect(members.find((m) => m.src === 'custom-hooks/hooks.json')?.kind).toBe('hook');
+  });
+
+  it('uses hooks/ when hooks override is a bare filename', () => {
+    const { members, errors } = classifyPluginMembers({
+      packageName: 'my-plugin',
+      sources: ['hooks/hooks.json'],
+      pluginJson: { hooks: 'hooks.json' },
+    });
+    expect(errors).toEqual([]);
+    expect(members.find((m) => m.src === 'hooks/hooks.json')?.kind).toBe('hook');
+  });
+
+  it('supports array path overrides for multiple skill roots', () => {
+    const { members, errors } = classifyPluginMembers({
+      packageName: 'my-plugin',
+      sources: ['alpha/foo/SKILL.md', 'beta/bar/SKILL.md'],
+      pluginJson: { skills: ['alpha/', 'beta/'] },
+    });
+    expect(errors).toEqual([]);
+    expect(members.find((m) => m.src === 'alpha/foo/SKILL.md')?.kind).toBe('skill');
+    expect(members.find((m) => m.src === 'beta/bar/SKILL.md')?.kind).toBe('skill');
+  });
 });
 
 describe('validatePluginStructure', () => {

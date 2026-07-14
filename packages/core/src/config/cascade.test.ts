@@ -84,6 +84,23 @@ describe('ConfigCascade.merge', () => {
   });
 });
 
+describe('ConfigCascade.stripComments', () => {
+  it('removes line comments outside quoted strings', () => {
+    const input = '{\n  "platform": "cursor" // project default\n}';
+    expect(JSON.parse(ConfigCascade.stripComments(input))).toEqual({ platform: 'cursor' });
+  });
+
+  it('removes block comments outside quoted strings', () => {
+    const input = '{\n  /* choose platform */\n  "platform": "cursor"\n}';
+    expect(JSON.parse(ConfigCascade.stripComments(input))).toEqual({ platform: 'cursor' });
+  });
+
+  it('preserves // sequences inside quoted strings', () => {
+    const input = '{"url":"https://example.com//path"}';
+    expect(JSON.parse(ConfigCascade.stripComments(input))).toEqual({ url: 'https://example.com//path' });
+  });
+});
+
 describe('ConfigCascade.readFile', () => {
   let tmp: string;
 
@@ -114,6 +131,16 @@ describe('ConfigCascade.readFile', () => {
   it('returns the parsed config for a valid file', () => {
     const file = path.join(tmp, 'aitools.config.json');
     fs.writeFileSync(file, JSON.stringify({ defaultScope: 'user' }), 'utf8');
+    expect(ConfigCascade.readFile(file)).toEqual({ defaultScope: 'user' });
+  });
+
+  it('parses JSONC config files with line comments', () => {
+    const file = path.join(tmp, 'aitools.config.json');
+    fs.writeFileSync(
+      file,
+      '{\n  // user default\n  "defaultScope": "user"\n}',
+      'utf8',
+    );
     expect(ConfigCascade.readFile(file)).toEqual({ defaultScope: 'user' });
   });
 

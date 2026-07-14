@@ -12,7 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-import { normalizeCategory } from './category.js';
+import { isFileCategory, normalizeCategory } from './category.js';
 
 describe('normalizeCategory', () => {
   it('maps subagent to agent', () => {
@@ -30,5 +30,20 @@ describe('normalizeCategory', () => {
   it('passes through canonical categories unchanged', () => {
     expect(normalizeCategory('hook').category).toBe('hook');
     expect(normalizeCategory('rule').deprecatedAlias).toBe(false);
+  });
+});
+
+describe('isFileCategory', () => {
+  it('returns true for file-based categories', () => {
+    expect(isFileCategory('skill')).toBe(true);
+    expect(isFileCategory('rule')).toBe(true);
+    expect(isFileCategory('command')).toBe(true);
+    expect(isFileCategory('agent')).toBe(true);
+  });
+
+  it('returns false for config-merge and bundle categories', () => {
+    expect(isFileCategory('mcp-tool')).toBe(false);
+    expect(isFileCategory('hook')).toBe(false);
+    expect(isFileCategory('plugin')).toBe(false);
   });
 });
