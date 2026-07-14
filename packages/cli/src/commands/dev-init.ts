@@ -23,7 +23,9 @@ import {
   readManifest,
   writeManifest,
   upsertDependency,
+  PLATFORM_SPECS,
 } from '@bitgenetics/aitools-core';
+import type { TargetPlatform } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { SKILL_MD, MANIFEST_REFERENCE_MD, PLATFORM_PATHS_MD } from '../bundled/create-ai-tool.js';
 
@@ -42,6 +44,17 @@ const BUNDLED_FILES: Array<{ dest: string; content: string }> = [
 interface DevInitOptions {
   force?: boolean;
   scope?: string;
+  platform?: string;
+}
+
+function resolvePlatformOption(platform: string | undefined): TargetPlatform | undefined {
+  if (platform === undefined) return undefined;
+  if (!(platform in PLATFORM_SPECS)) {
+    console.error(chalk.red(`Unknown platform: ${platform}`));
+    console.error(`  Known platforms: ${Object.keys(PLATFORM_SPECS).join(', ')}`);
+    process.exit(1);
+  }
+  return platform as TargetPlatform;
 }
 
 /**
@@ -56,9 +69,14 @@ export function createDevInitCommand(): Command {
     .description('Install the bundled create-ai-tool skill without a registry')
     .option('--force', 'Overwrite if already installed')
     .option('--scope <scope>', 'Install scope: project or user (default: project)')
+    .option(
+      '-p, --platform <platform>',
+      'Target platform: universal, vscode, claude, cursor, or windsurf',
+    )
     .action((options: DevInitOptions) => {
       const cwd = process.cwd();
-      const configManager = new ConfigManager(cwd);
+      const platformOverride = resolvePlatformOption(options.platform);
+      const configManager = new ConfigManager(cwd, { platform: platformOverride });
       const scope = (options.scope ?? 'project') as 'project' | 'user';
 
       if (scope !== 'project' && scope !== 'user') {
@@ -96,6 +114,9 @@ export function createDevInitCommand(): Command {
         integrity: '',
         files: writtenFiles,
         installedAt: new Date().toISOString(),
+        platform: configManager.getPlatform(),
+        category: 'skill' as const,
+        scope,
       };
       const updatedLock = upsertLockEntry(lock, BUNDLED_NAME, lockEntry);
       writeLockFile(cwd, updatedLock);
@@ -115,10 +136,11 @@ export function createDevInitCommand(): Command {
         console.log(chalk.dim(`  -> ${f}`));
       }
 
-      if (configManager.getPlatform() === 'universal') {
+      if (configManager.getPlatform() === 'universal' && !platformOverride) {
         console.log(
-          chalk.yellow('\n  Tip: no platform configured � files were installed to .agents/') +
-            chalk.dim('\n  Run: aitools config set platform vscode  (or claude|cursor|windsurf)'),
+          chalk.yellow('\n  Tip: no platform configured — files were installed to .agents/') +
+            chalk.dim('\n  Run: aitools config set platform cursor  (or vscode|claude|windsurf)') +
+            chalk.dim('\n  Or pass: aitools dev-init --platform cursor'),
         );
       }
     });

@@ -84,6 +84,20 @@ describe('ConfigManager.resolveInstallPath', () => {
     const overrideManager = new ConfigManager(tmp);
     expect(overrideManager.resolveInstallPath('skill', 'project')).toBe(customPath);
   });
+
+  it('uses platform override over config and auto-detection', () => {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'vscode' }),
+      'utf8',
+    );
+    const manager = new ConfigManager(tmp, { platform: 'cursor' });
+    expect(manager.getPlatform()).toBe('cursor');
+    expect(manager.detectedPlatform).toBeUndefined();
+    expect(manager.resolveInstallPath('skill', 'project')).toBe(
+      path.resolve(tmp, '.cursor', 'skills'),
+    );
+  });
 });
 
 describe('ConfigManager.resolvePluginInstallPath', () => {

@@ -138,4 +138,22 @@ describe('dev-init command action', () => {
     expect(() => createDevInitCommand().parse(['--scope', 'invalid'], { from: 'user' })).toThrow('process.exit:1');
     exitSpy.mockRestore();
   });
+
+  it('installs to cursor skill path when --platform cursor is passed', () => {
+    fs.writeFileSync(path.join(tmp, 'aitools.config.json'), '{}', 'utf8');
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    createDevInitCommand().parse(['--platform', 'cursor'], { from: 'user' });
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'skills', BUNDLED_NAME, 'SKILL.md'))).toBe(true);
+  });
+
+  it('exits when platform is invalid', () => {
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`process.exit:${code ?? 0}`);
+    }) as never);
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() =>
+      createDevInitCommand().parse(['--platform', 'not-a-platform'], { from: 'user' }),
+    ).toThrow('process.exit:1');
+    exitSpy.mockRestore();
+  });
 });

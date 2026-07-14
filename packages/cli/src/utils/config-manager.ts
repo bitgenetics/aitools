@@ -59,14 +59,22 @@ export class ConfigManager {
    */
   readonly detectedPlatform: TargetPlatform | undefined;
 
-  constructor(cwd: string = process.cwd()) {
+  constructor(
+    cwd: string = process.cwd(),
+    options: { platform?: TargetPlatform } = {},
+  ) {
     this.cwd = cwd;
     this.config = ConfigCascade.load(cwd);
-    if (!this.config.platform) {
+    if (options.platform) {
+      this.detectedPlatform = undefined;
+      this.config = { ...this.config, platform: options.platform };
+    } else if (!this.config.platform) {
       this.detectedPlatform = detectPlatformFromEnv(cwd);
       if (this.detectedPlatform) {
         this.config = { ...this.config, platform: this.detectedPlatform };
       }
+    } else {
+      this.detectedPlatform = undefined;
     }
     this.adapter = getAdapter(this.config.platform);
   }
