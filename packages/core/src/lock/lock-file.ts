@@ -17,6 +17,7 @@ import path from 'node:path';
 import type { AiToolsLock, LockEntry } from '../types/lock.js';
 import { AiToolsLockSchema } from '../schema/config-schema.js';
 import { emptyLock } from '../types/lock.js';
+import { toStoredPath } from '../paths/stored-path.js';
 
 export const LOCK_FILENAME = 'aitools-lock.json';
 
@@ -44,13 +45,30 @@ export function readLockFile(dir: string): AiToolsLock {
   return result.data;
 }
 
+function normalizeLockEntry(projectRoot: string, entry: LockEntry): LockEntry {
+  return {
+    ...entry,
+    files: entry.files.map((file) => toStoredPath(projectRoot, file)),
+    ...(entry.mcpConfig ? { mcpConfig: toStoredPath(projectRoot, entry.mcpConfig) } : {}),
+    ...(entry.hooksConfig ? { hooksConfig: toStoredPath(projectRoot, entry.hooksConfig) } : {}),
+  };
+}
+
+function normalizeLock(projectRoot: string, lock: AiToolsLock): AiToolsLock {
+  const tools: Record<string, LockEntry> = {};
+  for (const [name, entry] of Object.entries(lock.tools)) {
+    tools[name] = normalizeLockEntry(projectRoot, entry);
+  }
+  return { ...lock, tools };
+}
+
 /**
  * Write an aitools-lock.json to disk atomically (write ? rename).
  */
 export function writeLockFile(dir: string, lock: AiToolsLock): void {
   const filePath = path.join(dir, LOCK_FILENAME);
   const tmpPath = `${filePath}.tmp`;
-  const content = JSON.stringify(lock, null, 2) + '\n';
+  const content = JSON.stringify(normalizeLock(dir, lock), null, 2) + '\n';
   fs.writeFileSync(tmpPath, content, 'utf8');
   fs.renameSync(tmpPath, filePath);
 }

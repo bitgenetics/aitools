@@ -32,7 +32,7 @@ function makeLockEntry(overrides: Partial<LockEntry> = {}): LockEntry {
     version: '1.0.0',
     resolved: 'https://registry.example.com/tarball',
     integrity: 'sha256-abc123=',
-    files: ['/dest/tool.md'],
+    files: ['.agents/skills/my-skill/SKILL.md'],
     installedAt: FIXED_DATE,
     ...overrides,
   };
@@ -71,6 +71,19 @@ describe('readLockFile', () => {
     const lock = upsertLockEntry(emptyLock(), 'my-skill', makeLockEntry());
     writeLockFile(tmp, lock);
     expect(readLockFile(tmp)).toEqual(lock);
+  });
+
+  it('normalizes absolute file paths to project-relative paths on write', () => {
+    const abs = path.join(tmp, '.agents', 'skills', 'foo', 'SKILL.md');
+    const lock = upsertLockEntry(
+      emptyLock(),
+      'my-skill',
+      makeLockEntry({ files: [abs] }),
+    );
+    writeLockFile(tmp, lock);
+    const read = readLockFile(tmp);
+    expect(read.tools['my-skill']!.files[0]).toBe('.agents/skills/foo/SKILL.md');
+    expect(path.isAbsolute(read.tools['my-skill']!.files[0]!)).toBe(false);
   });
 });
 

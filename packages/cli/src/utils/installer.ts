@@ -26,6 +26,7 @@ import {
   toPublishManifest,
   classifyPluginMembers,
   parseCursorPluginJson,
+  resolveStoredPath,
 } from '@bitgenetics/aitools-core';
 import type { ConfigManager } from './config-manager.js';
 import type { RegistryClient } from './registry-client.js';
@@ -301,9 +302,7 @@ export class Installer {
     if (previousEntry) {
       const newFileSet = new Set(writtenFiles);
       for (const oldFile of previousEntry.files) {
-        const absOldFile = path.isAbsolute(oldFile)
-          ? oldFile
-          : path.resolve(this.cwd, oldFile);
+        const absOldFile = resolveStoredPath(this.cwd, oldFile);
         const relOldFile = path.relative(this.cwd, absOldFile).replace(/\\/g, '/');
         if (!newFileSet.has(relOldFile) && fs.existsSync(absOldFile)) {
           fs.rmSync(absOldFile);
@@ -363,9 +362,7 @@ export class Installer {
 
     // On reinstall, unmerge previous hooks before merging the new set so handlers are not doubled.
     if (previousEntry?.hooksAdded && previousEntry.hooksConfig) {
-      const hooksPath = path.isAbsolute(previousEntry.hooksConfig)
-        ? previousEntry.hooksConfig
-        : path.resolve(this.cwd, previousEntry.hooksConfig);
+      const hooksPath = resolveStoredPath(this.cwd, previousEntry.hooksConfig);
       if (fs.existsSync(hooksPath)) {
         const cleaned = unmergeHookConfigs(
           fs.readFileSync(hooksPath, 'utf8'),
@@ -578,9 +575,7 @@ export class Installer {
     if (previous) {
       const newFileSet = new Set(writtenFiles);
       for (const oldFile of previous.files) {
-        const absOldFile = path.isAbsolute(oldFile)
-          ? oldFile
-          : path.resolve(this.cwd, oldFile);
+        const absOldFile = resolveStoredPath(this.cwd, oldFile);
         const relOldFile = path.relative(this.cwd, absOldFile).replace(/\\/g, '/');
         if (!newFileSet.has(relOldFile) && fs.existsSync(absOldFile)) {
           fs.rmSync(absOldFile);
@@ -592,9 +587,7 @@ export class Installer {
         const stale = previous.mcpKeys.filter((k) => !keep.has(k));
         if (stale.length > 0) {
           removeMcpKeys(
-            path.isAbsolute(previous.mcpConfig)
-              ? previous.mcpConfig
-              : path.resolve(this.cwd, previous.mcpConfig),
+            resolveStoredPath(this.cwd, previous.mcpConfig),
             stale,
           );
         }
@@ -680,16 +673,12 @@ export class Installer {
 
     if (isMcpOnly) {
       const rawPath = entry.files[0]!;
-      const configPath = path.isAbsolute(rawPath)
-        ? rawPath
-        : path.resolve(this.cwd, rawPath);
+      const configPath = resolveStoredPath(this.cwd, rawPath);
       removeMcpEntry(configPath, name);
       removed.push(configPath);
     } else {
       for (const rawFile of entry.files) {
-        const filePath = path.isAbsolute(rawFile)
-          ? rawFile
-          : path.resolve(this.cwd, rawFile);
+        const filePath = resolveStoredPath(this.cwd, rawFile);
         if (fs.existsSync(filePath)) {
           fs.rmSync(filePath);
           removed.push(filePath);
@@ -699,9 +688,7 @@ export class Installer {
 
       if (entry.mcpKeys?.length) {
         const configPath = entry.mcpConfig
-          ? path.isAbsolute(entry.mcpConfig)
-            ? entry.mcpConfig
-            : path.resolve(this.cwd, entry.mcpConfig)
+          ? resolveStoredPath(this.cwd, entry.mcpConfig)
           : null;
         if (configPath) {
           removeMcpKeys(configPath, entry.mcpKeys);
@@ -710,9 +697,7 @@ export class Installer {
       }
 
       if (entry.hooksAdded && entry.hooksConfig) {
-        const hooksPath = path.isAbsolute(entry.hooksConfig)
-          ? entry.hooksConfig
-          : path.resolve(this.cwd, entry.hooksConfig);
+        const hooksPath = resolveStoredPath(this.cwd, entry.hooksConfig);
         if (fs.existsSync(hooksPath)) {
           const platform = entry.platform ?? this.configManager.getPlatform();
           const next = unmergeHookConfigs(fs.readFileSync(hooksPath, 'utf8'), entry.hooksAdded, platform);

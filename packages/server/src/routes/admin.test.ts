@@ -82,6 +82,19 @@ describe('/api/admin routes', () => {
       expect(body.members).toContain('admin');
     });
 
+    it('returns 400 when name is missing', async () => {
+      const app = await buildApp({ dataDir: testDir, adminToken });
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/admin/orgs',
+        headers: { 'x-admin-token': adminToken },
+        payload: {},
+      });
+
+      expect(res.statusCode).toBe(400);
+    });
+
     it('rejects duplicate org', async () => {
       const app = await buildApp({ dataDir: testDir, adminToken });
 
@@ -163,6 +176,40 @@ describe('/api/admin routes', () => {
     });
   });
 
+  describe('GET /api/admin/orgs/:name', () => {
+    it('returns a single org by name', async () => {
+      const app = await buildApp({ dataDir: testDir, adminToken });
+
+      await app.inject({
+        method: 'POST',
+        url: '/api/admin/orgs',
+        headers: { 'x-admin-token': adminToken },
+        payload: { name: 'acme' },
+      });
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/admin/orgs/acme',
+        headers: { 'x-admin-token': adminToken },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body).name).toBe('acme');
+    });
+
+    it('returns 404 for a missing org', async () => {
+      const app = await buildApp({ dataDir: testDir, adminToken });
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/admin/orgs/missing',
+        headers: { 'x-admin-token': adminToken },
+      });
+
+      expect(res.statusCode).toBe(404);
+    });
+  });
+
   describe('POST /api/admin/orgs/:name/members', () => {
     it('adds member to org', async () => {
       const app = await buildApp({ dataDir: testDir, adminToken });
@@ -186,6 +233,26 @@ describe('/api/admin routes', () => {
       expect(body.members).toContain('alice');
     });
 
+    it('returns 400 when userId is missing', async () => {
+      const app = await buildApp({ dataDir: testDir, adminToken });
+
+      await app.inject({
+        method: 'POST',
+        url: '/api/admin/orgs',
+        headers: { 'x-admin-token': adminToken },
+        payload: { name: 'acme' },
+      });
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/admin/orgs/acme/members',
+        headers: { 'x-admin-token': adminToken },
+        payload: {},
+      });
+
+      expect(res.statusCode).toBe(400);
+    });
+
     it('returns 404 for nonexistent org', async () => {
       const app = await buildApp({ dataDir: testDir, adminToken });
 
@@ -201,6 +268,32 @@ describe('/api/admin routes', () => {
   });
 
   describe('POST /api/admin/tokens', () => {
+    it('returns 400 when org or userId is missing', async () => {
+      const app = await buildApp({ dataDir: testDir, adminToken });
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/admin/tokens',
+        headers: { 'x-admin-token': adminToken },
+        payload: { org: 'acme' },
+      });
+
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('returns 404 when the org does not exist', async () => {
+      const app = await buildApp({ dataDir: testDir, adminToken });
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/admin/tokens',
+        headers: { 'x-admin-token': adminToken },
+        payload: { org: 'missing', userId: 'alice' },
+      });
+
+      expect(res.statusCode).toBe(404);
+    });
+
     it('generates token for org member', async () => {
       const app = await buildApp({ dataDir: testDir, adminToken });
 
@@ -340,6 +433,25 @@ describe('/api/admin routes', () => {
       expect(body.entries).toHaveLength(1);
       expect(body.entries[0].orgName).toBe('acme');
     });
+  });
+  it('accepts admin session cookies for API access', async () => {
+    const app = await buildApp({ dataDir: testDir, adminToken });
+    const login = await app.inject({
+      method: 'POST',
+      url: '/admin/login',
+      payload: { token: adminToken },
+    });
+    const cookie = login.cookies.find((c) => c.name === 'admin_session');
+    expect(cookie).toBeDefined();
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/admin/orgs',
+      headers: { cookie: `admin_session=${cookie!.value}` },
+    });
+
+    expect(res.statusCode).toBe(200);
+    await app.close();
   });
 });
 

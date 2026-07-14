@@ -21,6 +21,7 @@ import {
   MANIFEST_FILENAME,
   resolvePublishSource,
   toPublishManifest,
+  resolveStoredPath,
 } from '@bitgenetics/aitools-core';
 import type { ToolManifest } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
@@ -94,7 +95,7 @@ export function createPublishCommand(): Command {
       const missing: string[] = [];
 
       for (const entry of manifest.files) {
-        const srcPath = path.resolve(manifestDir, entry.src);
+        const srcPath = resolveStoredPath(manifestDir, entry.src);
         if (!fs.existsSync(srcPath)) {
           missing.push(entry.src);
         } else {
@@ -111,7 +112,7 @@ export function createPublishCommand(): Command {
       if (manifest.category === 'skill') {
         const skillFile = manifest.files.find((f) => f.src.endsWith('SKILL.md'));
         if (skillFile) {
-          const skillPath = path.resolve(manifestDir, skillFile.src);
+          const skillPath = resolveStoredPath(manifestDir, skillFile.src);
           if (fs.existsSync(skillPath)) {
             const skillFields = parseSkillFrontmatter(fs.readFileSync(skillPath, 'utf8')) ?? {};
             const allPlatforms = Object.keys(PLATFORM_SPECS) as TargetPlatform[];

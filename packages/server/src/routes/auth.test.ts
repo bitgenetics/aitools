@@ -118,6 +118,20 @@ describe('POST /api/auth/register', () => {
 
     expect(res.statusCode).toBe(409);
   });
+
+  it('rethrows unexpected registration errors', async () => {
+    const userStore = createMockUserStore();
+    userStore.createUser.mockRejectedValue(new Error('database unavailable'));
+    const app = await buildApp({ dataDir: tempDir, userStore });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { username: 'alice', password: 'password123' },
+    });
+
+    expect(res.statusCode).toBe(500);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -164,6 +178,103 @@ describe('POST /api/auth/login', () => {
     });
 
     expect(res.statusCode).toBe(400);
+  });
+
+  it('returns 404 when the requested org does not exist', async () => {
+    const userStore = createMockUserStore();
+    userStore.loginUser.mockResolvedValue({ id: 1, username: 'alice', createdAt: new Date() });
+    const app = await buildApp({ dataDir: tempDir, userStore });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: 'alice', password: 'password123', org: 'missing-org' },
+    });
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('returns 403 when the user is not a member of the requested org', async () => {
+    const userStore = createMockUserStore();
+    userStore.loginUser.mockResolvedValue({ id: 1, username: 'alice', createdAt: new Date() });
+    const adminToken = 'admin-secret';
+    const app = await buildApp({ dataDir: tempDir, userStore, adminToken });
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/admin/orgs',
+      headers: { 'x-admin-token': adminToken },
+      payload: { name: 'acme' },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: 'alice', password: 'password123', org: 'acme' },
+    });
+
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('returns a token for a specific org when the user is a member', async () => {
+    const userStore = createMockUserStore();
+    userStore.loginUser.mockResolvedValue({ id: 1, username: 'alice', createdAt: new Date() });
+    userStore.createToken.mockResolvedValue({ token: 'org-token', id: 11 });
+    const adminToken = 'admin-secret';
+    const app = await buildApp({ dataDir: tempDir, userStore, adminToken });
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/admin/orgs',
+      headers: { 'x-admin-token': adminToken },
+      payload: { name: 'acme' },
+    });
+    await app.inject({
+      method: 'POST',
+      url: '/api/admin/orgs/acme/members',
+      headers: { 'x-admin-token': adminToken },
+      payload: { userId: 'alice' },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: 'alice', password: 'password123', org: 'acme' },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.payload).org).toBe('acme');
+  });
+
+  it('returns 400 when the user belongs to multiple orgs without selecting one', async () => {
+    const userStore = createMockUserStore();
+    userStore.loginUser.mockResolvedValue({ id: 1, username: 'alice', createdAt: new Date() });
+    const adminToken = 'admin-secret';
+    const app = await buildApp({ dataDir: tempDir, userStore, adminToken });
+
+    for (const org of ['acme', 'widgets']) {
+      await app.inject({
+        method: 'POST',
+        url: '/api/admin/orgs',
+        headers: { 'x-admin-token': adminToken },
+        payload: { name: org },
+      });
+      await app.inject({
+        method: 'POST',
+        url: `/api/admin/orgs/${org}/members`,
+        headers: { 'x-admin-token': adminToken },
+        payload: { userId: 'alice' },
+      });
+    }
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: 'alice', password: 'password123' },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.payload).orgs).toEqual(expect.arrayContaining(['acme', 'widgets']));
   });
 
   it('returns a token when the user belongs to exactly one org', async () => {
@@ -291,6 +402,146 @@ describe('POST /api/auth/tokens', () => {
     expect(body.token).toBe('newtoken');
     expect(body.tokenId).toBe(42);
     expect(body.org).toBe('acme');
+  });
+
+  it('returns 400 when org is missing from the request body', async () => {
+    const userStore = createMockUserStore();
+    userStore.resolveFromHeaders.mockResolvedValue({
+      ok: true,
+      publisher: { userId: 'alice', org: 'acme' },
+    });
+    userStore.resolveToken.mockResolvedValue({ userId: 1, username: 'alice', org: 'acme' });
+    const app = await buildApp({ dataDir: tempDir, userStore });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/tokens',
+      headers: { Authorization: 'Bearer sometoken' },
+      payload: { description: 'ci' },
+    });
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('returns 404 when the requested org does not exist', async () => {
+    const userStore = createMockUserStore();
+    userStore.resolveFromHeaders.mockResolvedValue({
+      ok: true,
+      publisher: { userId: 'alice', org: 'acme' },
+    });
+    userStore.resolveToken.mockResolvedValue({ userId: 1, username: 'alice', org: 'acme' });
+    const app = await buildApp({ dataDir: tempDir, userStore });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/tokens',
+      headers: { Authorization: 'Bearer sometoken' },
+      payload: { org: 'missing-org' },
+    });
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('returns 400 for an invalid expiresAt value', async () => {
+    const userStore = createMockUserStore();
+    userStore.resolveFromHeaders.mockResolvedValue({
+      ok: true,
+      publisher: { userId: 'alice', org: 'acme' },
+    });
+    userStore.resolveToken.mockResolvedValue({ userId: 1, username: 'alice', org: 'acme' });
+    const adminToken = 'test-admin-abc';
+    const app = await buildApp({ dataDir: tempDir, userStore, adminToken });
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/admin/orgs',
+      headers: { 'x-admin-token': adminToken },
+      payload: { name: 'acme' },
+    });
+    await app.inject({
+      method: 'POST',
+      url: '/api/admin/orgs/acme/members',
+      headers: { 'x-admin-token': adminToken },
+      payload: { userId: 'alice' },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/tokens',
+      headers: { Authorization: 'Bearer sometoken' },
+      payload: { org: 'acme', expiresAt: 'not-a-date' },
+    });
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('returns 400 when expiresAt is in the past', async () => {
+    const userStore = createMockUserStore();
+    userStore.resolveFromHeaders.mockResolvedValue({
+      ok: true,
+      publisher: { userId: 'alice', org: 'acme' },
+    });
+    userStore.resolveToken.mockResolvedValue({ userId: 1, username: 'alice', org: 'acme' });
+    const adminToken = 'test-admin-abc';
+    const app = await buildApp({ dataDir: tempDir, userStore, adminToken });
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/admin/orgs',
+      headers: { 'x-admin-token': adminToken },
+      payload: { name: 'acme' },
+    });
+    await app.inject({
+      method: 'POST',
+      url: '/api/admin/orgs/acme/members',
+      headers: { 'x-admin-token': adminToken },
+      payload: { userId: 'alice' },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/tokens',
+      headers: { Authorization: 'Bearer sometoken' },
+      payload: { org: 'acme', expiresAt: '2000-01-01T00:00:00.000Z' },
+    });
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('accepts a future expiresAt value', async () => {
+    const userStore = createMockUserStore();
+    userStore.resolveFromHeaders.mockResolvedValue({
+      ok: true,
+      publisher: { userId: 'alice', org: 'acme' },
+    });
+    userStore.resolveToken.mockResolvedValue({ userId: 1, username: 'alice', org: 'acme' });
+    userStore.createToken.mockResolvedValue({ token: 'future-token', id: 55 });
+    const adminToken = 'test-admin-abc';
+    const app = await buildApp({ dataDir: tempDir, userStore, adminToken });
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/admin/orgs',
+      headers: { 'x-admin-token': adminToken },
+      payload: { name: 'acme' },
+    });
+    await app.inject({
+      method: 'POST',
+      url: '/api/admin/orgs/acme/members',
+      headers: { 'x-admin-token': adminToken },
+      payload: { userId: 'alice' },
+    });
+
+    const future = new Date(Date.now() + 60_000).toISOString();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/tokens',
+      headers: { Authorization: 'Bearer sometoken' },
+      payload: { org: 'acme', expiresAt: future },
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(JSON.parse(res.payload).expiresAt).toBe(future);
   });
 
   it('returns 403 when user is not a member of the requested org', async () => {

@@ -20,6 +20,7 @@ import {
   MANIFEST_FILENAME,
   LEGACY_PUBLISH_MANIFEST_FILENAME,
 } from './manifest-constants.js';
+import { toPosixPath, toStoredPath } from '../paths/stored-path.js';
 
 export {
   MANIFEST_FILENAME,
@@ -71,12 +72,32 @@ export function readManifest(dir: string, options?: ReadManifestOptions): AiTool
 /** Alias for readManifest. */
 export const readAitoolsJson = readManifest;
 
+function normalizeManifestFiles(
+  dir: string,
+  manifest: AiToolsManifest,
+): AiToolsManifest {
+  if (!manifest.files) return manifest;
+  return {
+    ...manifest,
+    files: manifest.files.map((file) => ({
+      ...file,
+      src: path.isAbsolute(file.src)
+        ? toStoredPath(dir, file.src)
+        : toPosixPath(file.src),
+      dest: path.isAbsolute(file.dest)
+        ? toStoredPath(dir, file.dest)
+        : toPosixPath(file.dest),
+    })),
+  };
+}
+
 /**
  * Write an aitools.json manifest to disk.
  */
 export function writeManifest(dir: string, manifest: AiToolsManifest): void {
   const filePath = path.join(dir, MANIFEST_FILENAME);
-  const content = JSON.stringify(manifest, null, 2) + '\n';
+  const normalized = normalizeManifestFiles(dir, manifest);
+  const content = JSON.stringify(normalized, null, 2) + '\n';
   fs.writeFileSync(filePath, content, 'utf8');
 }
 

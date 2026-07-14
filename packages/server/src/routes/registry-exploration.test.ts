@@ -218,5 +218,130 @@ describe('Registry Exploration Routes', () => {
       fetchMock.mockRestore();
     }
   });
+
+  it('GET /api/search/all returns all local tools when q is omitted', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/search/all',
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.query).toBe('*');
+    expect(body.total).toBeGreaterThan(0);
+  });
+
+  it('GET /api/search/all deduplicates local results over upstream duplicates', async () => {
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [
+        { name: 'my-skill', version: '1.0.0', description: 'remote duplicate' },
+      ],
+    } as Response);
+
+    try {
+      const upstreamApp = await buildApp({
+        dataDir: tempDir,
+        upstreams: [{ name: 'remote', url: 'http://upstream.example.com' }],
+      });
+
+      const res = await upstreamApp.inject({
+        method: 'GET',
+        url: '/api/search/all?q=my-skill',
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.payload);
+      expect(body.results.filter((r: { name: string }) => r.name === 'my-skill')).toHaveLength(1);
+      expect(body.results[0].source).toBe('local');
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('GET /api/search/all ignores upstream responses that are not arrays', async () => {
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ not: 'an array' }),
+    } as Response);
+
+    try {
+      const upstreamApp = await buildApp({
+        dataDir: tempDir,
+        upstreams: [{ name: 'remote', url: 'http://upstream.example.com' }],
+      });
+
+      const res = await upstreamApp.inject({
+        method: 'GET',
+        url: '/api/search/all?q=remote',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.payload).results).toEqual([]);
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('GET /api/search/all ignores upstream failures', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network down'));
+
+    try {
+      const upstreamApp = await buildApp({
+        dataDir: tempDir,
+        upstreams: [{ name: 'remote', url: 'http://upstream.example.com' }],
+      });
+
+      const res = await upstreamApp.inject({
+        method: 'GET',
+        url: '/api/search/all?q=skill',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.payload).results.some((r: { source: string }) => r.source === 'local')).toBe(
+        true,
+      );
+      expect(warnSpy).toHaveBeenCalled();
+    } finally {
+      fetchMock.mockRestore();
+      warnSpy.mockRestore();
+    }
+  });
+
+  it('GET /api/search/all ignores non-ok upstream responses', async () => {
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false,
+      json: async () => [],
+    } as Response);
+
+    try {
+      const upstreamApp = await buildApp({
+        dataDir: tempDir,
+        upstreams: [{ name: 'remote', url: 'http://upstream.example.com' }],
+      });
+
+      const res = await upstreamApp.inject({
+        method: 'GET',
+        url: '/api/search/all?q=remote',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.payload).results.every((r: { source: string }) => r.source === 'local')).toBe(
+        true,
+      );
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('GET /api/search/all supports age sorting in ascending order', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/search/all?sortBy=age&sortDir=asc',
+    });
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.payload).sortBy).toBe('age');
+    expect(JSON.parse(res.payload).sortDir).toBe('asc');
+  });
 });
 

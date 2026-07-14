@@ -78,6 +78,21 @@ describe('readManifest', () => {
     expect(readManifest(tmp)).toEqual(manifest);
   });
 
+  it('normalizes absolute file src paths to project-relative paths on write', () => {
+    const abs = path.join(tmp, 'skills', 'review', 'SKILL.md');
+    const manifest: AiToolsManifest = {
+      name: 'my-skill',
+      version: '1.0.0',
+      description: 'Skill',
+      category: 'skill',
+      files: [{ src: abs, dest: 'skills/review/SKILL.md' }],
+    };
+    writeManifest(tmp, manifest);
+    const read = readManifest(tmp);
+    expect(read?.files?.[0]?.src).toBe('skills/review/SKILL.md');
+    expect(path.isAbsolute(read?.files?.[0]?.src ?? '')).toBe(false);
+  });
+
   it('returns a manifest with only optional fields present', () => {
     const manifest: AiToolsManifest = {};
     writeManifest(tmp, manifest);

@@ -118,6 +118,10 @@ describe('dev-init command action', () => {
 
     const lock = readLockFile(tmp);
     expect(lock.tools[BUNDLED_NAME]).toBeDefined();
+    for (const file of lock.tools[BUNDLED_NAME]!.files) {
+      expect(path.isAbsolute(file)).toBe(false);
+      expect(file).not.toContain('\\');
+    }
     expect(fs.existsSync(path.join(tmp, 'aitools.json'))).toBe(true);
   });
 

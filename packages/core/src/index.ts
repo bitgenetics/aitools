@@ -45,6 +45,9 @@ export {
 // Config cascade
 export { ConfigCascade, CONFIG_FILENAME } from './config/cascade.js';
 
+// Stored path helpers
+export { toPosixPath, toStoredPath, resolveStoredPath } from './paths/stored-path.js';
+
 // Lock file utilities
 export {
   LOCK_FILENAME,

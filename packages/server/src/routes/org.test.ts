@@ -133,4 +133,110 @@ describe('Org Routes', () => {
     });
     expect(res.statusCode).toBe(403);
   });
+
+  it('POST /api/org/tools/:name/deprecate returns 400 when version is missing', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/org/tools/test-tool/deprecate',
+      headers: { Authorization: 'Bearer token-alice' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.payload).error).toMatch(/version query param required/i);
+  });
+
+  it('POST /api/org/tools/:name/deprecate returns 404 for an unknown tool', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/org/tools/missing-tool/deprecate?version=1.0.0',
+      headers: { Authorization: 'Bearer token-alice' },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('POST /api/org/tools/:name/deprecate returns 403 for a different org', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/org/tools/test-tool/deprecate?version=1.0.0',
+      headers: { Authorization: 'Bearer token-bob', 'x-aitools-org': 'widgetcorp' },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('POST /api/org/tools/:name/deprecate returns 500 when the version does not exist', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/org/tools/test-tool/deprecate?version=9.9.9',
+      headers: { Authorization: 'Bearer token-alice' },
+    });
+    expect(res.statusCode).toBe(500);
+    expect(JSON.parse(res.payload).error).toMatch(/Failed to deprecate/i);
+  });
+
+  it('POST /api/org/tools/:name/unpublish returns 404 for an unknown tool', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/org/tools/missing-tool/unpublish?version=1.0.0',
+      headers: { Authorization: 'Bearer token-alice' },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('POST /api/org/tools/:name/unpublish removes all versions when version is omitted', async () => {
+    const publish = async (version: string) => {
+      await app.inject({
+        method: 'POST',
+        url: '/api/tools',
+        headers: { Authorization: 'Bearer token-alice', 'x-aitools-org': 'acme' },
+        payload: {
+          manifest: {
+            name: 'multi-version-tool',
+            version,
+            description: `Version ${version}`,
+            category: 'skill',
+            files: [{ src: 'SKILL.md', dest: 'multi-version-tool/SKILL.md' }],
+          },
+          files: { 'SKILL.md': `# v${version}` },
+        },
+      });
+    };
+    await publish('1.0.0');
+    await publish('2.0.0');
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/org/tools/multi-version-tool/unpublish',
+      headers: { Authorization: 'Bearer token-alice' },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.removedVersions).toEqual(expect.arrayContaining(['1.0.0', '2.0.0']));
+  });
+
+  it('GET /api/org/tools omits tools owned by other orgs', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/api/tools',
+      headers: { Authorization: 'Bearer token-bob', 'x-aitools-org': 'widgetcorp' },
+      payload: {
+        manifest: {
+          name: 'widget-tool',
+          version: '1.0.0',
+          description: 'Widget only',
+          category: 'skill',
+          files: [{ src: 'SKILL.md', dest: 'widget-tool/SKILL.md' }],
+        },
+        files: { 'SKILL.md': '# Widget' },
+      },
+    });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/org/tools',
+      headers: { Authorization: 'Bearer token-alice' },
+    });
+    expect(res.statusCode).toBe(200);
+    const names = (JSON.parse(res.payload).tools as Array<{ name: string }>).map((t) => t.name);
+    expect(names).toContain('test-tool');
+    expect(names).not.toContain('widget-tool');
+  });
 });

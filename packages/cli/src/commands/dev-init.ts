@@ -104,7 +104,7 @@ export function createDevInitCommand(): Command {
         const destPath = path.resolve(installBase, file.dest);
         fs.mkdirSync(path.dirname(destPath), { recursive: true });
         fs.writeFileSync(destPath, file.content, 'utf8');
-        writtenFiles.push(destPath);
+        writtenFiles.push(path.relative(cwd, destPath).replace(/\\/g, '/'));
       }
 
       // Record in lock file

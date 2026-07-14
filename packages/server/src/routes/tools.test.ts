@@ -194,6 +194,49 @@ describe('Tool HTTP routes', () => {
       expect(res.json().status).toBe('ok');
     });
   });
+
+  // -- GET /api/me ------------------------------------------------------------
+
+  describe('GET /api/me', () => {
+    it('returns anonymous identity in open publish mode', async () => {
+      const res = await app.inject({ method: 'GET', url: '/api/me' });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        authenticated: true,
+        userId: 'anonymous',
+        org: 'default',
+      });
+    });
+  });
+
+  // -- GET /api/tools/:name/owner ---------------------------------------------
+
+  describe('GET /api/tools/:name/owner', () => {
+    it('returns ownership metadata after publishing', async () => {
+      await publish(app);
+      const res = await app.inject({ method: 'GET', url: '/api/tools/test-skill/owner' });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().name).toBe('test-skill');
+      expect(res.json().owner).toBeDefined();
+    });
+
+    it('returns 404 when no ownership record exists', async () => {
+      const res = await app.inject({ method: 'GET', url: '/api/tools/ghost/owner' });
+      expect(res.statusCode).toBe(404);
+    });
+  });
+
+  // -- GET /api/org/:org/tools -------------------------------------------------
+
+  describe('GET /api/org/:org/tools', () => {
+    it('returns tools owned by the requested org', async () => {
+      await publish(app);
+      const res = await app.inject({ method: 'GET', url: '/api/org/default/tools' });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toHaveLength(1);
+      expect(res.json()[0].name).toBe('test-skill');
+    });
+  });
 });
 
 
@@ -210,6 +253,12 @@ describe('POST /tools � publishToken enforcement', () => {
   afterEach(async () => {
     await authApp.close();
     fs.rmSync(tmp2, { recursive: true });
+  });
+
+  it('GET /api/me returns authenticated false without a token', async () => {
+    const res = await authApp.inject({ method: 'GET', url: '/api/me' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ authenticated: false });
   });
 
   it('returns 401 when no Authorization header is supplied', async () => {
@@ -470,6 +519,19 @@ describe('registryAccess=public', () => {
     expect(res.statusCode).toBe(200);
     const names = (res.json() as Array<{ name: string }>).map((m) => m.name);
     expect(names).not.toContain('private-skill');
+  });
+
+  it('hides private tools from tarball downloads without auth', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/tools/private-skill/1.0.0/tarball',
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('returns 404 for a private specific version without auth', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/tools/private-skill/1.0.0' });
+    expect(res.statusCode).toBe(404);
   });
 
   it('shows private tools to authenticated callers', async () => {

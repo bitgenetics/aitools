@@ -6,14 +6,14 @@
       "resolved": "http://localhost:4873",
       "integrity": "sha256-CHrxQhoasHjMBrCH0CegTyaVRlQtuVBVk0ysHPgn/t8=",
       "files": [
-        "K:\\f-drive\\workspace\\ai-tools\\.agents\\skills\\project-changelog\\SKILL.md",
-        "K:\\f-drive\\workspace\\ai-tools\\.agents\\skills\\project-changelog\\references\\templates\\architecture.md",
-        "K:\\f-drive\\workspace\\ai-tools\\.agents\\skills\\project-changelog\\references\\templates\\archived.md",
-        "K:\\f-drive\\workspace\\ai-tools\\.agents\\skills\\project-changelog\\references\\templates\\constraints.md",
-        "K:\\f-drive\\workspace\\ai-tools\\.agents\\skills\\project-changelog\\references\\templates\\features.md",
-        "K:\\f-drive\\workspace\\ai-tools\\.agents\\skills\\project-changelog\\references\\templates\\index.md",
-        "K:\\f-drive\\workspace\\ai-tools\\.agents\\skills\\project-changelog\\references\\templates\\integrations.md",
-        "K:\\f-drive\\workspace\\ai-tools\\.agents\\skills\\project-changelog\\references\\templates\\patterns.md"
+        ".agents/skills/project-changelog/SKILL.md",
+        ".agents/skills/project-changelog/references/templates/architecture.md",
+        ".agents/skills/project-changelog/references/templates/archived.md",
+        ".agents/skills/project-changelog/references/templates/constraints.md",
+        ".agents/skills/project-changelog/references/templates/features.md",
+        ".agents/skills/project-changelog/references/templates/index.md",
+        ".agents/skills/project-changelog/references/templates/integrations.md",
+        ".agents/skills/project-changelog/references/templates/patterns.md"
       ],
       "installedAt": "2026-04-27T00:57:19.246Z"
     },
@@ -22,7 +22,7 @@
       "resolved": "http://localhost:4873",
       "integrity": "sha256-QOiuHUaUm1eSeVIt0eqyXxFoxA/+HT0euAoNXBmZwJ4=",
       "files": [
-        "K:\\f-drive\\workspace\\ai-tools\\.github\\agents\\subagent-researcher.md"
+        ".github/agents/subagent-researcher.md"
       ],
       "installedAt": "2026-04-27T11:32:41.250Z"
     }
