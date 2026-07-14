@@ -115,20 +115,31 @@ describe('handleMcpToolCall', () => {
   });
 
   it('returns error when no registries are configured for aitools_search', async () => {
-    const configManager = new ConfigManager(tmp);
-    const response = await handleMcpToolCall(
-      'aitools_search',
-      { query: 'skill' },
-      {
-        cwd: tmp,
-        configManager,
-        installer: new Installer(configManager, tmp),
-      },
-    );
+    const isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-mcp-home-'));
+    const homedirSpy = jest.spyOn(os, 'homedir').mockReturnValue(isolatedHome);
+    const previousRoot = process.env['AITOOLS_CONFIG_ROOT'];
+    process.env['AITOOLS_CONFIG_ROOT'] = tmp;
+    try {
+      const configManager = new ConfigManager(tmp);
+      const response = await handleMcpToolCall(
+        'aitools_search',
+        { query: 'skill' },
+        {
+          cwd: tmp,
+          configManager,
+          installer: new Installer(configManager, tmp),
+        },
+      );
 
-    expect(response.isError).toBe(true);
-    const data = parseToolResponse(response) as { error: string };
-    expect(data.error).toContain('No registries configured');
+      expect(response.isError).toBe(true);
+      const data = parseToolResponse(response) as { error: string };
+      expect(data.error).toContain('No registries configured');
+    } finally {
+      homedirSpy.mockRestore();
+      fs.rmSync(isolatedHome, { recursive: true, force: true });
+      if (previousRoot === undefined) delete process.env['AITOOLS_CONFIG_ROOT'];
+      else process.env['AITOOLS_CONFIG_ROOT'] = previousRoot;
+    }
   });
 });
 

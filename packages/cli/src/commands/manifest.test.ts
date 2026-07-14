@@ -82,6 +82,19 @@ describe('manifest command', () => {
       }
     });
 
+    it('exits when only legacy aitools.manifest.json is present', () => {
+      fs.writeFileSync(path.join(tmp, 'aitools.manifest.json'), JSON.stringify(VALID_MANIFEST), 'utf8');
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+        throw new Error(`process.exit(${code})`);
+      });
+      try {
+        expect(() => createManifestCommand().parse(['validate'], { from: 'user' })).toThrow('process.exit(1)');
+      } finally {
+        mockExit.mockRestore();
+      }
+    });
+
     it('exits when manifest JSON is malformed', () => {
       fs.writeFileSync(path.join(tmp, 'aitools.json'), '{ bad json', 'utf8');
       jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -331,6 +344,34 @@ describe('manifest command', () => {
       expect(srcs).toContain('skills/review/SKILL.md');
       expect(srcs).not.toContain('aitools-lock.json');
       expect(srcs).not.toContain('aitools.config.json');
+    });
+
+    it('excludes installed tool paths and docs from plugin init', () => {
+      fs.mkdirSync(path.join(tmp, '.cursor-plugin'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, '.cursor-plugin', 'plugin.json'), '{}', 'utf8');
+      fs.mkdirSync(path.join(tmp, 'skills', 'review'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'skills', 'review', 'SKILL.md'), '# Review', 'utf8');
+      fs.mkdirSync(path.join(tmp, '.cursor', 'skills', 'create-ai-tool'), { recursive: true });
+      fs.writeFileSync(
+        path.join(tmp, '.cursor', 'skills', 'create-ai-tool', 'SKILL.md'),
+        '# Dev tool',
+        'utf8',
+      );
+      fs.mkdirSync(path.join(tmp, 'docs'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'docs', 'RESEARCH-METHODOLOGY.md'), '# Methodology', 'utf8');
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      createManifestCommand().parse(
+        ['init', '--name', 'plugin-researcher', '--category', 'plugin', '--nativeFor', 'cursor', '--yes', '--force'],
+        { from: 'user' },
+      );
+      const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
+        files: Array<{ src: string }>;
+      };
+      const srcs = manifest.files.map((f) => f.src);
+      expect(srcs).toContain('skills/review/SKILL.md');
+      expect(srcs).not.toContain('.cursor/skills/create-ai-tool/SKILL.md');
+      expect(srcs).not.toContain('docs/RESEARCH-METHODOLOGY.md');
+      logSpy.mockRestore();
     });
 
     it('prompts for each detected skill folder and includes only confirmed ones', async () => {

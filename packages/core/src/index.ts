@@ -80,6 +80,8 @@ export {
   classifyPluginMembers,
   validatePluginStructure,
   parseCursorPluginJson,
+  getPluginBundleScanPlan,
+  resolvePluginBundleSources,
 } from './manifest/plugin-explode.js';
 export type {
   PluginMember,
@@ -87,6 +89,7 @@ export type {
   CursorPluginJsonPaths,
   ClassifyPluginOptions,
   ClassifyPluginResult,
+  PluginBundleScanPlan,
 } from './manifest/plugin-explode.js';
 export {
   REGISTRY_MANIFEST_CANDIDATES,

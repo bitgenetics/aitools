@@ -178,6 +178,10 @@ describe('publish command', () => {
   });
 
   it('exits with 1 when no registry is configured', async () => {
+    const isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-publish-home-'));
+    const homedirSpy = jest.spyOn(os, 'homedir').mockReturnValue(isolatedHome);
+    const previousRoot = process.env['AITOOLS_CONFIG_ROOT'];
+    process.env['AITOOLS_CONFIG_ROOT'] = tmp;
     fs.writeFileSync(path.join(tmp, 'aitools.config.json'), JSON.stringify({ platform: 'vscode' }), 'utf8');
     jest.spyOn(console, 'error').mockImplementation(() => {});
     const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
@@ -187,6 +191,10 @@ describe('publish command', () => {
       await expect(createPublishCommand().parseAsync([], { from: 'user' })).rejects.toThrow('process.exit(1)');
     } finally {
       mockExit.mockRestore();
+      homedirSpy.mockRestore();
+      fs.rmSync(isolatedHome, { recursive: true, force: true });
+      if (previousRoot === undefined) delete process.env['AITOOLS_CONFIG_ROOT'];
+      else process.env['AITOOLS_CONFIG_ROOT'] = previousRoot;
     }
   });
 

@@ -48,8 +48,16 @@ describe('ClaudeAdapter', () => {
     expect(adapter.resolveHooksConfig('project', CWD)).toBe(path.join(CWD, '.claude', 'settings.json'));
   });
 
+  it('returns user-scope hooks config', () => {
+    expect(adapter.resolveHooksConfig('user', CWD)).toBe(path.join(HOME, '.claude', 'settings.json'));
+  });
+
   it('returns user-scope mcp config path', () => {
     expect(adapter.resolveMcpConfig('user', CWD)).toBe(path.join(HOME, '.claude', 'mcp.json'));
+  });
+
+  it('returns project-scope mcp config path', () => {
+    expect(adapter.resolveMcpConfig('project', CWD)).toBe(path.join(CWD, '.mcp.json'));
   });
 });
 
@@ -95,6 +103,10 @@ describe('WindsurfAdapter', () => {
 
   it('returns user-scope hooks config', () => {
     expect(adapter.resolveHooksConfig('user', CWD)).toBe(path.join(HOME, '.windsurf', 'hooks.json'));
+  });
+
+  it('returns project-scope hooks config', () => {
+    expect(adapter.resolveHooksConfig('project', CWD)).toBe(path.join(CWD, '.windsurf', 'hooks.json'));
   });
 
   it('returns user-scope command path', () => {
@@ -147,8 +159,16 @@ describe('VsCodeAdapter', () => {
     expect(adapter.resolveMcpConfig('user', CWD)).toBe(path.join(HOME, '.vscode', 'mcp.json'));
   });
 
+  it('returns project-scope mcp config path', () => {
+    expect(adapter.resolveMcpConfig('project', CWD)).toBe(path.join(CWD, '.vscode', 'mcp.json'));
+  });
+
   it('returns project-scope hooks config', () => {
     expect(adapter.resolveHooksConfig('project', CWD)).toBe(path.join(CWD, '.github', 'hooks', 'hooks.json'));
+  });
+
+  it('returns user-scope hooks config', () => {
+    expect(adapter.resolveHooksConfig('user', CWD)).toBe(path.join(HOME, '.copilot', 'hooks', 'hooks.json'));
   });
 });
 

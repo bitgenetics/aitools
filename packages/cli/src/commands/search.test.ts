@@ -88,13 +88,24 @@ describe('search command', () => {
   });
 
   it('exits when no registries are configured', async () => {
+    const isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-search-home-'));
+    const homedirSpy = jest.spyOn(os, 'homedir').mockReturnValue(isolatedHome);
+    const previousRoot = process.env['AITOOLS_CONFIG_ROOT'];
+    process.env['AITOOLS_CONFIG_ROOT'] = tmp;
     fs.writeFileSync(path.join(tmp, 'aitools.config.json'), JSON.stringify({ platform: 'vscode' }), 'utf8');
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation(((code?: number) => {
       throw new Error(`process.exit:${code ?? 0}`);
     }) as never);
     jest.spyOn(console, 'error').mockImplementation(() => {});
-    await expect(createSearchCommand().parseAsync(['query'], { from: 'user' })).rejects.toThrow('process.exit:1');
-    exitSpy.mockRestore();
+    try {
+      await expect(createSearchCommand().parseAsync(['query'], { from: 'user' })).rejects.toThrow('process.exit:1');
+    } finally {
+      exitSpy.mockRestore();
+      homedirSpy.mockRestore();
+      fs.rmSync(isolatedHome, { recursive: true, force: true });
+      if (previousRoot === undefined) delete process.env['AITOOLS_CONFIG_ROOT'];
+      else process.env['AITOOLS_CONFIG_ROOT'] = previousRoot;
+    }
   });
 
   it('searches a specific registry URL with --registry', async () => {
@@ -174,13 +185,24 @@ describe('find command', () => {
   });
 
   it('exits when no registries are configured', async () => {
+    const isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-find-home-'));
+    const homedirSpy = jest.spyOn(os, 'homedir').mockReturnValue(isolatedHome);
+    const previousRoot = process.env['AITOOLS_CONFIG_ROOT'];
+    process.env['AITOOLS_CONFIG_ROOT'] = tmp;
     fs.writeFileSync(path.join(tmp, 'aitools.config.json'), JSON.stringify({ platform: 'vscode' }), 'utf8');
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation(((code?: number) => {
       throw new Error(`process.exit:${code ?? 0}`);
     }) as never);
     jest.spyOn(console, 'error').mockImplementation(() => {});
-    await expect(createFindCommand().parseAsync(['need a linter'], { from: 'user' })).rejects.toThrow('process.exit:1');
-    exitSpy.mockRestore();
+    try {
+      await expect(createFindCommand().parseAsync(['need a linter'], { from: 'user' })).rejects.toThrow('process.exit:1');
+    } finally {
+      exitSpy.mockRestore();
+      homedirSpy.mockRestore();
+      fs.rmSync(isolatedHome, { recursive: true, force: true });
+      if (previousRoot === undefined) delete process.env['AITOOLS_CONFIG_ROOT'];
+      else process.env['AITOOLS_CONFIG_ROOT'] = previousRoot;
+    }
   });
 
   it('prints matching tools when smart search returns results', async () => {

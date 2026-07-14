@@ -175,12 +175,7 @@ describe('Installer.install', () => {
   });
 
   it('removes stale skill files when reinstalling a different file set', async () => {
-    fs.writeFileSync(
-      path.join(tmp, 'aitools.config.json'),
-      JSON.stringify({ platform: 'universal' }),
-      'utf8',
-    );
-    installer = new Installer(new ConfigManager(tmp), tmp, new CacheManager(cacheTmp));
+    installer = new Installer(new ConfigManager(tmp, { platform: 'universal' }), tmp, new CacheManager(cacheTmp));
 
     const MANIFEST_V1: ToolManifest = {
       name: 'reinstall-skill',
@@ -797,6 +792,34 @@ describe('Installer.install (plugin explode mcp+hooks)', () => {
     );
   });
 
+  it('throws when a plugin skill file is missing from the tarball', async () => {
+    const PLUGIN_MANIFEST: ToolManifest = {
+      name: 'missing-skill-plugin',
+      version: '1.0.0',
+      description: 'Plugin',
+      category: 'plugin',
+      nativeFor: 'cursor',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md' },
+      ],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([{ path: '.cursor-plugin/plugin.json', content: '{}' }]),
+      'utf8',
+    );
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+
+    await expect(installer.install(mockClient as never, PLUGIN_MANIFEST, 'project')).rejects.toThrow(
+      /missing file: skills\/x\/SKILL.md/,
+    );
+  });
+
   it('transforms claude-native plugin rules when installing on cursor', async () => {
     const PLUGIN_MANIFEST: ToolManifest = {
       name: 'cross-platform-plugin',
@@ -831,6 +854,43 @@ describe('Installer.install (plugin explode mcp+hooks)', () => {
     const rulePath = path.join(tmp, '.cursor', 'rules', 'style.mdc');
     expect(fs.existsSync(rulePath)).toBe(true);
     expect(fs.readFileSync(rulePath, 'utf8')).toContain('Be tidy.');
+  });
+
+  it('skips claude-native plugin hooks on cursor when transform cannot merge', async () => {
+    const PLUGIN_MANIFEST: ToolManifest = {
+      name: 'cross-hook-plugin',
+      version: '1.0.0',
+      description: 'Plugin',
+      category: 'plugin',
+      nativeFor: 'claude',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'hooks/hooks.json', dest: 'hooks/hooks.json' },
+      ],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([
+        { path: '.cursor-plugin/plugin.json', content: '{}' },
+        {
+          path: 'hooks/hooks.json',
+          content: JSON.stringify({
+            hooks: { PreToolUse: [{ type: 'command', command: 'echo hi' }] },
+          }),
+        },
+      ]),
+      'utf8',
+    );
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+
+    const result = await installer.install(mockClient as never, PLUGIN_MANIFEST, 'project');
+
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'hooks.json'))).toBe(false);
+    expect(result.fileResults.some((f) => f.skipped)).toBe(true);
   });
 });
 
@@ -975,6 +1035,34 @@ describe('Installer.install (mcp-tool)', () => {
     await expect(
       installer.install(mockClient() as never, badManifest, 'project'),
     ).rejects.toThrow('no mcpServer descriptor');
+  });
+
+  it('throws when existing mcp.json is malformed', async () => {
+    const mcpPath = new ConfigManager(tmp).resolveMcpConfig('project');
+    fs.mkdirSync(path.dirname(mcpPath), { recursive: true });
+    fs.writeFileSync(mcpPath, '{ not valid json', 'utf8');
+
+    await expect(installer.install(mockClient() as never, MCP_MANIFEST, 'project')).rejects.toThrow(
+      /Failed to parse existing mcp.json/,
+    );
+  });
+
+  it('installs http mcp servers when mcpServer.url is set', async () => {
+    const httpManifest: ToolManifest = {
+      ...MCP_MANIFEST,
+      name: 'http-server',
+      mcpServer: { url: 'https://mcp.example.com/sse', env: { API_KEY: 'x' } },
+    };
+
+    await installer.install(mockClient() as never, httpManifest, 'project');
+
+    const mcpPath = new ConfigManager(tmp).resolveMcpConfig('project');
+    const json = JSON.parse(fs.readFileSync(mcpPath, 'utf8')) as {
+      servers: Record<string, { type: string; url: string; env?: Record<string, string> }>;
+    };
+    expect(json.servers['http-server']?.type).toBe('http');
+    expect(json.servers['http-server']?.url).toBe('https://mcp.example.com/sse');
+    expect(json.servers['http-server']?.env).toEqual({ API_KEY: 'x' });
   });
 });
 
@@ -1464,5 +1552,37 @@ describe('Installer.install (hook category)', () => {
     await expect(installer.install(makeClient(tarball) as never, manifest, 'project')).rejects.toThrow(
       /Hooks are not supported/,
     );
+  });
+
+  it('installs hooks from cache without downloading again', async () => {
+    const cache = new CacheManager(cacheTmp);
+    const manifest: ToolManifest = {
+      name: 'cached-hooks',
+      version: '1.0.0',
+      description: 'Hooks',
+      category: 'hook',
+      nativeFor: 'cursor',
+      files: [{ src: 'hooks.json', dest: 'hooks.json' }],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([
+        { path: 'hooks.json', content: JSON.stringify({ preToolUse: [{ command: 'echo cached' }] }) },
+      ]),
+      'utf8',
+    );
+    cache.store(manifest.name, manifest.version, tarball, manifest);
+    installer = new Installer(new ConfigManager(tmp), tmp, cache);
+    const mockDownload = jest.fn();
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: mockDownload,
+    };
+
+    await installer.install(mockClient as never, manifest, 'project');
+
+    expect(mockDownload).not.toHaveBeenCalled();
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'hooks.json'))).toBe(true);
   });
 });

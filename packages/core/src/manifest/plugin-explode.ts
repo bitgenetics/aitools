@@ -109,6 +109,70 @@ function underAnyRoot(src: string, roots: string[]): string | null {
   return null;
 }
 
+/** Directories and root files scanned when discovering plugin bundle content. */
+export interface PluginBundleScanPlan {
+  /** Package-relative directory roots (trailing slash). */
+  directories: string[];
+  /** Package-relative files to include when present (e.g. mcp.json, SKILL.md). */
+  files: string[];
+}
+
+/**
+ * Layout roots used by `manifest init --category plugin` and bundle discovery.
+ * Mirrors the classifier's default Cursor plugin tree plus `.cursor-plugin/`.
+ */
+export function getPluginBundleScanPlan(
+  pluginJson?: CursorPluginJsonPaths | null,
+): PluginBundleScanPlan {
+  const pj = pluginJson ?? undefined;
+
+  const skillRoots = asRootList(pj?.skills, 'skills/');
+  const ruleRoots = asRootList(pj?.rules, 'rules/');
+  const agentRoots = asRootList(pj?.agents, 'agents/');
+  const commandRoots = asRootList(pj?.commands, 'commands/');
+
+  let hooksRoot = 'hooks/';
+  if (typeof pj?.hooks === 'string') {
+    const h = norm(pj.hooks);
+    hooksRoot = h.endsWith('/')
+      ? h
+      : h.includes('/')
+        ? `${h.split('/').slice(0, -1).join('/')}/`
+        : 'hooks/';
+  }
+
+  const mcpPath = firstStringPath(
+    typeof pj?.mcpServers === 'string' ? pj.mcpServers : undefined,
+    'mcp.json',
+  );
+
+  return {
+    directories: [
+      ...skillRoots,
+      ...ruleRoots,
+      ...agentRoots,
+      ...commandRoots,
+      hooksRoot,
+      'assets/',
+      'scripts/',
+      '.cursor-plugin/',
+    ],
+    files: [mcpPath, 'SKILL.md'],
+  };
+}
+
+/**
+ * Keep only bundle paths that classify to an install home (or allowed skip).
+ * Orphans are returned in `errors` for caller warnings.
+ */
+export function resolvePluginBundleSources(
+  candidates: string[],
+  opts: ClassifyPluginOptions,
+): { sources: string[]; errors: string[] } {
+  const { members, errors } = classifyPluginMembers({ ...opts, sources: candidates });
+  return { sources: members.map((m) => m.src), errors };
+}
+
 /**
  * Classify plugin package files into explode members.
  * Orphan paths (no home) are reported in `errors` — callers must treat them as fatal.

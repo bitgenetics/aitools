@@ -16,7 +16,55 @@ import {
   classifyPluginMembers,
   validatePluginStructure,
   parseCursorPluginJson,
+  getPluginBundleScanPlan,
+  resolvePluginBundleSources,
 } from './plugin-explode.js';
+
+describe('getPluginBundleScanPlan', () => {
+  it('returns default Cursor bundle roots', () => {
+    expect(getPluginBundleScanPlan()).toEqual({
+      directories: [
+        'skills/',
+        'rules/',
+        'agents/',
+        'commands/',
+        'hooks/',
+        'assets/',
+        'scripts/',
+        '.cursor-plugin/',
+      ],
+      files: ['mcp.json', 'SKILL.md'],
+    });
+  });
+
+  it('honours plugin.json path overrides', () => {
+    expect(
+      getPluginBundleScanPlan({
+        skills: './my-skills/',
+        rules: 'custom-rules/',
+        mcpServers: 'config/custom-mcp.json',
+        hooks: 'custom-hooks/hooks.json',
+      }),
+    ).toMatchObject({
+      directories: expect.arrayContaining(['my-skills/', 'custom-rules/', 'custom-hooks/']),
+      files: ['config/custom-mcp.json', 'SKILL.md'],
+    });
+  });
+});
+
+describe('resolvePluginBundleSources', () => {
+  it('keeps classified bundle paths and drops orphans', () => {
+    const result = resolvePluginBundleSources(
+      ['skills/a/SKILL.md', 'docs/RESEARCH-METHODOLOGY.md', '.cursor/skills/dev/SKILL.md'],
+      { packageName: 'my-plugin', sources: [] },
+    );
+    expect(result.sources).toEqual(['skills/a/SKILL.md']);
+    expect(result.errors).toEqual([
+      'plugin file has no install home: docs/RESEARCH-METHODOLOGY.md',
+      'plugin file has no install home: .cursor/skills/dev/SKILL.md',
+    ]);
+  });
+});
 
 describe('classifyPluginMembers', () => {
   it('maps Cursor default component trees', () => {

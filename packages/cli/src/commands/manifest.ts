@@ -19,7 +19,7 @@ import { stdin as input, stdout as output } from 'node:process';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import semver from 'semver';
-import { ToolManifestSchema, MANIFEST_FILENAME, LEGACY_PUBLISH_MANIFEST_FILENAME, readManifest, writeManifest, isPublishable, AitoolsJsonSchema, validatePluginStructure, parseCursorPluginJson } from '@bitgenetics/aitools-core';
+import { ToolManifestSchema, MANIFEST_FILENAME, LEGACY_PUBLISH_MANIFEST_FILENAME, readManifest, writeManifest, isPublishable, AitoolsJsonSchema, validatePluginStructure, parseCursorPluginJson, getPluginBundleScanPlan, resolvePluginBundleSources } from '@bitgenetics/aitools-core';
 import type { AiToolsManifest } from '@bitgenetics/aitools-core';
 
 type Category = 'skill' | 'subagent' | 'prompt' | 'mcp-tool' | 'plugin';
@@ -72,6 +72,8 @@ const SKIP_DIRS = new Set([
  * paths relative to `root`. Hidden directories are traversed unless they
  * appear in SKIP_DIRS, so .github, .agents, .claude, .cursor, etc. are
  * all searched.
+ *
+ * When `exts` is empty, all non-skipped files are collected (used for assets/scripts).
  */
 function detectFiles(root: string, exts: string[], dir: string = root): string[] {
   const results: string[] = [];
@@ -95,13 +97,71 @@ function detectFiles(root: string, exts: string[], dir: string = root): string[]
       }
     } else if (
       stat.isFile() &&
-      exts.includes(path.extname(entry).toLowerCase()) &&
-      !SKIP_FILES.has(entry)
+      !SKIP_FILES.has(entry) &&
+      (exts.length === 0 || exts.includes(path.extname(entry).toLowerCase()))
     ) {
       results.push(path.relative(root, abs).split(path.sep).join('/'));
     }
   }
   return results.sort();
+}
+
+/**
+ * Read `.cursor-plugin/plugin.json` when present.
+ */
+function readCursorPluginJson(cwd: string) {
+  const pluginJsonPath = path.join(cwd, '.cursor-plugin', 'plugin.json');
+  if (!fs.existsSync(pluginJsonPath)) return null;
+  try {
+    return parseCursorPluginJson(fs.readFileSync(pluginJsonPath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Collect plugin bundle files from author layout roots only (`skills/`, `rules/`, …).
+ * Excludes platform install dirs (`.cursor/skills/`, `.agents/`, …) and other orphans.
+ */
+function collectPluginInitFiles(
+  cwd: string,
+  packageName: string,
+): { files: Array<{ src: string; dest: string }>; warnings: string[] } {
+  const pluginJson = readCursorPluginJson(cwd);
+  const plan = getPluginBundleScanPlan(pluginJson);
+  const exts = CATEGORY_EXT.plugin;
+  const candidates: string[] = [];
+
+  for (const dir of plan.directories) {
+    const abs = path.join(cwd, ...dir.replace(/\/$/, '').split('/'));
+    if (fs.existsSync(abs) && fs.statSync(abs).isDirectory()) {
+      const dirExts =
+        dir === 'assets/' || dir === 'scripts/' ? [] : exts;
+      candidates.push(...detectFiles(cwd, dirExts, abs));
+    }
+  }
+
+  for (const file of plan.files) {
+    const abs = path.join(cwd, ...file.split('/'));
+    if (
+      fs.existsSync(abs) &&
+      fs.statSync(abs).isFile() &&
+      exts.includes(path.extname(file).toLowerCase()) &&
+      !SKIP_FILES.has(path.basename(file))
+    ) {
+      candidates.push(file);
+    }
+  }
+
+  const unique = [...new Set(candidates)].sort();
+  const { sources, errors } = resolvePluginBundleSources(unique, {
+    packageName,
+    sources: unique,
+    pluginJson,
+  });
+
+  const files = sources.map((src) => ({ src, dest: src }));
+  return { files, warnings: errors };
 }
 
 /**
@@ -291,12 +351,15 @@ async function initNonInteractive(
   if (options.file && options.file.length > 0) {
     files = options.file.map(parseFileEntry);
   } else if (category === 'plugin') {
-    const detected = detectFiles(cwd, CATEGORY_EXT.plugin);
-    if (detected.length > 0) {
-      files = detected.map((f) => ({ src: f, dest: f }));
+    const { files: pluginFiles, warnings } = collectPluginInitFiles(cwd, name);
+    if (pluginFiles.length > 0) {
+      files = pluginFiles;
     } else {
       files = [{ src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' }];
       console.log(chalk.dim('  Note: no matching files found — using placeholder plugin.json'));
+    }
+    for (const warning of warnings) {
+      console.log(chalk.yellow(`  Skipped: ${warning}`));
     }
   } else {
     const detected = detectFiles(cwd, CATEGORY_EXT[category] ?? ['.md']);
@@ -373,15 +436,20 @@ async function initInteractive(
     if (options.file && options.file.length > 0) {
       files = options.file.map(parseFileEntry);
     } else if (category === 'plugin') {
-      const exts = CATEGORY_EXT.plugin;
-      const detected = detectFiles(cwd, exts);
-      if (detected.length > 0) {
-        files = detected.map((f) => ({ src: f, dest: f }));
+      const { files: pluginFiles, warnings } = collectPluginInitFiles(cwd, name);
+      if (pluginFiles.length > 0) {
+        files = pluginFiles;
       } else {
         files = [
           { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
         ];
         console.log(chalk.dim('  Note: no matching files found — using placeholder plugin.json'));
+      }
+      if (warnings.length > 0) {
+        console.log(chalk.yellow('\n  Skipped paths outside plugin bundle layout:\n'));
+        for (const warning of warnings) {
+          console.log(chalk.yellow(`    ${warning}`));
+        }
       }
     } else {
       const exts = CATEGORY_EXT[category] ?? ['.md'];
