@@ -22,8 +22,9 @@ export function sanitizePackageDirName(name: string): string {
 }
 
 /**
- * Resolve the install directory for a plugin package.
- * Same aitools paths on all platforms — not Cursor plugin discovery paths.
+ * Resolve the install directory for a plugin package (legacy opaque-tree helper).
+ * Prefer explode install into category paths; this remains for backward-compatible
+ * installPaths overrides and tests only.
  */
 export function resolvePluginInstallDir(
   scope: InstallScope,

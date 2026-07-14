@@ -14,7 +14,7 @@ The AITools registry distributes four types of AI tool packages:
 | `subagent` | An agent definition file describing a reusable specialised agent | `.agents/agents/` |
 | `prompt` | A reusable prompt template (slash command / instruction file) | `.agents/prompts/` |
 | `mcp-tool` | An MCP server registration + optional server files | platform `mcp.json` |
-| `plugin` | A multi-file plugin bundle (skills, rules, platform descriptor) | `.agents/plugins/<pkg>/` (aitools-managed; not Cursor marketplace paths) |
+| `plugin` | A multi-file plugin bundle (skills, rules, platform descriptor) | Explodes into platform skill/rule/… paths (not Cursor marketplace `.cursor/plugins/`) |
 
 Every package must have an `aitools.json` at its root (unified publish + dependency fields). Legacy `aitools.manifest.json` is still readable — run `aitools manifest migrate`.
 
@@ -308,15 +308,14 @@ When a user runs `aitools install <name>`, files land at:
 | vscode | user | `~/.copilot/skills/` | `~/.copilot/agents/` | `~/.copilot/prompts/` | `~/.vscode/mcp.json` |
 | claude | project | `.claude/skills/` | `.claude/agents/` | `.claude/commands/` | `.mcp.json` |
 | claude | user | `~/.claude/skills/` | `~/.claude/agents/` | `~/.claude/commands/` | `~/.claude/mcp.json` |
-| cursor | project | `.agents/skills/` | `.agents/agents/` | `.agents/prompts/` | `.cursor/mcp.json` |
-| plugin (any platform) | project | `.agents/plugins/<pkg>/` | — | — | — |
-| plugin (any platform) | user | `~/.aitools/tools/plugins/<pkg>/` | — | — | — |
+| cursor | project | `.cursor/skills/` | `.cursor/agents/` | `.cursor/commands/` | `.cursor/mcp.json` |
+| plugin | project/user | Explodes into the platform rows above (skills/rules/…); `scripts/`+`assets/` → synthetic skill package | | | |
 
-**Plugin vs marketplace:** `aitools install` for `category: plugin` uses the aitools plugin paths above. Cursor marketplace install (`/add-plugin`) is a separate channel — see [docs/design/plugin-marketplaces-comparison.md](../../../../docs/design/plugin-marketplaces-comparison.md).
+**Plugin vs marketplace:** `aitools install` for `category: plugin` explodes members into those platform paths. Cursor marketplace install (`/add-plugin`) is a separate channel — see [docs/design/plugin-marketplaces-comparison.md](../../../../docs/design/plugin-marketplaces-comparison.md).
 
 **Publish exclusions for plugins:** `manifest init --category plugin` must not add `aitools.json`, `aitools-lock.json`, or `aitools.config.json` to `files[]`. Only bundle content (e.g. `.cursor-plugin/plugin.json`, `skills/`).
 
-The `dest` path in the manifest is appended to whichever category dir the platform resolves. Design `dest` values to be meaningful subdirectory paths (e.g. `my-skill/SKILL.md`) so they don't collide with other installed tools. **Exception:** plugin `dest` paths are relative to the package root under `.agents/plugins/<pkg>/` (preserve tree layout).
+The `dest` path in the manifest is appended to whichever category dir the platform resolves. Design `dest` values to be meaningful subdirectory paths (e.g. `my-skill/SKILL.md`) so they don't collide with other installed tools. Plugin package `files[].src` paths are classified from Cursor-style layout (`skills/`, `rules/`, …); install destinations are compute from that classification.
 
 ---
 

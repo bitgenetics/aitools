@@ -77,6 +77,18 @@ export {
   PLUGIN_PLATFORM_DESCRIPTOR,
 } from './manifest/plugin-install.js';
 export {
+  classifyPluginMembers,
+  validatePluginStructure,
+  parseCursorPluginJson,
+} from './manifest/plugin-explode.js';
+export type {
+  PluginMember,
+  PluginMemberKind,
+  CursorPluginJsonPaths,
+  ClassifyPluginOptions,
+  ClassifyPluginResult,
+} from './manifest/plugin-explode.js';
+export {
   REGISTRY_MANIFEST_CANDIDATES,
   pickRegistryManifestBasename,
 } from './manifest/registry-manifest.js';

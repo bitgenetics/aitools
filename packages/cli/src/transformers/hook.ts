@@ -251,6 +251,61 @@ export function mergeHookConfigs(
   return JSON.stringify(existing, null, 2) + '\n';
 }
 
+/**
+ * Remove previously appended hook handlers from a shared hooks config.
+ * Handlers are matched by deep JSON equality against `added`.
+ */
+export function unmergeHookConfigs(
+  existingContent: string,
+  added: Record<string, unknown[]>,
+  platform: TargetPlatform,
+): string {
+  let root: Record<string, unknown>;
+  try {
+    root = JSON.parse(existingContent) as Record<string, unknown>;
+  } catch {
+    return existingContent;
+  }
+
+  const hooks: HookConfig =
+    platform === 'claude'
+      ? ((root['hooks'] as HookConfig) ?? {})
+      : (root as HookConfig);
+
+  for (const [event, handlers] of Object.entries(added)) {
+    const current = hooks[event];
+    if (!Array.isArray(current)) continue;
+    const toRemove = new Set(handlers.map((h) => JSON.stringify(h)));
+    const remaining = current.filter((h) => !toRemove.has(JSON.stringify(h)));
+    if (remaining.length === 0) {
+      delete hooks[event];
+    } else {
+      hooks[event] = remaining;
+    }
+  }
+
+  if (platform === 'claude') {
+    root['hooks'] = hooks;
+    return JSON.stringify(root, null, 2) + '\n';
+  }
+  return JSON.stringify(hooks, null, 2) + '\n';
+}
+
+/** Extract hook event→handlers map from raw hook file content. */
+export function extractHooksAdded(
+  incomingContent: string,
+  platform: TargetPlatform,
+): Record<string, unknown[]> {
+  const incoming = extractHooks(incomingContent, platform);
+  const out: Record<string, unknown[]> = {};
+  for (const [event, handlers] of Object.entries(incoming)) {
+    if (Array.isArray(handlers) && handlers.length > 0) {
+      out[event] = handlers as unknown[];
+    }
+  }
+  return out;
+}
+
 /** Estimate transform confidence for compat matrix without file content. */
 export function estimateHookConfidence(from: TargetPlatform, to: TargetPlatform): TransformResult['confidence'] {
   if (from === to) return 'native';

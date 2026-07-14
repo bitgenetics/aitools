@@ -54,6 +54,20 @@ export interface LockEntry {
    * Absent on entries written by older versions of ai-tools.
    */
   scope?: InstallScope;
+  /**
+   * MCP server keys merged into the platform mcp config by this install.
+   * Used by uninstall to remove only those keys from a shared mcp.json.
+   */
+  mcpKeys?: string[];
+  /** Relative or absolute path to the mcp config file written/updated by this install. */
+  mcpConfig?: string;
+  /**
+   * Hook handlers this install appended, keyed by event name.
+   * Used by uninstall to unmerge without wiping unrelated handlers.
+   */
+  hooksAdded?: Record<string, unknown[]>;
+  /** Relative or absolute path to the hooks config file updated by this install. */
+  hooksConfig?: string;
 }
 
 /** Construct a lock entry from an InstalledTool record. */
@@ -67,6 +81,12 @@ export function toLockEntry(tool: InstalledTool, resolved: string): LockEntry {
     platform: tool.platform,
     category: tool.category,
     scope: tool.scope,
+    ...(tool.mcpKeys && tool.mcpKeys.length > 0 ? { mcpKeys: tool.mcpKeys } : {}),
+    ...(tool.mcpConfig ? { mcpConfig: tool.mcpConfig } : {}),
+    ...(tool.hooksAdded && Object.keys(tool.hooksAdded).length > 0
+      ? { hooksAdded: tool.hooksAdded }
+      : {}),
+    ...(tool.hooksConfig ? { hooksConfig: tool.hooksConfig } : {}),
   };
 }
 

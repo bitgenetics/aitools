@@ -142,6 +142,10 @@ export const LockEntrySchema = z.object({
   platform: z.enum(['universal', 'vscode', 'claude', 'cursor', 'windsurf']).optional(),
   category: ToolCategorySchema.optional(),
   scope: z.enum(['project', 'user']).optional(),
+  mcpKeys: z.array(z.string()).optional(),
+  mcpConfig: z.string().optional(),
+  hooksAdded: z.record(z.array(z.unknown())).optional(),
+  hooksConfig: z.string().optional(),
 });
 
 export const AiToolsLockSchema = z.object({

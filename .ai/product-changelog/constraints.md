@@ -124,3 +124,19 @@
 **Reason**: Pre-release project; sets expectations for adopters and employers evaluating internal use.  
 **Do not change**: Keep the disclaimer visible near the top of `readme.md` until a stable release is declared.  
 **Key files**: `readme.md`
+
+---
+
+### Plugin explode — no dirty-file detection — 2026-07-14
+**Constraint**: Plugin uninstall deletes every locked file path and unmerges recorded MCP keys / hook handlers regardless of user edits after install.  
+**Reason**: Tracking dirty state is out of scope; users who edit installed files accept loss on uninstall/reinstall.  
+**Do not change**: Do not add content-hash dirty checks before remove.  
+**Key files**: `packages/cli/src/utils/installer.ts`
+
+---
+
+### Plugin install does not use Cursor marketplace dirs — 2026-07-14
+**Constraint**: Explode install writes element paths (e.g. `.cursor/skills/`), never whole packages under `.cursor/plugins/local/`. Opaque `.agents/plugins/` trees are retired. `resolvePluginInstallDir` remains only for legacy helpers/tests.  
+**Reason**: Two distribution channels must not be conflated; IDE loaders pick up elements, not aitools as a Cursor plugin host.  
+**Do not change**: Bridging to Cursor plugin loader without an explicit product decision.  
+**Key files**: `packages/core/src/manifest/plugin-explode.ts`, `docs/design/plugin-marketplaces-comparison.md`

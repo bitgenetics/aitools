@@ -17,7 +17,7 @@ Publish fields live in the unified `aitools.json` at the package root (same file
 | Field | Type | Rules |
 |---|---|---|
 | `nativeFor` | enum | **Required** when `category` is `plugin`. Source layout family: `cursor` \| `vscode` \| `claude` \| `windsurf` \| `universal` |
-| `files` | array | When `nativeFor` is `cursor`, must include `.cursor-plugin/plugin.json` |
+| `files` | array | When `nativeFor` is `cursor`, must include `.cursor-plugin/plugin.json`. Every path must have an install home (skills/rules/…/scripts/assets); orphans fail `manifest validate`. |
 
 ## Optional fields
 

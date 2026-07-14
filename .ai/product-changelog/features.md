@@ -23,10 +23,10 @@
 
 ---
 
-### plugin category — 2026-06-28
-**What**: `category: plugin` for multi-file plugin bundles. `manifest init --category plugin --nativeFor cursor` walks the plugin tree; `aitools install` copies the full tree to `.agents/plugins/<pkg>/` (project) or `~/.aitools/tools/plugins/<pkg>/` (user) with publish-subset `aitools.json` at package root. Never writes to Cursor marketplace paths (`.cursor/plugins/local/`). `nativeFor` is required for validation only.
-**Key APIs**: `resolvePluginInstallDir()`, `Installer.installPlugin()`, `ConfigManager.resolvePluginInstallPath()`
-**Key files**: `packages/core/src/schema/tool-schema.ts`, `packages/core/src/manifest/plugin-install.ts`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/commands/manifest.ts`
+### plugin category — 2026-06-28 (updated explode install 2026-07-14)
+**What**: `category: plugin` for multi-file plugin bundles. `manifest init --category plugin --nativeFor cursor` walks the tree. **Install explodes** members into normal platform paths (skills/rules/commands/agents + MCP/hooks merge) for project or user scope; lock tracks `files`, `mcpKeys`, and `hooksAdded` for clean uninstall. Plugin-level `scripts/`/`assets/` land under a synthetic skill package (`skills/<sanitized-pkg>/…`). Structure validation requires every `files[]` entry to have an install home. Relative paths rewritten via transformer path map. Never writes whole packages to `.cursor/plugins/local/`.  
+**Key APIs**: `classifyPluginMembers()`, `validatePluginStructure()`, `rewriteRelativePaths()`, `Installer.installPlugin()`, `unmergeHookConfigs()`  
+**Key files**: `packages/core/src/manifest/plugin-explode.ts`, `packages/cli/src/transformers/path-rewrite.ts`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/commands/manifest.ts`  
 **Design doc**: `docs/design/plugin-marketplaces-comparison.md`
 
 ---

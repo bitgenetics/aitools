@@ -18,6 +18,7 @@ import { transformAgent } from './agent.js';
 import {
   transformHook,
   mergeHookConfigs,
+  unmergeHookConfigs,
   estimateCategoryConfidence,
   estimateHookConfidence,
 } from './hook.js';
@@ -397,6 +398,23 @@ describe('mergeHookConfigs', () => {
     const parsed = JSON.parse(merged) as Record<string, unknown[]>;
     expect(parsed.preToolUse).toBeUndefined();
     expect(parsed.sessionStart).toHaveLength(1);
+  });
+});
+
+describe('unmergeHookConfigs', () => {
+  it('removes only previously added handlers', () => {
+    const existing = JSON.stringify({
+      afterFileEdit: [{ command: 'plugin' }, { command: 'user' }],
+      sessionStart: [{ command: 'keep' }],
+    });
+    const cleaned = unmergeHookConfigs(
+      existing,
+      { afterFileEdit: [{ command: 'plugin' }] },
+      'cursor',
+    );
+    const parsed = JSON.parse(cleaned) as Record<string, Array<{ command: string }>>;
+    expect(parsed.afterFileEdit).toEqual([{ command: 'user' }]);
+    expect(parsed.sessionStart).toEqual([{ command: 'keep' }]);
   });
 });
 

@@ -43,7 +43,7 @@ For a **prompt** — create a `.md` file with the reusable instruction or templa
 
 For an **mcp-tool** — the manifest needs an `mcpServer` block. Content files are optional. Read [references/manifest-reference.md](references/manifest-reference.md) for the `mcpServer` field spec.
 
-For a **plugin** — a multi-file bundle (`.cursor-plugin/plugin.json`, skills, rules, etc.) published as one package. Use `manifest init --category plugin --nativeFor cursor`. aitools install lands in `.agents/plugins/<pkg>/` — not Cursor marketplace paths. See [docs/design/plugin-marketplaces-comparison.md](../../docs/design/plugin-marketplaces-comparison.md).
+For a **plugin** — a multi-file bundle (`.cursor-plugin/plugin.json`, skills, rules, scripts, etc.) published as one package. Use `manifest init --category plugin --nativeFor cursor`. On install, members explode into normal platform paths (not `.cursor/plugins/local/`). See [docs/design/plugin-marketplaces-comparison.md](../../docs/design/plugin-marketplaces-comparison.md).
 
 ### Step 2: Initialise the manifest
 

@@ -144,4 +144,12 @@ export interface InstalledTool {
   registry: string;
   /** SHA-256 integrity hash of the downloaded tarball. */
   integrity: string;
+  /** MCP server keys merged by this install (plugins / MCP tools). */
+  mcpKeys?: string[];
+  /** Path to the mcp config file updated by this install. */
+  mcpConfig?: string;
+  /** Hook handlers appended by this install, keyed by event name. */
+  hooksAdded?: Record<string, unknown[]>;
+  /** Path to the hooks config file updated by this install. */
+  hooksConfig?: string;
 }

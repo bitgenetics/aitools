@@ -14,7 +14,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import fs from 'node:fs';
 import path from 'node:path';
-import type { ToolManifest, InstalledTool, InstallScope, AiToolsLock, ToolFile, TargetPlatform } from '@bitgenetics/aitools-core';
+import type { ToolManifest, InstalledTool, InstallScope, AiToolsLock, ToolFile, TargetPlatform, ToolCategory } from '@bitgenetics/aitools-core';
 import {
   readLockFile,
   writeLockFile,
@@ -24,11 +24,21 @@ import {
   normalizeCategory,
   MANIFEST_FILENAME,
   toPublishManifest,
+  classifyPluginMembers,
+  parseCursorPluginJson,
 } from '@bitgenetics/aitools-core';
 import type { ConfigManager } from './config-manager.js';
 import type { RegistryClient } from './registry-client.js';
 import { CacheManager } from './cache-manager.js';
-import { transform, applyDestExtension, mergeHookConfigs } from '../transformers/index.js';
+import {
+  transform,
+  applyDestExtension,
+  mergeHookConfigs,
+  unmergeHookConfigs,
+  extractHooksAdded,
+  rewriteRelativePaths,
+  buildPluginPathMap,
+} from '../transformers/index.js';
 import type { TransformResult } from '../transformers/index.js';
 
 export interface InstallFileResult {
@@ -325,35 +335,228 @@ export class Installer {
       integrity = entry.integrity;
     }
 
-    const installBase = this.configManager.resolvePluginInstallPath(scope, manifest.name);
-    fs.mkdirSync(installBase, { recursive: true });
-
-    const writtenFiles: string[] = [];
-    const fileResults: InstallFileResult[] = [];
-
-    for (const file of manifest.files) {
-      const srcPath = path.join(agentsDir, file.src);
-      if (!fs.existsSync(srcPath)) {
-        throw new Error(`Package "${manifest.name}@${manifest.version}" missing file: ${file.src}`);
+    const sources = manifest.files.map((f) => f.src);
+    let pluginJson = null;
+    const descriptorRel = sources.find((s) => s.replace(/\\/g, '/') === '.cursor-plugin/plugin.json');
+    if (descriptorRel) {
+      const descriptorPath = path.join(agentsDir, descriptorRel);
+      if (fs.existsSync(descriptorPath)) {
+        pluginJson = parseCursorPluginJson(fs.readFileSync(descriptorPath, 'utf8'));
       }
-      const normalizedDest = file.dest.replace(/\\/g, '/');
-      const destPath = path.join(installBase, normalizedDest);
-      fs.mkdirSync(path.dirname(destPath), { recursive: true });
-      fs.writeFileSync(destPath, fs.readFileSync(srcPath, 'utf8'), 'utf8');
-      const writtenRel = path.relative(this.cwd, destPath).replace(/\\/g, '/');
-      writtenFiles.push(writtenRel);
-      fileResults.push({ dest: writtenRel });
     }
 
-    const descriptorPath = path.join(installBase, MANIFEST_FILENAME);
-    const publishSubset = toPublishManifest(manifest);
-    fs.writeFileSync(descriptorPath, JSON.stringify(publishSubset, null, 2) + '\n', 'utf8');
-    const descriptorRel = path.relative(this.cwd, descriptorPath).replace(/\\/g, '/');
-    if (!writtenFiles.includes(descriptorRel)) {
-      writtenFiles.push(descriptorRel);
+    const classified = classifyPluginMembers({
+      packageName: manifest.name,
+      sources,
+      pluginJson,
+    });
+    if (classified.errors.length > 0) {
+      throw new Error(
+        `Plugin "${manifest.name}" has invalid structure:\n  ${classified.errors.join('\n  ')}`,
+      );
     }
 
     const activePlatform = this.configManager.getPlatform();
+    const sourcePlatform = manifest.nativeFor ?? 'universal';
+    const lock = readLockFile(this.cwd);
+    const previousEntry = lock.tools[manifest.name];
+
+    // On reinstall, unmerge previous hooks before merging the new set so handlers are not doubled.
+    if (previousEntry?.hooksAdded && previousEntry.hooksConfig) {
+      const hooksPath = path.isAbsolute(previousEntry.hooksConfig)
+        ? previousEntry.hooksConfig
+        : path.resolve(this.cwd, previousEntry.hooksConfig);
+      if (fs.existsSync(hooksPath)) {
+        const cleaned = unmergeHookConfigs(
+          fs.readFileSync(hooksPath, 'utf8'),
+          previousEntry.hooksAdded,
+          previousEntry.platform ?? activePlatform,
+        );
+        fs.writeFileSync(hooksPath, cleaned, 'utf8');
+      }
+    }
+
+    const members = classified.members.filter((m) => m.kind !== 'skip');
+
+    // First pass: resolve final destinations for file members (needed for path map)
+    type FilePlan = {
+      member: (typeof members)[number];
+      absDest: string;
+      relDest: string;
+      srcPath: string;
+    };
+    const filePlans: FilePlan[] = [];
+
+    for (const member of members) {
+      if (member.kind === 'mcp' || member.kind === 'hook') continue;
+      if (!member.fileCategory) continue;
+
+      const installBase = this.configManager.resolveInstallPath(member.fileCategory, scope);
+      const absDest = path.resolve(installBase, member.destWithinCategory);
+      const relDest = path.relative(this.cwd, absDest).replace(/\\/g, '/');
+      filePlans.push({
+        member,
+        absDest,
+        relDest,
+        srcPath: path.join(agentsDir, member.src),
+      });
+    }
+
+    const pathMap = buildPluginPathMap(
+      filePlans.map((p) => ({ src: p.member.src, finalRel: p.relDest })),
+    );
+
+    const writtenFiles: string[] = [];
+    const fileResults: InstallFileResult[] = [];
+    const mcpKeys: string[] = [];
+    let mcpConfigRel: string | undefined;
+    let hooksAdded: Record<string, unknown[]> | undefined;
+    let hooksConfigRel: string | undefined;
+
+    for (const plan of filePlans) {
+      if (!fs.existsSync(plan.srcPath)) {
+        throw new Error(`Package "${manifest.name}@${manifest.version}" missing file: ${plan.member.src}`);
+      }
+
+      let writeContent = fs.readFileSync(plan.srcPath, 'utf8');
+      let transformResult: TransformResult | undefined;
+      let destPath = plan.absDest;
+      let relDest = plan.relDest;
+
+      const isText =
+        /\.(md|mdc|json|ts|js|mjs|cjs|txt|ya?ml|toml|sh|py|prompt\.md|agent\.md)$/i.test(plan.member.src) ||
+        plan.member.kind === 'skill' ||
+        plan.member.kind === 'rule' ||
+        plan.member.kind === 'command' ||
+        plan.member.kind === 'agent';
+
+      if (isText) {
+        if (sourcePlatform !== activePlatform && sourcePlatform !== 'universal') {
+          const category =
+            plan.member.kind === 'asset' ? 'skill' : (plan.member.kind as ToolCategory);
+          transformResult = transform(writeContent, category, sourcePlatform, activePlatform, {
+            destPath: relDest,
+          });
+          emitTransformMessages(relDest, transformResult);
+
+          if (transformResult.recommendNativePath) {
+            process.stderr.write(`[aitools] Advisory: ${transformResult.recommendNativePath}\n`);
+            fileResults.push({ dest: relDest, transform: transformResult, skipped: true });
+            continue;
+          }
+          if (transformResult.confidence === 'unsupported' && !transformResult.content.trim()) {
+            fileResults.push({ dest: relDest, transform: transformResult, skipped: true });
+            continue;
+          }
+          writeContent = transformResult.content;
+          if (transformResult.destExtension) {
+            const baseRel = plan.member.destWithinCategory;
+            const installBase = this.configManager.resolveInstallPath(plan.member.fileCategory!, scope);
+            destPath = path.resolve(installBase, applyDestExtension(baseRel, transformResult));
+            relDest = path.relative(this.cwd, destPath).replace(/\\/g, '/');
+          }
+        }
+
+        const rewritten = rewriteRelativePaths(writeContent, pathMap);
+        if (rewritten.warnings.length > 0 || rewritten.confidence !== 'native') {
+          transformResult = {
+            content: rewritten.content,
+            confidence: rewritten.confidence,
+            warnings: [...(transformResult?.warnings ?? []), ...rewritten.warnings],
+            skillPrompt: transformResult?.skillPrompt,
+            destExtension: transformResult?.destExtension,
+          };
+          emitTransformMessages(relDest, transformResult);
+        }
+        writeContent = rewritten.content;
+      }
+
+      fs.mkdirSync(path.dirname(destPath), { recursive: true });
+      fs.writeFileSync(destPath, writeContent, 'utf8');
+      writtenFiles.push(relDest);
+      fileResults.push({ dest: relDest, transform: transformResult });
+    }
+
+    // MCP merge
+    const mcpMember = members.find((m) => m.kind === 'mcp');
+    if (mcpMember) {
+      const mcpSrc = path.join(agentsDir, mcpMember.src);
+      if (!fs.existsSync(mcpSrc)) {
+        throw new Error(`Package "${manifest.name}@${manifest.version}" missing file: ${mcpMember.src}`);
+      }
+      let mcpContent = fs.readFileSync(mcpSrc, 'utf8');
+      const rewritten = rewriteRelativePaths(mcpContent, pathMap);
+      mcpContent = rewritten.content;
+      for (const w of rewritten.warnings) {
+        process.stderr.write(`[aitools] ${w}\n`);
+      }
+
+      const configPath = this.configManager.resolveMcpConfig(scope);
+      fs.mkdirSync(path.dirname(configPath), { recursive: true });
+      const keys = mergePluginMcpServers(configPath, mcpContent);
+      mcpKeys.push(...keys);
+      mcpConfigRel = path.relative(this.cwd, configPath).replace(/\\/g, '/');
+      fileResults.push({ dest: mcpConfigRel });
+    }
+
+    // Hooks merge
+    const hookMember = members.find((m) => m.kind === 'hook');
+    if (hookMember) {
+      const hooksConfigPath = this.configManager.resolveHooksConfig(scope);
+      if (!hooksConfigPath) {
+        process.stderr.write(
+          `[aitools] Skipping hooks from plugin "${manifest.name}": platform "${activePlatform}" has no hooks config.\n`,
+        );
+      } else {
+        const hookSrc = path.join(agentsDir, hookMember.src);
+        if (!fs.existsSync(hookSrc)) {
+          throw new Error(`Package "${manifest.name}@${manifest.version}" missing file: ${hookMember.src}`);
+        }
+        let hookContent = fs.readFileSync(hookSrc, 'utf8');
+        hookContent = normalizePluginHooksContent(hookContent);
+
+        let transformResult: TransformResult | undefined;
+        if (sourcePlatform !== activePlatform && sourcePlatform !== 'universal') {
+          transformResult = transform(hookContent, 'hook', sourcePlatform, activePlatform, {
+            destPath: path.relative(this.cwd, hooksConfigPath).replace(/\\/g, '/'),
+          });
+          emitTransformMessages(
+            path.relative(this.cwd, hooksConfigPath).replace(/\\/g, '/'),
+            transformResult,
+          );
+          if (!transformResult.recommendNativePath && transformResult.content.trim()) {
+            hookContent = transformResult.content;
+          } else if (transformResult.recommendNativePath || !transformResult.content.trim()) {
+            fileResults.push({
+              dest: path.relative(this.cwd, hooksConfigPath).replace(/\\/g, '/'),
+              transform: transformResult,
+              skipped: true,
+            });
+            hookContent = '';
+          }
+        }
+
+        if (hookContent.trim()) {
+          const rewritten = rewriteRelativePaths(hookContent, pathMap);
+          hookContent = rewritten.content;
+          for (const w of rewritten.warnings) {
+            process.stderr.write(`[aitools] ${w}\n`);
+          }
+
+          hooksAdded = extractHooksAdded(hookContent, activePlatform);
+          fs.mkdirSync(path.dirname(hooksConfigPath), { recursive: true });
+          let existingContent: string | null = null;
+          if (fs.existsSync(hooksConfigPath)) {
+            existingContent = fs.readFileSync(hooksConfigPath, 'utf8');
+          }
+          const merged = mergeHookConfigs(existingContent, hookContent, activePlatform);
+          fs.writeFileSync(hooksConfigPath, merged, 'utf8');
+          hooksConfigRel = path.relative(this.cwd, hooksConfigPath).replace(/\\/g, '/');
+          fileResults.push({ dest: hooksConfigRel, transform: transformResult });
+        }
+      }
+    }
+
     const installedTool: InstalledTool = {
       name: manifest.name,
       version: manifest.version,
@@ -364,13 +567,17 @@ export class Installer {
       files: writtenFiles,
       registry: client.config.url,
       integrity,
+      ...(mcpKeys.length > 0 ? { mcpKeys, mcpConfig: mcpConfigRel } : {}),
+      ...(hooksAdded && Object.keys(hooksAdded).length > 0
+        ? { hooksAdded, hooksConfig: hooksConfigRel }
+        : {}),
     };
 
-    const lock = readLockFile(this.cwd);
-    const previousEntry = lock.tools[manifest.name];
-    if (previousEntry) {
+    const lockAfter = readLockFile(this.cwd);
+    const previous = lockAfter.tools[manifest.name];
+    if (previous) {
       const newFileSet = new Set(writtenFiles);
-      for (const oldFile of previousEntry.files) {
+      for (const oldFile of previous.files) {
         const absOldFile = path.isAbsolute(oldFile)
           ? oldFile
           : path.resolve(this.cwd, oldFile);
@@ -380,9 +587,21 @@ export class Installer {
           cleanEmptyDirs(path.dirname(absOldFile), this.cwd);
         }
       }
+      if (previous.mcpKeys?.length && previous.mcpConfig) {
+        const keep = new Set(mcpKeys);
+        const stale = previous.mcpKeys.filter((k) => !keep.has(k));
+        if (stale.length > 0) {
+          removeMcpKeys(
+            path.isAbsolute(previous.mcpConfig)
+              ? previous.mcpConfig
+              : path.resolve(this.cwd, previous.mcpConfig),
+            stale,
+          );
+        }
+      }
     }
 
-    const updated = upsertLockEntry(lock, manifest.name, toLockEntry(installedTool, client.config.url));
+    const updated = upsertLockEntry(lockAfter, manifest.name, toLockEntry(installedTool, client.config.url));
     writeLockFile(this.cwd, updated);
     return { ...installedTool, fileResults };
   }
@@ -436,6 +655,8 @@ export class Installer {
       files: [path.relative(this.cwd, configPath).replace(/\\/g, '/')],
       registry: registryUrl,
       integrity: 'mcp-config',
+      mcpKeys: [serverKey],
+      mcpConfig: path.relative(this.cwd, configPath).replace(/\\/g, '/'),
     };
 
     const lock = readLockFile(this.cwd);
@@ -453,9 +674,11 @@ export class Installer {
 
     const removed: string[] = [];
 
-    const isMcpEntry = entry.category === 'mcp-tool' ||
+    const isMcpOnly =
+      entry.category === 'mcp-tool' ||
       (entry.category === undefined && entry.integrity === 'mcp-config' && entry.files.length === 1);
-    if (isMcpEntry) {
+
+    if (isMcpOnly) {
       const rawPath = entry.files[0]!;
       const configPath = path.isAbsolute(rawPath)
         ? rawPath
@@ -471,6 +694,30 @@ export class Installer {
           fs.rmSync(filePath);
           removed.push(filePath);
           cleanEmptyDirs(path.dirname(filePath), this.cwd);
+        }
+      }
+
+      if (entry.mcpKeys?.length) {
+        const configPath = entry.mcpConfig
+          ? path.isAbsolute(entry.mcpConfig)
+            ? entry.mcpConfig
+            : path.resolve(this.cwd, entry.mcpConfig)
+          : null;
+        if (configPath) {
+          removeMcpKeys(configPath, entry.mcpKeys);
+          removed.push(configPath);
+        }
+      }
+
+      if (entry.hooksAdded && entry.hooksConfig) {
+        const hooksPath = path.isAbsolute(entry.hooksConfig)
+          ? entry.hooksConfig
+          : path.resolve(this.cwd, entry.hooksConfig);
+        if (fs.existsSync(hooksPath)) {
+          const platform = entry.platform ?? this.configManager.getPlatform();
+          const next = unmergeHookConfigs(fs.readFileSync(hooksPath, 'utf8'), entry.hooksAdded, platform);
+          fs.writeFileSync(hooksPath, next, 'utf8');
+          removed.push(hooksPath);
         }
       }
     }
@@ -530,9 +777,81 @@ function envEntry(env?: Record<string, string>) {
 function removeMcpEntry(configPath: string, toolName: string): void {
   if (!fs.existsSync(configPath)) return;
   const mcpJson = JSON.parse(fs.readFileSync(configPath, 'utf8')) as McpJson;
+  mcpJson.servers ??= {};
   const serverKey = toolName.replace(/^@[^/]+\//, '');
   delete mcpJson.servers[serverKey];
   fs.writeFileSync(configPath, JSON.stringify(mcpJson, null, 2) + '\n', 'utf8');
+}
+
+function removeMcpKeys(configPath: string, keys: string[]): void {
+  if (!fs.existsSync(configPath) || keys.length === 0) return;
+  const raw = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+  const servers =
+    (raw['servers'] as Record<string, unknown> | undefined) ??
+    (raw['mcpServers'] as Record<string, unknown> | undefined) ??
+    {};
+  for (const key of keys) {
+    delete servers[key];
+  }
+  if (raw['servers']) {
+    raw['servers'] = servers;
+  } else if (raw['mcpServers']) {
+    raw['mcpServers'] = servers;
+  } else {
+    raw['servers'] = servers;
+  }
+  fs.writeFileSync(configPath, JSON.stringify(raw, null, 2) + '\n', 'utf8');
+}
+
+/** Merge servers from a plugin mcp.json into the platform mcp config. Returns keys added. */
+function mergePluginMcpServers(configPath: string, pluginMcpContent: string): string[] {
+  const incoming = JSON.parse(pluginMcpContent) as Record<string, unknown>;
+  const incomingServers =
+    (incoming['mcpServers'] as Record<string, unknown> | undefined) ??
+    (incoming['servers'] as Record<string, unknown> | undefined) ??
+    {};
+
+  let existing: Record<string, unknown> = { servers: {} };
+  if (fs.existsSync(configPath)) {
+    existing = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+  }
+  const servers =
+    (existing['servers'] as Record<string, unknown> | undefined) ??
+    (existing['mcpServers'] as Record<string, unknown> | undefined) ??
+    {};
+
+  const keys = Object.keys(incomingServers);
+  for (const [key, value] of Object.entries(incomingServers)) {
+    servers[key] = value;
+  }
+
+  // Prefer the key shape already present on disk; default to servers (aitools convention).
+  if (existing['mcpServers'] && !existing['servers']) {
+    existing['mcpServers'] = servers;
+  } else {
+    existing['servers'] = servers;
+  }
+
+  fs.writeFileSync(configPath, JSON.stringify(existing, null, 2) + '\n', 'utf8');
+  return keys;
+}
+
+/** Unwrap Cursor plugin `{ "hooks": { ... } }` to top-level events for mergeHookConfigs. */
+function normalizePluginHooksContent(content: string): string {
+  try {
+    const parsed = JSON.parse(content) as Record<string, unknown>;
+    if (parsed['hooks'] && typeof parsed['hooks'] === 'object' && !Array.isArray(parsed['hooks'])) {
+      const inner = parsed['hooks'] as Record<string, unknown>;
+      // If the only meaningful key is hooks, treat as nested Cursor marketplace format.
+      const topKeys = Object.keys(parsed).filter((k) => k !== 'version');
+      if (topKeys.length === 1 && topKeys[0] === 'hooks') {
+        return JSON.stringify(inner, null, 2) + '\n';
+      }
+    }
+  } catch {
+    // leave as-is
+  }
+  return content;
 }
 
 function lowestCommonInstallDir(cwd: string, writtenRelPaths: string[]): string {

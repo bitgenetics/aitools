@@ -22,7 +22,9 @@ import { transformAgent } from './agent.js';
 import { transformHook } from './hook.js';
 
 export type { TransformConfidence, TransformResult, TransformContext } from './types.js';
-export { estimateCategoryConfidence, estimateHookConfidence, mergeHookConfigs } from './hook.js';
+export { estimateCategoryConfidence, estimateHookConfidence, mergeHookConfigs, unmergeHookConfigs, extractHooksAdded } from './hook.js';
+export { rewriteRelativePaths, buildPluginPathMap, resolveMappedPath } from './path-rewrite.js';
+export type { PluginPathMap, PathRewriteResult } from './path-rewrite.js';
 
 function applyExtension(filename: string, ext: string | undefined): string {
   if (!ext) return filename;

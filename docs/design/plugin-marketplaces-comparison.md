@@ -6,12 +6,12 @@ This document compares two independent channels for distributing AI IDE plugins.
 
 | Channel | Install command | Where files go | Who loads them |
 |---------|-----------------|----------------|----------------|
-| **aitools registry** | `aitools install @team/my-plugin` | aitools-managed paths (project or user scope) | aitools lock + your tooling; **not** Cursor plugin loader |
-| **Cursor marketplace** | Cursor UI / `/add-plugin` | Cursor plugin discovery paths | Cursor |
+| **aitools registry** | `aitools install @team/my-plugin` | Elements explode into normal platform paths (skills, rules, MCP, hooks, …) | IDE loaders for those element types |
+| **Cursor marketplace** | Cursor UI / `/add-plugin` | Cursor plugin discovery paths (`.cursor/plugins/…`) | Cursor plugin loader |
 
-**aitools install never writes to `.cursor/plugins/local/` or other platform plugin discovery paths.**
+**aitools install never writes whole packages to `.cursor/plugins/local/`.** It places each member where a standalone skill/rule/command/agent/MCP/hook would land for the active platform and scope.
 
-`aitools uninstall` removes files from the aitools install location only (paths recorded in `aitools-lock.json`).
+`aitools uninstall` removes every path and merged config key recorded in `aitools-lock.json` for that package (no dirty-file checks — post-install edits are overwritten on remove).
 
 ## Author layout (unified `aitools.json`)
 
@@ -20,71 +20,59 @@ Authors maintain one `aitools.json` with publish fields plus optional `dependenc
 ```text
 my-review-plugin/
 ├── .cursor-plugin/
-│   └── plugin.json              # platform layout (for marketplace / git)
-├── skills/, rules/, mcp.json    # plugin content
+│   └── plugin.json              # required for nativeFor: cursor (marketplace metadata)
+├── skills/, rules/, agents/, commands/
+├── hooks/hooks.json
+├── mcp.json
+├── scripts/, assets/            # plugin-level; install under synthetic skill package
 ├── aitools.json                 # unified: publish + dependencies
 ├── aitools-lock.json            # excluded from files[] on init
 └── aitools.config.json          # optional; excluded from files[]
 ```
 
-`manifest init --category plugin` walks the plugin tree and merges publish fields into `aitools.json`. Bookkeeping files (`aitools.json`, `aitools-lock.json`, `aitools.config.json`) are never added to `files[]`.
+`manifest init --category plugin` walks the plugin tree and merges publish fields into `aitools.json`. Bookkeeping files are never added to `files[]`.
 
-## Publish and install model
+**Structure validation:** every path in `files[]` must have an install home (`manifest validate` + install). Orphans fail. Allowed skips: `.cursor-plugin/**`, README/LICENSE, aitools bookkeeping.
+
+## Explode install model
 
 ```text
 Author aitools.json (full)
   → aitools publish (toPublishManifest)
-  → Registry .../aitools.json (publish subset, no devDependencies)
-  → Installed package dir (publish-subset aitools.json + bundle content)
+  → Registry .../aitools.json (publish subset)
+  → Install: classify → path map → transform/rewrite → write to platform dirs
+  → Lock entry: files[] + mcpKeys + hooksAdded
 ```
 
-| Location | `aitools.json` contents |
-|----------|-------------------------|
-| Author repo | Full: publish fields + `dependencies` + `devDependencies` |
-| Registry per version | Publish subset only |
-| Installed package dir | Same publish subset at package root |
+### Destination mapping (example: `platform: cursor`, project scope)
 
-## aitools install paths
+| Bundle path | Install destination |
+|-------------|---------------------|
+| `skills/review/SKILL.md` (+ siblings) | `.cursor/skills/review/…` |
+| `rules/*.mdc` | `.cursor/rules/…` |
+| `commands/*`, `agents/*` | Cursor command / agent dirs |
+| `mcp.json` | Merge into `.cursor/mcp.json`; lock `mcpKeys` |
+| `hooks/hooks.json` | Merge into `.cursor/hooks.json`; rewrite `./scripts/…` |
+| `scripts/*`, `assets/*` | `.cursor/skills/<sanitized-pkg>/scripts|assets/…` |
+| `.cursor-plugin/plugin.json` | Skip install (validation / marketplace only) |
 
-Plugin installs use **platform-agnostic** aitools paths regardless of `platform` in `aitools.config.json`:
+User scope (`-g` / `--global`) uses the same categories under user adapter paths.
 
-| Scope | Install root |
-|-------|--------------|
-| **project** | `.agents/plugins/<package-dir>/` |
-| **user** | `~/.aitools/tools/plugins/<package-dir>/` |
-
-`<package-dir>` is the sanitized package name (`@team/code-review-plugin` → `@team__code-review-plugin`).
-
-Expected installed tree:
-
-```text
-.agents/plugins/@team__code-review-plugin/
-├── aitools.json
-├── .cursor-plugin/plugin.json
-└── skills/...
-```
-
-`nativeFor` on the manifest describes the **source layout family** for publish validation (e.g. cursor plugins must list `.cursor-plugin/plugin.json` in `files[]`). It does **not** route installs into Cursor plugin directories.
-
-## Config overrides
-
-Optional `installPaths` in `aitools.config.json`:
-
-- `project.plugin` — base directory for project-scope plugin installs (package subdir appended)
-- `user.plugin` — base directory for user-scope plugin installs
+Relative references in hooks, skills, and MCP configs are rewritten via the transform path-map layer so they survive relocate across platforms.
 
 ## Author workflow
 
 ```bash
 mkdir my-review-plugin && cd my-review-plugin
-# .cursor-plugin/plugin.json, skills/, rules/ ...
+# .cursor-plugin/plugin.json, skills/, rules/, scripts/ ...
 
 aitools manifest init --category plugin --nativeFor cursor
+aitools manifest validate
 aitools publish
-# separately: git + Cursor marketplace for Cursor-native install
+# separately: git + Cursor marketplace for Cursor-native plugin loader install
 ```
 
-## Consumer workflow (aitools only)
+## Consumer workflow (aitools)
 
 ```bash
 aitools install @team/my-review-plugin              # project scope (default)
@@ -92,9 +80,9 @@ aitools install @team/my-review-plugin --global     # user scope
 aitools uninstall @team/my-review-plugin
 ```
 
-## Deferred (v1)
+## Out of scope
 
-- Auto-compose registry skills into author tree before publish
-- `dependencies` resolution at install time
-- Standalone `aitools plugin validate` CLI
-- Bridging aitools install to platform loaders
+- Writing whole packages into `.cursor/plugins/local/`
+- Install-time transitive `dependencies` resolution
+- Auto-compose registry skills into author trees before publish
+- Standalone `aitools plugin validate` (use `manifest validate`)

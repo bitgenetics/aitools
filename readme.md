@@ -643,14 +643,9 @@ MCP tools inject a server entry into the platform's `mcp.json` config file.
 
 ### `plugin`
 
-Plugin bundles install to **aitools-managed paths** (not Cursor marketplace / `.cursor/plugins/local/`). The full tree is preserved; `aitools.json` is written at the package root.
+Plugin bundles **explode** into normal platform element paths (skills, rules, commands, agents, MCP merge, hooks merge) for the active platform and scope. Plugin-level `scripts/` and `assets/` install under a synthetic skill package. Never writes whole packages to `.cursor/plugins/local/`.
 
-| Scope | Install root |
-|---|---|
-| project | `.agents/plugins/<package-dir>/` |
-| user | `~/.aitools/tools/plugins/<package-dir>/` |
-
-`<package-dir>` is the sanitized package name (`@team/my-plugin` → `@team__my-plugin`). Use `manifest init --category plugin --nativeFor cursor` for Cursor-style plugin layouts. See [docs/design/plugin-marketplaces-comparison.md](docs/design/plugin-marketplaces-comparison.md).
+`manifest validate` requires every `files[]` entry to have an install home. See [docs/design/plugin-marketplaces-comparison.md](docs/design/plugin-marketplaces-comparison.md).
 
 ---
 

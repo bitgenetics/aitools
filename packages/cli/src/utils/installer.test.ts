@@ -149,7 +149,14 @@ describe('Installer.install', () => {
     ).rejects.toThrow('missing file: skill.md');
   });
 
-  it('installs a plugin bundle under .agents/plugins/<pkg>/ with descriptor at package root', async () => {
+  it('explodes a plugin into platform skill/rule dirs (not .agents/plugins)', async () => {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'cursor' }),
+      'utf8',
+    );
+    installer = new Installer(new ConfigManager(tmp), tmp);
+
     const PLUGIN_MANIFEST: ToolManifest = {
       name: '@team/my-plugin',
       version: '1.0.0',
@@ -159,12 +166,16 @@ describe('Installer.install', () => {
       files: [
         { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
         { src: 'skills/review/SKILL.md', dest: 'skills/review/SKILL.md' },
+        { src: 'rules/style.mdc', dest: 'rules/style.mdc' },
+        { src: 'scripts/format.sh', dest: 'scripts/format.sh' },
       ],
     };
     const tarball = Buffer.from(
       JSON.stringify([
-        { path: '.cursor-plugin/plugin.json', content: '{}' },
+        { path: '.cursor-plugin/plugin.json', content: '{"name":"my-plugin"}' },
         { path: 'skills/review/SKILL.md', content: '# Review' },
+        { path: 'rules/style.mdc', content: '---\ndescription: style\nalwaysApply: true\n---\nBe tidy.' },
+        { path: 'scripts/format.sh', content: '#!/bin/sh\necho ok\n' },
       ]),
       'utf8',
     );
@@ -177,16 +188,190 @@ describe('Installer.install', () => {
 
     const installed = await installer.install(mockClient as never, PLUGIN_MANIFEST, 'project');
 
-    const pluginRoot = path.join(tmp, '.agents', 'plugins', '@team__my-plugin');
-    expect(fs.existsSync(path.join(pluginRoot, '.cursor-plugin', 'plugin.json'))).toBe(true);
-    expect(fs.existsSync(path.join(pluginRoot, 'skills', 'review', 'SKILL.md'))).toBe(true);
-    expect(fs.existsSync(path.join(pluginRoot, 'aitools.json'))).toBe(true);
-    const descriptor = JSON.parse(
-      fs.readFileSync(path.join(pluginRoot, 'aitools.json'), 'utf8'),
-    ) as { category: string; devDependencies?: unknown };
-    expect(descriptor.category).toBe('plugin');
-    expect(descriptor.devDependencies).toBeUndefined();
-    expect(installed.files.some((f) => f.includes('.agents/plugins/@team__my-plugin/aitools.json'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'skills', 'review', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'rules', 'style.mdc'))).toBe(true);
+    expect(
+      fs.existsSync(path.join(tmp, '.cursor', 'skills', '@team__my-plugin', 'scripts', 'format.sh')),
+    ).toBe(true);
+    expect(fs.existsSync(path.join(tmp, '.agents', 'plugins', '@team__my-plugin'))).toBe(false);
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'plugins', 'local', '@team__my-plugin'))).toBe(false);
+    expect(installed.files.some((f) => f.includes('.cursor/skills/review/SKILL.md'))).toBe(true);
+  });
+
+  it('rejects a plugin with orphan paths before writing', async () => {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'cursor' }),
+      'utf8',
+    );
+    installer = new Installer(new ConfigManager(tmp), tmp);
+
+    const PLUGIN_MANIFEST: ToolManifest = {
+      name: 'bad-plugin',
+      version: '1.0.0',
+      description: 'A plugin',
+      category: 'plugin',
+      nativeFor: 'cursor',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'orphan.bin', dest: 'orphan.bin' },
+      ],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([
+        { path: '.cursor-plugin/plugin.json', content: '{}' },
+        { path: 'orphan.bin', content: 'x' },
+      ]),
+      'utf8',
+    );
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+
+    await expect(installer.install(mockClient as never, PLUGIN_MANIFEST, 'project')).rejects.toThrow(
+      /no install home/,
+    );
+  });
+});
+
+describe('Installer.install (plugin explode mcp+hooks)', () => {
+  let tmp: string;
+  let cacheTmp: string;
+  let installer: Installer;
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-plugin-'));
+    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cache-'));
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'cursor' }),
+      'utf8',
+    );
+    installer = new Installer(new ConfigManager(tmp), tmp, new CacheManager(cacheTmp));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true });
+    fs.rmSync(cacheTmp, { recursive: true });
+  });
+
+  it('merges plugin mcp servers and records mcpKeys for uninstall', async () => {
+    const PLUGIN_MANIFEST: ToolManifest = {
+      name: 'mcp-plugin',
+      version: '1.0.0',
+      description: 'Plugin with MCP',
+      category: 'plugin',
+      nativeFor: 'cursor',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md' },
+        { src: 'mcp.json', dest: 'mcp.json' },
+      ],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([
+        { path: '.cursor-plugin/plugin.json', content: '{}' },
+        { path: 'skills/x/SKILL.md', content: '# X' },
+        {
+          path: 'mcp.json',
+          content: JSON.stringify({
+            mcpServers: { 'plugin-db': { command: 'npx', args: ['-y', 'server'] } },
+          }),
+        },
+      ]),
+      'utf8',
+    );
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+
+    const mcpDir = path.join(tmp, '.cursor');
+    fs.mkdirSync(mcpDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(mcpDir, 'mcp.json'),
+      JSON.stringify({ servers: { keep: { command: 'node' } } }) + '\n',
+      'utf8',
+    );
+
+    await installer.install(mockClient as never, PLUGIN_MANIFEST, 'project');
+    const lock = installer.getLock().tools['mcp-plugin']!;
+    expect(lock.mcpKeys).toEqual(['plugin-db']);
+
+    const mcp = JSON.parse(fs.readFileSync(path.join(mcpDir, 'mcp.json'), 'utf8')) as {
+      servers: Record<string, unknown>;
+    };
+    expect(mcp.servers['keep']).toBeDefined();
+    expect(mcp.servers['plugin-db']).toBeDefined();
+
+    installer.uninstall('mcp-plugin');
+    const after = JSON.parse(fs.readFileSync(path.join(mcpDir, 'mcp.json'), 'utf8')) as {
+      servers: Record<string, unknown>;
+    };
+    expect(after.servers['plugin-db']).toBeUndefined();
+    expect(after.servers['keep']).toBeDefined();
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'skills', 'x', 'SKILL.md'))).toBe(false);
+  });
+
+  it('rewrites hook script paths and uninstalls hook handlers cleanly', async () => {
+    const PLUGIN_MANIFEST: ToolManifest = {
+      name: 'hook-plugin',
+      version: '1.0.0',
+      description: 'Plugin with hooks',
+      category: 'plugin',
+      nativeFor: 'cursor',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'scripts/fmt.sh', dest: 'scripts/fmt.sh' },
+        { src: 'hooks/hooks.json', dest: 'hooks/hooks.json' },
+      ],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([
+        { path: '.cursor-plugin/plugin.json', content: '{}' },
+        { path: 'scripts/fmt.sh', content: '#!/bin/sh\n' },
+        {
+          path: 'hooks/hooks.json',
+          content: JSON.stringify({
+            hooks: { afterFileEdit: [{ command: './scripts/fmt.sh' }] },
+          }),
+        },
+      ]),
+      'utf8',
+    );
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+
+    await installer.install(mockClient as never, PLUGIN_MANIFEST, 'project');
+
+    const hooksPath = path.join(tmp, '.cursor', 'hooks.json');
+    const hooks = JSON.parse(fs.readFileSync(hooksPath, 'utf8')) as {
+      afterFileEdit: Array<{ command: string }>;
+    };
+    expect(hooks.afterFileEdit[0]!.command).toContain('.cursor/skills/hook-plugin/scripts/fmt.sh');
+
+    fs.writeFileSync(
+      hooksPath,
+      JSON.stringify({
+        afterFileEdit: hooks.afterFileEdit,
+        sessionStart: [{ command: 'echo keep' }],
+      }) + '\n',
+      'utf8',
+    );
+
+    installer.uninstall('hook-plugin');
+    const after = JSON.parse(fs.readFileSync(hooksPath, 'utf8')) as Record<string, unknown[]>;
+    expect(after.afterFileEdit).toBeUndefined();
+    expect(after.sessionStart).toHaveLength(1);
   });
 });
 

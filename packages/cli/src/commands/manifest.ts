@@ -19,7 +19,7 @@ import { stdin as input, stdout as output } from 'node:process';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import semver from 'semver';
-import { ToolManifestSchema, MANIFEST_FILENAME, LEGACY_PUBLISH_MANIFEST_FILENAME, readManifest, writeManifest, isPublishable, AitoolsJsonSchema } from '@bitgenetics/aitools-core';
+import { ToolManifestSchema, MANIFEST_FILENAME, LEGACY_PUBLISH_MANIFEST_FILENAME, readManifest, writeManifest, isPublishable, AitoolsJsonSchema, validatePluginStructure, parseCursorPluginJson } from '@bitgenetics/aitools-core';
 import type { AiToolsManifest } from '@bitgenetics/aitools-core';
 
 type Category = 'skill' | 'subagent' | 'prompt' | 'mcp-tool' | 'plugin';
@@ -519,6 +519,30 @@ function createManifestValidateCommand(): Command {
           chalk.yellow(`\n  ${missingCount} source file(s) declared in manifest but missing from disk.`),
         );
         process.exit(1);
+      }
+
+      if (parsed.data.category === 'plugin') {
+        let pluginJson = null;
+        const descriptor = parsed.data.files.find(
+          (f) => f.src.replace(/\\/g, '/') === '.cursor-plugin/plugin.json',
+        );
+        if (descriptor) {
+          const raw = fs.readFileSync(path.join(cwd, descriptor.src), 'utf8');
+          pluginJson = parseCursorPluginJson(raw);
+        }
+        const structure = validatePluginStructure({
+          packageName: parsed.data.name,
+          sources: parsed.data.files.map((f) => f.src),
+          pluginJson,
+        });
+        if (!structure.ok) {
+          console.error(chalk.red('\n  Plugin structure validation failed:\n'));
+          for (const err of structure.errors) {
+            console.error(`    ${chalk.red('?')} ${err}`);
+          }
+          process.exit(1);
+        }
+        console.log(`  ${chalk.green('?')} Plugin structure: every file has an install home`);
       }
 
       console.log(chalk.dim('\n  All checks passed. Ready to publish.'));

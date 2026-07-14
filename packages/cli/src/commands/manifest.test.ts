@@ -108,6 +108,61 @@ describe('manifest command', () => {
         mockExit.mockRestore();
       }
     });
+
+    it('succeeds for a valid plugin structure', () => {
+      const pluginManifest = {
+        name: 'valid-plugin',
+        version: '1.0.0',
+        description: 'ok',
+        category: 'plugin',
+        nativeFor: 'cursor',
+        files: [
+          { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+          { src: 'skills/a/SKILL.md', dest: 'skills/a/SKILL.md' },
+          { src: 'scripts/x.sh', dest: 'scripts/x.sh' },
+        ],
+      };
+      fs.mkdirSync(path.join(tmp, '.cursor-plugin'), { recursive: true });
+      fs.mkdirSync(path.join(tmp, 'skills', 'a'), { recursive: true });
+      fs.mkdirSync(path.join(tmp, 'scripts'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, '.cursor-plugin', 'plugin.json'), '{}', 'utf8');
+      fs.writeFileSync(path.join(tmp, 'skills', 'a', 'SKILL.md'), '# A', 'utf8');
+      fs.writeFileSync(path.join(tmp, 'scripts', 'x.sh'), '#!/bin/sh\n', 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify(pluginManifest), 'utf8');
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      createManifestCommand().parse(['validate'], { from: 'user' });
+      const output = logSpy.mock.calls.map((a) => String(a[0])).join('\n');
+      expect(output).toMatch(/Plugin structure/i);
+      logSpy.mockRestore();
+    });
+
+    it('exits when a plugin has orphan files', () => {
+      const pluginManifest = {
+        name: 'bad-plugin',
+        version: '1.0.0',
+        description: 'bad',
+        category: 'plugin',
+        nativeFor: 'cursor',
+        files: [
+          { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+          { src: 'orphan.bin', dest: 'orphan.bin' },
+        ],
+      };
+      fs.mkdirSync(path.join(tmp, '.cursor-plugin'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, '.cursor-plugin', 'plugin.json'), '{}', 'utf8');
+      fs.writeFileSync(path.join(tmp, 'orphan.bin'), 'x', 'utf8');
+      fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify(pluginManifest), 'utf8');
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+        throw new Error(`process.exit(${code})`);
+      });
+      try {
+        expect(() => createManifestCommand().parse(['validate'], { from: 'user' })).toThrow('process.exit(1)');
+      } finally {
+        mockExit.mockRestore();
+      }
+    });
   });
 
   describe('bump subcommand', () => {
