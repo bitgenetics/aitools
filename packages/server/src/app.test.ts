@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { buildApp } from './app.js';
+import type { PublisherAuthResult } from './auth/publisher-auth.js';
 import type { IAuthProvider } from './providers/auth/types.js';
 import type { UserStore } from './storage/user-store.js';
 
@@ -58,7 +59,7 @@ describe('buildApp', () => {
     const authProvider: IAuthProvider = {
       mode: 'simple',
       publisher: {
-        resolve: jest.fn(async () => ({
+        resolve: jest.fn(async (): Promise<PublisherAuthResult> => ({
           ok: false,
           statusCode: 401,
           error: 'blocked',
