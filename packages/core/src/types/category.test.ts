@@ -29,6 +29,7 @@ describe('normalizeCategory', () => {
 
   it('passes through canonical categories unchanged', () => {
     expect(normalizeCategory('hook').category).toBe('hook');
+    expect(normalizeCategory('reference').category).toBe('reference');
     expect(normalizeCategory('rule').deprecatedAlias).toBe(false);
   });
 });
@@ -45,5 +46,6 @@ describe('isFileCategory', () => {
     expect(isFileCategory('mcp-tool')).toBe(false);
     expect(isFileCategory('hook')).toBe(false);
     expect(isFileCategory('plugin')).toBe(false);
+    expect(isFileCategory('reference')).toBe(false);
   });
 });

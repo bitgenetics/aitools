@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import { z } from 'zod';
-import { McpServerConfigSchema, ToolCategorySchema, ToolFileSchema } from './tool-schema.js';
+import { McpServerConfigSchema, ToolCategorySchema, ToolFileSchema, ReferenceBindingSchema } from './tool-schema.js';
 
 function normalizeLegacyDepFields(val: unknown): unknown {
   if (!val || typeof val !== 'object' || Array.isArray(val)) return val;
@@ -96,6 +96,7 @@ export const AiToolsConfigSchema = z.object({
   defaultScope: z.enum(['project', 'user']).optional(),
   platform: TargetPlatformSchema.optional(),
   installPaths: z.record(z.string()).optional(),
+  referenceBindings: z.record(z.record(ReferenceBindingSchema)).optional(),
 });
 
 // -- aitools.json -----------------------------------------------------------
@@ -121,6 +122,7 @@ export const AitoolsJsonSchema = z.preprocess(
     author: z.string().optional(),
     repository: z.string().url().optional(),
     tags: z.array(z.string()).optional(),
+    references: z.record(ReferenceBindingSchema).optional(),
     platforms: z.array(PlatformWithUniversalSchema).optional(),
     private: z.boolean().optional(),
   }),
@@ -130,6 +132,21 @@ export const AitoolsJsonSchema = z.preprocess(
 export const AiToolsManifestSchema = AitoolsJsonSchema;
 
 // -- aitools-lock.json ------------------------------------------------------
+
+const ReferenceInstallLockSchema = z.object({
+  into: z.string(),
+  destWithinCategory: z.string(),
+  files: z.array(z.string()),
+});
+
+const ReferenceLockEntrySchema = z.object({
+  version: z.string(),
+  resolved: z.string().min(1),
+  integrity: z.string(),
+  layout: z.enum(['named', 'flat']).optional(),
+  installedAt: z.string().datetime(),
+  installs: z.array(ReferenceInstallLockSchema),
+});
 
 export const LockEntrySchema = z.object({
   version: z.string(),
@@ -146,6 +163,7 @@ export const LockEntrySchema = z.object({
   mcpConfig: z.string().optional(),
   hooksAdded: z.record(z.array(z.unknown())).optional(),
   hooksConfig: z.string().optional(),
+  references: z.record(ReferenceLockEntrySchema).optional(),
 });
 
 export const AiToolsLockSchema = z.object({

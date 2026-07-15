@@ -59,9 +59,40 @@ export const ToolCategorySchema = z.enum([
   'hook',
   'mcp-tool',
   'plugin',
+  'reference',
   'subagent',
   'prompt',
 ]);
+
+const ReferenceBindingObjectSchema = z
+  .object({
+    range: z.string().min(1),
+    into: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
+    layout: z.enum(['named', 'flat']).optional(),
+  })
+  .superRefine((data, ctx) => {
+    const intoList = data.into === undefined ? [] : Array.isArray(data.into) ? data.into : [data.into];
+    for (const into of intoList) {
+      if (into === 'plugin') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'references.into cannot be "plugin" — use skills/<name> paths',
+          path: ['into'],
+        });
+      }
+    }
+  });
+
+export const ReferenceBindingSchema = z.union([z.string().min(1), ReferenceBindingObjectSchema]);
+
+const REFERENCE_METADATA = new Set(['index.md', 'readme.md', 'license', 'license.md', 'license.txt']);
+
+function referenceContentFileCount(files: { dest: string }[]): number {
+  return files.filter((f) => {
+    const base = f.dest.replace(/\\/g, '/').split('/').pop()?.toLowerCase() ?? '';
+    return base.length > 0 && !REFERENCE_METADATA.has(base);
+  }).length;
+}
 
 export const ToolManifestSchema = z
   .object({
@@ -85,6 +116,7 @@ export const ToolManifestSchema = z
     author: z.string().optional(),
     repository: z.string().url().optional(),
     dependencies: z.record(z.string()).optional(),
+    references: z.record(ReferenceBindingSchema).optional(),
     tags: z.array(z.string()).optional(),
     platforms: z.array(z.enum(['vscode', 'claude', 'cursor', 'windsurf', 'universal'])).optional(),
     /** When true, this tool is hidden from unauthenticated (public-mode) reads. */
@@ -123,6 +155,14 @@ export const ToolManifestSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: 'files must contain at least one entry for plugin category',
+          path: ['files'],
+        });
+      }
+    } else if (data.category === 'reference') {
+      if (referenceContentFileCount(data.files) === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'reference manifests must include at least one content file (not only index.md or README)',
           path: ['files'],
         });
       }

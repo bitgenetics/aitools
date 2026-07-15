@@ -58,6 +58,26 @@ describe('toPublishManifest', () => {
     expect(result).not.toHaveProperty('devDependencies');
   });
 
+  it('includes references field when declared on unified doc', () => {
+    const result = toPublishManifest({
+      ...FULL_DOC,
+      references: {
+        sharedref: '^2.0.0',
+        '@acme/a11y-checklist': {
+          range: '^1.0.0',
+          into: ['skills/review', 'skills/audit'],
+        },
+      },
+    });
+    expect(result.references).toEqual({
+      sharedref: '^2.0.0',
+      '@acme/a11y-checklist': {
+        range: '^1.0.0',
+        into: ['skills/review', 'skills/audit'],
+      },
+    });
+  });
+
   it('throws when publish fields are missing', () => {
     expect(() => toPublishManifest({ dependencies: { foo: '^1.0.0' } })).toThrow(/missing publish fields/i);
   });

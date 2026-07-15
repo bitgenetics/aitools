@@ -40,9 +40,11 @@ Test files live alongside source: `src/foo.ts` → `src/foo.test.ts`.
 
 ### Running tests
 ```
-npm test                     # run all workspaces
-npm test -w @bitgenetics/aitools-core   # single package
-npm test -w @bitgenetics/aitools-cli     # includes config layer unit tests
+npm test                     # run all unit-test projects (core, cli, server)
+npm run test:core            # single project via jest multi-project runner
+npm run test:cli             # includes config layer unit tests
+npm run test:server
+npm test -w @bitgenetics/aitools-core   # same, from package workspace
 npm test -w @bitgenetics/aitools-e2e     # local e2e (registry must be running)
 npm run test:e2e             # full docker e2e (CI parity)
 npm run test:coverage         # unit tests + coverage in packages/*/coverage/

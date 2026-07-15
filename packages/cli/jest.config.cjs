@@ -1,5 +1,6 @@
 /** @type {import('jest').Config} */
 module.exports = {
+  displayName: '@bitgenetics/aitools-cli',
   testPathIgnorePatterns: ['<rootDir>/dist/'],
   preset: 'ts-jest',
   testEnvironment: 'node',
@@ -14,10 +15,12 @@ module.exports = {
     // Override module to CommonJS so ts-jest does not emit ESM in tests.
     // The production build (packages/cli/tsconfig.json) still targets Node16/ESM.
     '^.+\\.tsx?$': ['ts-jest', { tsconfig: { module: 'CommonJS', isolatedModules: true } }],
-  },  coverageThreshold: {
+  },
+  coverageThreshold: {
     global: {
       statements: 80,
       branches: 80,
       functions: 80,
     },
-  },};
+  },
+};

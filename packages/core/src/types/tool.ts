@@ -28,6 +28,7 @@ export type ToolCategory =
   | 'hook'
   | 'mcp-tool'
   | 'plugin'
+  | 'reference'
   | 'subagent'
   | 'prompt';
 
@@ -48,6 +49,8 @@ export type InstallScope = 'project' | 'user';
  * - windsurf:  Windsurf IDE (Cognition)
  */
 export type TargetPlatform = 'universal' | 'vscode' | 'claude' | 'cursor' | 'windsurf';
+
+import type { ReferenceBindingInput } from './reference.js';
 
 /**
  * A single file entry inside a tool package.
@@ -114,6 +117,10 @@ export interface ToolManifest {
   repository?: string;
   /** Other AITools packages this tool depends on. */
   dependencies?: Record<string, string>;
+  /**
+   * Registry reference packages (`category: "reference"`) to vendor at install time.
+   */
+  references?: Record<string, ReferenceBindingInput>;
   /** Free-form metadata used for smart-find / AI discovery. */
   tags?: string[];
   /** When set, limits install to these platforms. Omit to support all platforms. */

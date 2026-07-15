@@ -273,7 +273,7 @@ The system detects the active platform from:
 
 1. **Git Integration**: Install from git repositories
 2. **Version Pinning**: Pin specific versions in `aitools.json`
-3. **Peer Dependencies**: Resolve tool dependencies automatically
+3. **Shared References**: Vendor `category: "reference"` packages into skills/plugins with lock provenance — see [Shared References](shared-references.md)
 4. **Plugin System**: Extend CLI with custom commands
 5. **Web UI**: Browser-based registry interface
 6. **CI/CD Integration**: Automated publishing from GitHub Actions

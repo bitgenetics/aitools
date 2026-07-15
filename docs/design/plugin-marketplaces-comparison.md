@@ -60,6 +60,14 @@ User scope (`-g` / `--global`) uses the same categories under user adapter paths
 
 Relative references in hooks, skills, and MCP configs are rewritten via the transform path-map layer so they survive relocate across platforms.
 
+## Registry reference packages (planned)
+
+Skills and plugins can declare a `references` field in their publish manifest to vendor `category: "reference"` packages at install time — for example, a shared accessibility checklist used by multiple skills.
+
+See **[Shared References](shared-references.md)** for the full design: flatten-on-vendor layout, plugin fan-out via `into`, lock-file provenance, and Cursor plugin filesystem alignment.
+
+This is **not** install-time transitive `dependencies` resolution for arbitrary package types — only explicit reference vendoring into skill `references/` folders.
+
 ## Author workflow
 
 ```bash
@@ -83,6 +91,6 @@ aitools uninstall @team/my-review-plugin
 ## Out of scope
 
 - Writing whole packages into `.cursor/plugins/local/`
-- Install-time transitive `dependencies` resolution
+- Install-time transitive `dependencies` resolution for arbitrary package types (see [Shared References](shared-references.md) for planned `category: "reference"` vendoring only)
 - Auto-compose registry skills into author trees before publish
 - Standalone `aitools plugin validate` (use `manifest validate`)

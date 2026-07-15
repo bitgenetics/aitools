@@ -1,7 +1,7 @@
 # AITools Design Documentation Index
 
-**Last Updated**: June 13, 2026  
-**Version**: 1.1.0
+**Last Updated**: July 2026  
+**Version**: 1.2.0
 
 ---
 
@@ -29,6 +29,8 @@ This folder contains comprehensive design documentation for the **ai-tools** eco
 | [Data Model](data-model.md) | Data structures, schemas, storage layout | 20 min |
 | [API Design](api-design.md) | REST API endpoints, authentication, security | 25 min |
 | [Platform Adapter](platform-adapter.md) | Platform path resolution and compat auditing | 15 min |
+| [Shared References](shared-references.md) | Registry reference packages, vendoring, plugins, lock provenance | 20 min |
+| [Plugin Marketplaces Comparison](plugin-marketplaces-comparison.md) | aitools explode vs Cursor marketplace install | 10 min |
 | [Key Flows](flows.md) | Sequence diagrams for install, publish, search | 15 min |
 | [Deployment Design](deployment-design.md) | Deployment strategies, Kubernetes, operations | 30 min |
 
@@ -282,6 +284,7 @@ aitools list
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.2.0 | July 2026 | Added shared references design doc and plugin marketplaces index entry |
 | 1.1.0 | June 13, 2026 | Aligned docs with implemented API, storage, auth, and CLI |
 | 1.0.0 | May 14, 2026 | Initial design documentation |
 
@@ -294,6 +297,8 @@ aitools list
 - [Architecture Design](../design/architecture.md) - Original architecture decisions
 - [Data Model Design](../design/data-model.md) - Original data model
 - [Platform Adapter](../design/platform-adapter.md) - Platform integration details
+- [Shared References](../design/shared-references.md) - Registry reference vendoring design (planned)
+- [Plugin Marketplaces Comparison](../design/plugin-marketplaces-comparison.md) - aitools vs Cursor marketplace install
 
 ---
 

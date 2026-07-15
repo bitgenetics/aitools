@@ -1,5 +1,6 @@
 /** @type {import('jest').Config} */
 module.exports = {
+  displayName: '@bitgenetics/aitools-server',
   testPathIgnorePatterns: ['<rootDir>/dist/'],
   preset: 'ts-jest',
   testEnvironment: 'node',

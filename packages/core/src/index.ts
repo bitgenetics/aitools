@@ -14,6 +14,14 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 // Types
 export type { ToolCategory, InstallScope, TargetPlatform, ToolFile, ToolManifest, McpServerConfig, InstalledTool } from './types/tool.js';
+export type {
+  ReferenceLayout,
+  ReferenceBinding,
+  ReferenceBindingInput,
+  ReferenceInstallLock,
+  ReferenceLockEntry,
+} from './types/reference.js';
+export { REJECTED_REFERENCE_INTO_PLUGIN } from './types/reference.js';
 export type { NormalizedCategory, FileCategory, CategoryNormalization } from './types/category.js';
 export { normalizeCategory, isFileCategory } from './types/category.js';
 export type {
@@ -30,7 +38,7 @@ export type { AiToolsLock, LockEntry } from './types/lock.js';
 export { toLockEntry, emptyLock } from './types/lock.js';
 
 // Schemas
-export { ToolManifestSchema, ToolFileSchema, ToolCategorySchema } from './schema/tool-schema.js';
+export { ToolManifestSchema, ToolFileSchema, ToolCategorySchema, ReferenceBindingSchema } from './schema/tool-schema.js';
 export {
   RegistryAuthSchema,
   HttpRegistryConfigSchema,
@@ -98,6 +106,32 @@ export {
   REGISTRY_MANIFEST_CANDIDATES,
   pickRegistryManifestBasename,
 } from './manifest/registry-manifest.js';
+
+export {
+  parseReferenceDeclarations,
+  parseReferenceBinding,
+  mergeReferenceBindings,
+  resolveReferenceLayout,
+} from './references/parse.js';
+export type { ParsedReferenceDeclarations } from './references/parse.js';
+export {
+  derivePluginSkillIntoPaths,
+  resolveReferenceInstallTargets,
+  skillFolderFromInto,
+  ReferenceInstallTargetError,
+} from './references/install-targets.js';
+export type { ResolveInstallTargetsOptions } from './references/install-targets.js';
+export {
+  referencePackageContentDests,
+  planVendoredReferenceFiles,
+  toProjectRelativePaths,
+} from './references/vendor-paths.js';
+export type { VendoredReferenceFile, VendoredReferencePlan } from './references/vendor-paths.js';
+export {
+  buildReferenceLockEntry,
+  collectReferenceLockFilePaths,
+} from './references/reference-lock.js';
+export type { BuildReferenceLockOptions } from './references/reference-lock.js';
 
 // Platform specs
 export type { PlatformSpec, SkillFieldSpec, FieldSupport, InstallPathSpec } from './platforms/index.js';

@@ -54,6 +54,7 @@ export function toPublishManifest(doc: AiToolsManifest): ToolManifest {
   if (doc.author !== undefined) subset.author = doc.author;
   if (doc.repository !== undefined) subset.repository = doc.repository;
   if (doc.dependencies !== undefined) subset.dependencies = doc.dependencies;
+  if (doc.references !== undefined) subset.references = doc.references;
   if (doc.tags !== undefined) subset.tags = doc.tags;
   if (doc.platforms !== undefined) subset.platforms = doc.platforms;
   if (doc.private !== undefined) subset.private = doc.private;

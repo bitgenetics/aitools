@@ -12,7 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-import { RegistryAuthSchema, RegistryConfigSchema } from '../schema/config-schema.js';
+import { AiToolsLockSchema, AitoolsJsonSchema, RegistryAuthSchema, RegistryConfigSchema } from '../schema/config-schema.js';
 
 describe('RegistryAuthSchema — bearer', () => {
   it('accepts bearer auth with a token', () => {
@@ -97,5 +97,58 @@ describe('RegistryConfigSchema — git', () => {
       expect(result.data.readBranch).toBe('main');
       expect(result.data.path).toBe('registry/');
     }
+  });
+});
+
+describe('AiToolsLockSchema references', () => {
+  it('accepts lock entries with vendored reference provenance', () => {
+    const result = AiToolsLockSchema.safeParse({
+      lockfileVersion: 1,
+      tools: {
+        myskill: {
+          version: '1.0.0',
+          resolved: 'https://registry.example/api/tools/myskill',
+          integrity: 'sha256-abc',
+          files: ['.cursor/skills/myskill/SKILL.md'],
+          installedAt: '2026-07-15T12:00:00.000Z',
+          references: {
+            sharedref: {
+              version: '2.1.0',
+              resolved: 'https://registry.example/api/tools/sharedref',
+              integrity: 'sha256-def',
+              layout: 'named',
+              installedAt: '2026-07-15T12:00:00.000Z',
+              installs: [
+                {
+                  into: 'self',
+                  destWithinCategory: 'myskill/references/sharedref',
+                  files: ['.cursor/skills/myskill/references/sharedref/checklist.md'],
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('AitoolsJsonSchema referenceBindings', () => {
+  it('accepts consumer referenceBindings overrides per package', () => {
+    const result = AitoolsJsonSchema.safeParse({
+      name: 'my-plugin',
+      version: '1.0.0',
+      description: 'Plugin with refs',
+      category: 'plugin',
+      files: [{ src: 'skills/review/SKILL.md', dest: 'skills/review/SKILL.md' }],
+      references: { sharedref: { range: '^2.0.0', into: 'skills/review' } },
+      referenceBindings: {
+        'my-plugin': {
+          sharedref: { into: ['skills/review', 'skills/audit'] },
+        },
+      },
+    });
+    expect(result.success).toBe(true);
   });
 });

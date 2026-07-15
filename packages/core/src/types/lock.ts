@@ -14,6 +14,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import type { InstalledTool } from './tool.js';
 import type { TargetPlatform, ToolCategory, InstallScope } from './tool.js';
+import type { ReferenceLockEntry } from './reference.js';
 
 /**
  * aitools-lock.json � exact resolved versions and file locations.
@@ -68,6 +69,8 @@ export interface LockEntry {
   hooksAdded?: Record<string, unknown[]>;
   /** Relative or absolute path to the hooks config file updated by this install. */
   hooksConfig?: string;
+  /** Vendored registry reference packages owned by this install. */
+  references?: Record<string, ReferenceLockEntry>;
 }
 
 /** Construct a lock entry from an InstalledTool record. */

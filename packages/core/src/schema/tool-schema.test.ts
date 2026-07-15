@@ -33,10 +33,39 @@ describe('ToolManifestSchema', () => {
   });
 
   it('accepts all valid category values', () => {
-    for (const category of ['skill', 'rule', 'command', 'agent', 'hook', 'mcp-tool', 'subagent', 'prompt']) {
-      const files = category === 'mcp-tool' ? [] : [{ src: 'file.md', dest: 'file.md' }];
+    for (const category of [
+      'skill',
+      'rule',
+      'command',
+      'agent',
+      'hook',
+      'mcp-tool',
+      'reference',
+      'subagent',
+      'prompt',
+    ]) {
+      const files =
+        category === 'mcp-tool'
+          ? []
+          : category === 'reference'
+            ? [{ src: 'checklist.md', dest: 'checklist.md' }]
+            : [{ src: 'file.md', dest: 'file.md' }];
       const mcpServer = category === 'mcp-tool' ? { command: 'npx' } : undefined;
-      const result = ToolManifestSchema.safeParse({ ...VALID_MANIFEST, category, files, mcpServer });
+      const nativeFor = category === 'plugin' ? 'cursor' : undefined;
+      const pluginFiles =
+        category === 'plugin'
+          ? [
+              { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+              { src: 'skills/a/SKILL.md', dest: 'skills/a/SKILL.md' },
+            ]
+          : files;
+      const result = ToolManifestSchema.safeParse({
+        ...VALID_MANIFEST,
+        category,
+        files: pluginFiles,
+        mcpServer,
+        nativeFor,
+      });
       expect(result.success).toBe(true);
     }
   });
@@ -128,6 +157,45 @@ describe('ToolManifestSchema', () => {
       files: [{ src: 'skills/review/SKILL.md', dest: 'skills/review/SKILL.md' }],
     });
     expect(result.success).toBe(false);
+  });
+
+  it('accepts a reference manifest with flat content files', () => {
+    const result = ToolManifestSchema.safeParse({
+      name: '@acme/sharedref',
+      version: '1.0.0',
+      description: 'Accessibility checklist',
+      category: 'reference',
+      files: [
+        { src: 'checklist.md', dest: 'checklist.md' },
+        { src: 'sources.md', dest: 'sources.md' },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a reference manifest with only index.md', () => {
+    const result = ToolManifestSchema.safeParse({
+      name: 'sharedref',
+      version: '1.0.0',
+      description: 'Metadata only',
+      category: 'reference',
+      files: [{ src: 'index.md', dest: 'index.md' }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts skill manifest with references shorthand and rejects into plugin', () => {
+    const ok = ToolManifestSchema.safeParse({
+      ...VALID_MANIFEST,
+      references: { sharedref: '^2.0.0' },
+    });
+    expect(ok.success).toBe(true);
+
+    const bad = ToolManifestSchema.safeParse({
+      ...VALID_MANIFEST,
+      references: { sharedref: { range: '^2.0.0', into: 'plugin' } },
+    });
+    expect(bad.success).toBe(false);
   });
 
   it('rejects a manifest with an empty files array', () => {
