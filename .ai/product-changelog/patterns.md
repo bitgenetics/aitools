@@ -68,11 +68,11 @@
 
 ---
 
-### `detectSkillFolders` for interactive manifest file selection
-**Used for**: `manifest init` interactive mode — finding skill/subagent/prompt folders to include.  
-**How**: `detectSkillFolders(root, exts)` finds subdirectories that **directly** contain at least one file matching `exts`. Returns `{ folder, files }[]` where `files` is the full recursive file list. The interactive prompt asks per folder, not per file.  
-**Example**: `packages/cli/src/commands/manifest.ts` — `initInteractive` function  
-**Do not**: Use the lower-level `detectFiles` in interactive mode — it returns individual files rather than logical skill units.
+### Content file detection for `manifest init` and `manifest files`
+**Used for**: `manifest init` and `manifest files` — finding skill/subagent/prompt/mcp-tool content to include.  
+**How**: `detectDirectContentFiles` finds root-level matches; `detectContentFolders(root, exts)` finds subdirectories that **directly** contain at least one file matching `exts` (returns `{ folder, files }[]` with recursive file lists). Interactive init prompts per root group and per folder; when nothing is selected, offers `promptForManifestFiles` (per-file include + dest). `manifest files` always uses the per-file picker; `--yes` includes all detected files with `dest: src`.  
+**Example**: `packages/cli/src/commands/manifest.ts` — `promptForContentFiles`, `promptForManifestFiles`, `collectManifestFileCandidates`  
+**Do not**: Use raw `detectFiles` in interactive folder mode — it returns flat file lists rather than logical content units; use `collectAllContentFiles` when a full candidate list is needed.
 
 ---
 

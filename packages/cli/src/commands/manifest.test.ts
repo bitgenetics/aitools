@@ -374,8 +374,59 @@ describe('manifest command', () => {
       logSpy.mockRestore();
     });
 
+    it('prompts for root-level SKILL.md alongside skill folders', async () => {
+      fs.writeFileSync(path.join(tmp, 'SKILL.md'), '# Root skill', 'utf8');
+      fs.mkdirSync(path.join(tmp, 'nested-skill'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'nested-skill', 'SKILL.md'), '# Nested', 'utf8');
+
+      const mockQuestion = jest.fn()
+        .mockResolvedValueOnce('')   // name
+        .mockResolvedValueOnce('')   // version
+        .mockResolvedValueOnce('')   // description
+        .mockResolvedValueOnce('')   // category
+        .mockResolvedValueOnce('')   // author
+        .mockResolvedValueOnce('')   // repository
+        .mockResolvedValueOnce('')   // keywords
+        .mockResolvedValueOnce('')   // tags
+        .mockResolvedValueOnce('y')  // include root SKILL.md
+        .mockResolvedValueOnce('n'); // include nested-skill? no
+      (createInterface as jest.Mock).mockReturnValue({ question: mockQuestion, close: jest.fn() });
+
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      await createManifestCommand().parseAsync(['init'], { from: 'user' });
+
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
+      ) as { files: Array<{ src: string; dest: string }> };
+      expect(manifest.files).toEqual([{ src: 'SKILL.md', dest: 'SKILL.md' }]);
+    });
+
+    it('prompts for root-level SKILL.md when no subfolders exist', async () => {
+      fs.writeFileSync(path.join(tmp, 'SKILL.md'), '# Root skill', 'utf8');
+
+      const mockQuestion = jest.fn()
+        .mockResolvedValueOnce('root-skill') // name
+        .mockResolvedValueOnce('')           // version
+        .mockResolvedValueOnce('')           // description
+        .mockResolvedValueOnce('')           // category
+        .mockResolvedValueOnce('')           // author
+        .mockResolvedValueOnce('')           // repository
+        .mockResolvedValueOnce('')           // keywords
+        .mockResolvedValueOnce('')           // tags
+        .mockResolvedValueOnce('y');          // include root SKILL.md
+      (createInterface as jest.Mock).mockReturnValue({ question: mockQuestion, close: jest.fn() });
+
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      await createManifestCommand().parseAsync(['init'], { from: 'user' });
+
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
+      ) as { files: Array<{ src: string; dest: string }> };
+      expect(manifest.files).toEqual([{ src: 'SKILL.md', dest: 'SKILL.md' }]);
+    });
+
     it('prompts for each detected skill folder and includes only confirmed ones', async () => {
-      // Create two skill folders � detectSkillFolders looks for subdirs with direct content files
+      // Create two skill folders � detectContentFolders looks for subdirs with direct content files
       fs.mkdirSync(path.join(tmp, 'my-skill'), { recursive: true });
       fs.writeFileSync(path.join(tmp, 'my-skill', 'SKILL.md'), '# Skill', 'utf8');
       fs.mkdirSync(path.join(tmp, 'other-skill'), { recursive: true });
@@ -416,7 +467,8 @@ describe('manifest command', () => {
         .mockResolvedValueOnce('')         // repository
         .mockResolvedValueOnce('')         // keywords
         .mockResolvedValueOnce('')         // tags
-        .mockResolvedValueOnce('n');       // include my-skill? no
+        .mockResolvedValueOnce('n')        // include my-skill? no
+        .mockResolvedValueOnce('n');       // pick files individually? no
       (createInterface as jest.Mock).mockReturnValue({ question: mockQuestion, close: jest.fn() });
 
       jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -426,6 +478,336 @@ describe('manifest command', () => {
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { files: Array<{ src: string; dest: string }> };
       expect(manifest.files).toEqual([{ src: 'my-tool.md', dest: 'my-tool.md' }]);
+    });
+
+    it('offers per-file picker when folder selection is declined', async () => {
+      fs.mkdirSync(path.join(tmp, 'my-skill'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'my-skill', 'SKILL.md'), '# Skill', 'utf8');
+      fs.writeFileSync(path.join(tmp, 'my-skill', 'guide.md'), '# Guide', 'utf8');
+
+      const mockQuestion = jest.fn()
+        .mockResolvedValueOnce('')   // name
+        .mockResolvedValueOnce('')   // version
+        .mockResolvedValueOnce('')   // description
+        .mockResolvedValueOnce('')   // category
+        .mockResolvedValueOnce('')   // author
+        .mockResolvedValueOnce('')   // repository
+        .mockResolvedValueOnce('')   // keywords
+        .mockResolvedValueOnce('')   // tags
+        .mockResolvedValueOnce('n')  // include my-skill folder? no
+        .mockResolvedValueOnce('y')  // pick files individually? yes
+        .mockResolvedValueOnce('y')  // include my-skill/SKILL.md
+        .mockResolvedValueOnce('')   // dest default
+        .mockResolvedValueOnce('n'); // include my-skill/guide.md no
+      (createInterface as jest.Mock).mockReturnValue({ question: mockQuestion, close: jest.fn() });
+
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      await createManifestCommand().parseAsync(['init'], { from: 'user' });
+
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
+      ) as { files: Array<{ src: string; dest: string }> };
+      expect(manifest.files).toEqual([
+        { src: 'my-skill/SKILL.md', dest: 'my-skill/SKILL.md' },
+      ]);
+    });
+
+    it('uses per-file picker when init --pick-files is set', async () => {
+      fs.writeFileSync(path.join(tmp, 'agent.md'), '# Agent', 'utf8');
+
+      const mockQuestion = jest.fn()
+        .mockResolvedValueOnce('review-agent')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('subagent')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('y')
+        .mockResolvedValueOnce('review.md');
+      (createInterface as jest.Mock).mockReturnValue({ question: mockQuestion, close: jest.fn() });
+
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      await createManifestCommand().parseAsync(['init', '--pick-files'], { from: 'user' });
+
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
+      ) as { category: string; files: Array<{ src: string; dest: string }> };
+      expect(manifest.category).toBe('subagent');
+      expect(manifest.files).toEqual([{ src: 'agent.md', dest: 'review.md' }]);
+    });
+
+    it('prompts for root-level agent.md for subagent category', async () => {
+      fs.writeFileSync(path.join(tmp, 'agent.md'), '# Agent', 'utf8');
+      fs.mkdirSync(path.join(tmp, 'agents', 'reviewer'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'agents', 'reviewer', 'agent.md'), '# Reviewer', 'utf8');
+
+      const mockQuestion = jest.fn()
+        .mockResolvedValueOnce('review-agent')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('subagent')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('y')
+        .mockResolvedValueOnce('n');
+      (createInterface as jest.Mock).mockReturnValue({ question: mockQuestion, close: jest.fn() });
+
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      await createManifestCommand().parseAsync(['init'], { from: 'user' });
+
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
+      ) as { category: string; files: Array<{ src: string }> };
+      expect(manifest.category).toBe('subagent');
+      expect(manifest.files).toEqual([{ src: 'agent.md', dest: 'agent.md' }]);
+    });
+
+    it('uses agent.md placeholder when subagent folders are declined', async () => {
+      fs.mkdirSync(path.join(tmp, 'agents', 'reviewer'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'agents', 'reviewer', 'agent.md'), '# Reviewer', 'utf8');
+
+      const mockQuestion = jest.fn()
+        .mockResolvedValueOnce('review-agent')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('subagent')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('n')
+        .mockResolvedValueOnce('n');
+      (createInterface as jest.Mock).mockReturnValue({ question: mockQuestion, close: jest.fn() });
+
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      await createManifestCommand().parseAsync(['init'], { from: 'user' });
+
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
+      ) as { files: Array<{ src: string }> };
+      expect(manifest.files).toEqual([{ src: 'agent.md', dest: 'agent.md' }]);
+    });
+
+    it('auto-detects prompt.md for prompt category in non-interactive init', () => {
+      fs.writeFileSync(path.join(tmp, 'prompt.md'), '# Prompt', 'utf8');
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createManifestCommand().parse(
+        ['init', '--name', 'commit-msg', '--category', 'prompt', '--yes'],
+        { from: 'user' },
+      );
+      const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
+        category: string;
+        files: Array<{ src: string }>;
+      };
+      expect(manifest.category).toBe('prompt');
+      expect(manifest.files).toEqual([{ src: 'prompt.md', dest: 'prompt.md' }]);
+    });
+
+    it('auto-detects root and nested server files for mcp-tool and scaffolds mcpServer', () => {
+      fs.writeFileSync(path.join(tmp, 'server.js'), 'export {}', 'utf8');
+      fs.writeFileSync(path.join(tmp, 'package.json'), '{"name":"x"}', 'utf8');
+      fs.mkdirSync(path.join(tmp, 'lib'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'lib', 'helpers.js'), 'module.exports = {}', 'utf8');
+
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createManifestCommand().parse(
+        ['init', '--name', 'my-mcp', '--category', 'mcp-tool', '--yes'],
+        { from: 'user' },
+      );
+
+      const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
+        category: string;
+        files: Array<{ src: string }>;
+        mcpServer: { command: string; args: string[]; type: string };
+      };
+      const srcs = manifest.files.map((f) => f.src);
+      expect(manifest.category).toBe('mcp-tool');
+      expect(srcs).toContain('server.js');
+      expect(srcs).toContain('lib/helpers.js');
+      expect(srcs).not.toContain('package.json');
+      expect(manifest.mcpServer).toEqual({
+        command: 'node',
+        args: ['${installDir}/server.js'],
+        type: 'stdio',
+      });
+    });
+
+    it('scaffolds mcpServer with tsx when only a TypeScript entry file exists', () => {
+      fs.writeFileSync(path.join(tmp, 'server.ts'), 'export {}', 'utf8');
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      createManifestCommand().parse(
+        ['init', '--name', 'ts-mcp', '--category', 'mcp-tool', '--yes'],
+        { from: 'user' },
+      );
+      const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
+        files: Array<{ src: string }>;
+        mcpServer: { command: string; args: string[]; type: string };
+      };
+      expect(manifest.files).toEqual([{ src: 'server.ts', dest: 'server.ts' }]);
+      expect(manifest.mcpServer).toEqual({
+        command: 'npx',
+        args: ['tsx', '${installDir}/server.ts'],
+        type: 'stdio',
+      });
+    });
+
+    it('prompts for root-level server.js for mcp-tool category', async () => {
+      fs.writeFileSync(path.join(tmp, 'server.js'), 'export {}', 'utf8');
+      fs.mkdirSync(path.join(tmp, 'tools'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'tools', 'extra.js'), 'export {}', 'utf8');
+
+      const mockQuestion = jest.fn()
+        .mockResolvedValueOnce('db-mcp')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('mcp-tool')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('y')
+        .mockResolvedValueOnce('n');
+      (createInterface as jest.Mock).mockReturnValue({ question: mockQuestion, close: jest.fn() });
+
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      await createManifestCommand().parseAsync(['init'], { from: 'user' });
+
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
+      ) as {
+        category: string;
+        files: Array<{ src: string }>;
+        mcpServer: { command: string; args: string[] };
+      };
+      expect(manifest.category).toBe('mcp-tool');
+      expect(manifest.files).toEqual([{ src: 'server.js', dest: 'server.js' }]);
+      expect(manifest.mcpServer.command).toBe('node');
+      expect(manifest.mcpServer.args).toEqual(['${installDir}/server.js']);
+    });
+  });
+
+  describe('files subcommand', () => {
+    it('includes only selected files with dest overrides', async () => {
+      fs.writeFileSync(
+        path.join(tmp, 'aitools.json'),
+        JSON.stringify({
+          ...VALID_MANIFEST,
+          files: [{ src: 'skill.md', dest: 'skill.md' }],
+        }),
+        'utf8',
+      );
+      fs.writeFileSync(path.join(tmp, 'skill.md'), '# Skill', 'utf8');
+      fs.writeFileSync(path.join(tmp, 'extra.md'), '# Extra', 'utf8');
+
+      const mockQuestion = jest.fn()
+        .mockResolvedValueOnce('n')           // extra.md — exclude
+        .mockResolvedValueOnce('y')           // skill.md — include
+        .mockResolvedValueOnce('renamed.md'); // skill.md dest
+      (createInterface as jest.Mock).mockReturnValue({ question: mockQuestion, close: jest.fn() });
+
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      await createManifestCommand().parseAsync(['files'], { from: 'user' });
+
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
+      ) as { files: Array<{ src: string; dest: string }> };
+      expect(manifest.files).toEqual([
+        { src: 'skill.md', dest: 'renamed.md' },
+      ]);
+    });
+
+    it('merges with existing manifest entries outside the scan set', async () => {
+      fs.writeFileSync(
+        path.join(tmp, 'aitools.json'),
+        JSON.stringify({
+          ...VALID_MANIFEST,
+          files: [
+            { src: 'skill.md', dest: 'skill.md' },
+            { src: 'manual-only.md', dest: 'manual-only.md' },
+          ],
+        }),
+        'utf8',
+      );
+      fs.writeFileSync(path.join(tmp, 'skill.md'), '# Skill', 'utf8');
+
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      await createManifestCommand().parseAsync(['files', '--yes'], { from: 'user' });
+
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
+      ) as { files: Array<{ src: string }> };
+      const srcs = manifest.files.map((f) => f.src);
+      expect(srcs).toContain('manual-only.md');
+      expect(srcs).toContain('skill.md');
+    });
+
+    it('replaces files entirely with --force', async () => {
+      fs.writeFileSync(
+        path.join(tmp, 'aitools.json'),
+        JSON.stringify({
+          ...VALID_MANIFEST,
+          files: [
+            { src: 'skill.md', dest: 'skill.md' },
+            { src: 'manual-only.md', dest: 'manual-only.md' },
+          ],
+        }),
+        'utf8',
+      );
+      fs.writeFileSync(path.join(tmp, 'skill.md'), '# Skill', 'utf8');
+
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      await createManifestCommand().parseAsync(['files', '--yes', '--force'], { from: 'user' });
+
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
+      ) as { files: Array<{ src: string }> };
+      expect(manifest.files).toEqual([{ src: 'skill.md', dest: 'skill.md' }]);
+    });
+
+    it('uses plugin bundle scan for plugin category', async () => {
+      fs.writeFileSync(
+        path.join(tmp, 'aitools.json'),
+        JSON.stringify({
+          name: 'my-plugin',
+          version: '1.0.0',
+          description: 'plugin',
+          category: 'plugin',
+          nativeFor: 'cursor',
+          files: [{ src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' }],
+        }),
+        'utf8',
+      );
+      fs.mkdirSync(path.join(tmp, '.cursor-plugin'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, '.cursor-plugin', 'plugin.json'), '{}', 'utf8');
+      fs.mkdirSync(path.join(tmp, 'skills', 'review'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'skills', 'review', 'SKILL.md'), '# Review', 'utf8');
+      fs.mkdirSync(path.join(tmp, 'docs'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'docs', 'README.md'), '# Docs', 'utf8');
+
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+      await createManifestCommand().parseAsync(['files', '--yes', '--force'], { from: 'user' });
+
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
+      ) as { files: Array<{ src: string }> };
+      const srcs = manifest.files.map((f) => f.src);
+      expect(srcs).toContain('skills/review/SKILL.md');
+      expect(srcs).not.toContain('docs/README.md');
+    });
+
+    it('errors when no manifest exists and --category is omitted', async () => {
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('exit');
+      });
+      await expect(
+        createManifestCommand().parseAsync(['files'], { from: 'user' }),
+      ).rejects.toThrow('exit');
+      expect(mockExit).toHaveBeenCalledWith(1);
     });
   });
 });

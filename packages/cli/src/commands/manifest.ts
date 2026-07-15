@@ -23,14 +23,48 @@ import { ToolManifestSchema, MANIFEST_FILENAME, LEGACY_PUBLISH_MANIFEST_FILENAME
 import type { AiToolsManifest } from '@bitgenetics/aitools-core';
 
 type Category = 'skill' | 'subagent' | 'prompt' | 'mcp-tool' | 'plugin';
+type ContentCategory = Exclude<Category, 'plugin'>;
+
+interface ContentInitProfile {
+  exts: string[];
+  placeholder: (name: string) => string;
+  unitLabel: string;
+}
+
+const CONTENT_INIT_PROFILE: Record<ContentCategory, ContentInitProfile> = {
+  skill: {
+    exts: ['.md'],
+    placeholder: (name) => `${name}.md`,
+    unitLabel: 'skill',
+  },
+  subagent: {
+    exts: ['.md'],
+    placeholder: () => 'agent.md',
+    unitLabel: 'subagent',
+  },
+  prompt: {
+    exts: ['.md'],
+    placeholder: () => 'prompt.md',
+    unitLabel: 'prompt',
+  },
+  'mcp-tool': {
+    exts: ['.ts', '.js'],
+    placeholder: () => 'server.js',
+    unitLabel: 'MCP server',
+  },
+};
 
 const CATEGORY_EXT: Record<Category, string[]> = {
-  skill: ['.md'],
-  subagent: ['.md'],
-  prompt: ['.md'],
-  'mcp-tool': ['.ts', '.js', '.json'],
+  skill: CONTENT_INIT_PROFILE.skill.exts,
+  subagent: CONTENT_INIT_PROFILE.subagent.exts,
+  prompt: CONTENT_INIT_PROFILE.prompt.exts,
+  'mcp-tool': CONTENT_INIT_PROFILE['mcp-tool'].exts,
   plugin: ['.md', '.mdc', '.json', '.ts', '.js', '.yaml', '.yml', '.toml', '.sh'],
 };
+
+function isContentCategory(category: Category): category is ContentCategory {
+  return category !== 'plugin';
+}
 
 /**
  * Well-known project metadata files that should not be packaged as tool content.
@@ -165,11 +199,44 @@ function collectPluginInitFiles(
 }
 
 /**
+ * Files sitting directly in `dir` (not nested) that match `exts`, returned
+ * relative to `root`.
+ */
+function detectDirectContentFiles(
+  dir: string,
+  root: string,
+  exts: string[],
+): string[] {
+  let entries: string[];
+  try {
+    entries = fs.readdirSync(dir);
+  } catch {
+    return [];
+  }
+  const results: string[] = [];
+  for (const entry of entries) {
+    const abs = path.join(dir, entry);
+    try {
+      if (
+        fs.statSync(abs).isFile() &&
+        !SKIP_FILES.has(entry) &&
+        exts.includes(path.extname(entry).toLowerCase())
+      ) {
+        results.push(path.relative(root, abs).split(path.sep).join('/'));
+      }
+    } catch {
+      // ignore unreadable entries
+    }
+  }
+  return results.sort();
+}
+
+/**
  * Returns the set of top-level "skill folders" � directories that directly
  * contain at least one file matching the given extensions.  Each entry holds
  * the folder path (relative to root) and all files within it (recursive).
  */
-function detectSkillFolders(
+function detectContentFolders(
   root: string,
   exts: string[],
 ): Array<{ folder: string; files: string[] }> {
@@ -222,6 +289,272 @@ function detectSkillFolders(
   return results;
 }
 
+function collectDetectedContent(
+  cwd: string,
+  category: ContentCategory,
+): { rootFiles: string[]; contentFolders: Array<{ folder: string; files: string[] }> } {
+  const { exts } = CONTENT_INIT_PROFILE[category];
+  return {
+    rootFiles: detectDirectContentFiles(cwd, cwd, exts),
+    contentFolders: detectContentFolders(cwd, exts),
+  };
+}
+
+function contentPlaceholder(category: ContentCategory, name: string): string {
+  return CONTENT_INIT_PROFILE[category].placeholder(name);
+}
+
+function collectAllContentFiles(
+  cwd: string,
+  category: ContentCategory,
+): string[] {
+  const { rootFiles, contentFolders } = collectDetectedContent(cwd, category);
+  return [...new Set([...rootFiles, ...contentFolders.flatMap((f) => f.files)])].sort();
+}
+
+const MCP_SERVER_ENTRY_NAMES = ['server.js', 'server.ts', 'index.js', 'index.ts'];
+
+function buildMcpServerForFile(
+  primary: string,
+): { command: string; args: string[]; type: 'stdio' } {
+  if (primary.endsWith('.ts')) {
+    return {
+      command: 'npx',
+      args: ['tsx', `\${installDir}/${primary}`],
+      type: 'stdio',
+    };
+  }
+  return {
+    command: 'node',
+    args: [`\${installDir}/${primary}`],
+    type: 'stdio',
+  };
+}
+
+function defaultMcpServerForInit(
+  files: Array<{ src: string }>,
+): { command: string; args: string[]; type: 'stdio' } {
+  const candidates = files.filter(
+    (f) => f.src.endsWith('.js') || f.src.endsWith('.ts'),
+  );
+
+  for (const entryName of MCP_SERVER_ENTRY_NAMES) {
+    const match = candidates
+      .filter((f) => f.src === entryName || f.src.endsWith(`/${entryName}`))
+      .sort((a, b) => a.src.length - b.src.length)[0];
+    if (match) {
+      return buildMcpServerForFile(match.src);
+    }
+  }
+
+  const rootLevel = candidates
+    .filter((f) => !f.src.includes('/'))
+    .sort((a, b) => a.src.localeCompare(b.src));
+  if (rootLevel.length > 0) {
+    return buildMcpServerForFile(rootLevel[0].src);
+  }
+
+  const primary =
+    candidates.sort((a, b) => a.src.localeCompare(b.src))[0]?.src ?? 'server.js';
+  return buildMcpServerForFile(primary);
+}
+
+type ReadlineLike = { question: (query: string) => Promise<string> };
+
+async function promptForContentFiles(
+  rl: ReadlineLike,
+  category: ContentCategory,
+  cwd: string,
+  name: string,
+): Promise<Array<{ src: string; dest: string }>> {
+  const { unitLabel } = CONTENT_INIT_PROFILE[category];
+  const { rootFiles, contentFolders } = collectDetectedContent(cwd, category);
+
+  if (rootFiles.length > 0 || contentFolders.length > 0) {
+    const parts: string[] = [];
+    if (rootFiles.length > 0) {
+      parts.push(
+        rootFiles.length === 1
+          ? '1 root-level file'
+          : `${rootFiles.length} root-level files`,
+      );
+    }
+    if (contentFolders.length > 0) {
+      parts.push(
+        contentFolders.length === 1
+          ? '1 folder'
+          : `${contentFolders.length} folders`,
+      );
+    }
+    console.log(
+      chalk.bold(`\n  Detected ${parts.join(' and ')}. Select which to include:\n`),
+    );
+
+    const included: Array<{ src: string; dest: string }> = [];
+
+    if (rootFiles.length > 0) {
+      const rootLabel =
+        rootFiles.length === 1
+          ? rootFiles[0]
+          : `root-level files (${rootFiles.join(', ')})`;
+      const ans = (await rl.question(`  Include ${chalk.cyan(rootLabel)}? (Y/n): `)).trim();
+      if (ans === '' || ans.toLowerCase().startsWith('y')) {
+        for (const f of rootFiles) {
+          included.push({ src: f, dest: f });
+        }
+      }
+    }
+
+    for (const { folder, files: folderFiles } of contentFolders) {
+      const ans = (await rl.question(`  Include ${chalk.cyan(folder)}? (Y/n): `)).trim();
+      if (ans === '' || ans.toLowerCase().startsWith('y')) {
+        for (const f of folderFiles) {
+          included.push({ src: f, dest: f });
+        }
+      }
+    }
+
+    if (included.length > 0) {
+      return included;
+    }
+
+    if (category === 'mcp-tool') {
+      console.log(chalk.dim(`\n  No ${unitLabel} files selected.`));
+      return [];
+    }
+
+    // Had folder/root candidates but user excluded all — caller may offer per-file picker.
+    console.log(chalk.dim(`\n  No folders or root files selected.`));
+    return [];
+  }
+
+  const detected = collectAllContentFiles(cwd, category);
+  if (detected.length > 0) {
+    console.log(chalk.dim(`\n  Auto-detected ${detected.length} matching file(s).`));
+    return detected.map((f) => ({ src: f, dest: f }));
+  }
+
+  if (category === 'mcp-tool') {
+    console.log(
+      chalk.dim(`\n  No matching ${unitLabel} files found. Scaffolding mcpServer with placeholder server.js.`),
+    );
+    return [];
+  }
+
+  const placeholder = contentPlaceholder(category, name);
+  console.log(
+    chalk.dim(`\n  No matching ${unitLabel} files found. Using placeholder: ${placeholder}`),
+  );
+  return [{ src: placeholder, dest: placeholder }];
+}
+
+function resolveContentInitFilesNonInteractive(
+  cwd: string,
+  category: ContentCategory,
+  name: string,
+): Array<{ src: string; dest: string }> {
+  const detected = collectAllContentFiles(cwd, category);
+  if (detected.length > 0) {
+    return detected.map((f) => ({ src: f, dest: f }));
+  }
+  if (category === 'mcp-tool') {
+    return [];
+  }
+  const placeholder = contentPlaceholder(category, name);
+  console.log(chalk.dim('  Note: no matching files found — using placeholder filename'));
+  return [{ src: placeholder, dest: placeholder }];
+}
+
+function collectManifestFileCandidates(
+  cwd: string,
+  category: Category,
+  name: string,
+): string[] {
+  if (category === 'plugin') {
+    return collectPluginInitFiles(cwd, name).files.map((f) => f.src);
+  }
+  if (isContentCategory(category)) {
+    return collectAllContentFiles(cwd, category);
+  }
+  return detectFiles(cwd, CATEGORY_EXT[category] ?? ['.md']);
+}
+
+function mergeFileSelections(
+  existing: Array<{ src: string; dest: string }>,
+  candidates: string[],
+  selected: Array<{ src: string; dest: string }>,
+  force: boolean,
+): Array<{ src: string; dest: string }> {
+  if (force) {
+    return selected;
+  }
+  const candidateSet = new Set(candidates);
+  const kept = existing.filter((f) => !candidateSet.has(f.src));
+  return [...kept, ...selected].sort((a, b) => a.src.localeCompare(b.src));
+}
+
+function resolveManifestFilesNonInteractive(
+  candidates: string[],
+): Array<{ src: string; dest: string }> {
+  return candidates.map((src) => ({ src, dest: src }));
+}
+
+async function promptForManifestFiles(
+  rl: ReadlineLike,
+  cwd: string,
+  category: Category,
+  name: string,
+  existingFiles: Array<{ src: string; dest: string }> = [],
+): Promise<Array<{ src: string; dest: string }>> {
+  const candidates = collectManifestFileCandidates(cwd, category, name);
+  if (candidates.length === 0) {
+    console.log(chalk.dim('\n  No matching files found on disk.'));
+    return [];
+  }
+
+  const existingBySrc = new Map(existingFiles.map((f) => [f.src, f]));
+  console.log(
+    chalk.bold(`\n  Found ${candidates.length} file(s). Mark include and dest for each:\n`),
+  );
+
+  const selected: Array<{ src: string; dest: string }> = [];
+  for (const src of candidates) {
+    const existing = existingBySrc.get(src);
+    const defaultInclude = existing !== undefined ? 'Y' : 'Y';
+    console.log(`  ${chalk.cyan(src)}`);
+    const includeAns = (
+      await rl.question(`    Include? (${defaultInclude}/n): `)
+    ).trim();
+    const include =
+      includeAns === ''
+        ? defaultInclude.toLowerCase().startsWith('y')
+        : includeAns.toLowerCase().startsWith('y');
+    if (!include) {
+      continue;
+    }
+
+    const defaultDest = existing?.dest ?? src;
+    const destAns = (await rl.question(`    dest (${defaultDest}): `)).trim();
+    const dest =
+      destAns === '' ? defaultDest : destAns === '-' ? src : destAns;
+    selected.push({ src, dest });
+  }
+  return selected;
+}
+
+function mcpServerNeedsRefresh(
+  mcpServer: { args?: string[] } | undefined,
+  files: Array<{ src: string }>,
+): boolean {
+  if (!mcpServer) {
+    return true;
+  }
+  const primary = defaultMcpServerForInit(files);
+  const currentPath = mcpServer.args?.find((a) => a.includes('${installDir}'));
+  const expectedPath = primary.args.find((a) => a.includes('${installDir}'));
+  return currentPath !== expectedPath;
+}
+
 function parseFileEntry(entry: string): { src: string; dest: string } {
   const sep = entry.indexOf(':');
   if (sep === -1) return { src: entry, dest: path.basename(entry) };
@@ -237,6 +570,7 @@ type ManifestInput = {
   category: string;
   nativeFor?: string;
   files: Array<{ src: string; dest: string }>;
+  mcpServer?: { command: string; args: string[]; type: 'stdio' };
   author?: string;
   repository?: string;
   keywords?: string[];
@@ -267,6 +601,9 @@ function writeAndPrintManifest(cwd: string, manifest: ManifestInput): void {
   for (const f of parsed.data.files) {
     console.log(`    ${chalk.dim(f.src)} ? ${f.dest}`);
   }
+  if (parsed.data.mcpServer) {
+    console.log(`  mcpServer: ${chalk.dim('command' in parsed.data.mcpServer ? parsed.data.mcpServer.command : 'configured')}`);
+  }
   if (parsed.data.keywords?.length) {
     console.log(`  keywords: ${chalk.dim(parsed.data.keywords.join(', '))}`);
   }
@@ -291,6 +628,7 @@ interface ManifestInitOptions {
   file?: string[];
   yes?: boolean;
   force?: boolean;
+  pickFiles?: boolean;
 }
 
 function createManifestInitCommand(): Command {
@@ -312,6 +650,7 @@ function createManifestInitCommand(): Command {
       [] as string[],
     )
     .option('-y, --yes', 'Skip prompts and accept defaults for all fields')
+    .option('--pick-files', 'Pick files individually (include + dest) instead of folder prompts')
     .option('--force', 'Overwrite an existing manifest file')
     .action(async (options: ManifestInitOptions) => {
       const cwd = process.cwd();
@@ -361,6 +700,14 @@ async function initNonInteractive(
     for (const warning of warnings) {
       console.log(chalk.yellow(`  Skipped: ${warning}`));
     }
+  } else if (isContentCategory(category)) {
+    if (options.pickFiles) {
+      files = resolveManifestFilesNonInteractive(
+        collectManifestFileCandidates(cwd, category, name),
+      );
+    } else {
+      files = resolveContentInitFilesNonInteractive(cwd, category, name);
+    }
   } else {
     const detected = detectFiles(cwd, CATEGORY_EXT[category] ?? ['.md']);
     if (detected.length > 0) {
@@ -377,6 +724,7 @@ async function initNonInteractive(
     description: options.description ?? `A ${category} tool`,
     category,
     files,
+    ...(category === 'mcp-tool' ? { mcpServer: defaultMcpServerForInit(files) } : {}),
     ...(category === 'plugin'
       ? { nativeFor: options.nativeFor ?? 'cursor' }
       : {}),
@@ -451,32 +799,24 @@ async function initInteractive(
           console.log(chalk.yellow(`    ${warning}`));
         }
       }
-    } else {
-      const exts = CATEGORY_EXT[category] ?? ['.md'];
-      const skillFolders = detectSkillFolders(cwd, exts);
-
-      if (skillFolders.length > 0) {
-        console.log(chalk.bold(`\n  Detected ${skillFolders.length} ${category} folder(s). Select which to include:\n`));
-        const included: Array<{ src: string; dest: string }> = [];
-        for (const { folder, files: folderFiles } of skillFolders) {
-          const ans = (await rl.question(`  Include ${chalk.cyan(folder)}? (Y/n): `)).trim();
-          if (ans === '' || ans.toLowerCase().startsWith('y')) {
-            for (const f of folderFiles) {
-              included.push({ src: f, dest: f });
-            }
+    } else if (isContentCategory(category)) {
+      if (options.pickFiles) {
+        files = await promptForManifestFiles(rl, cwd, category, name);
+      } else {
+        files = await promptForContentFiles(rl, category, cwd, name);
+        if (files.length === 0) {
+          const pickAns = (
+            await rl.question('  Pick files individually? (Y/n): ')
+          ).trim();
+          if (pickAns === '' || pickAns.toLowerCase().startsWith('y')) {
+            files = await promptForManifestFiles(rl, cwd, category, name);
+          }
+          if (files.length === 0 && category !== 'mcp-tool') {
+            const placeholder = contentPlaceholder(category, name);
+            console.log(chalk.dim(`  Using placeholder: ${placeholder}`));
+            files = [{ src: placeholder, dest: placeholder }];
           }
         }
-        if (included.length > 0) {
-          files = included;
-        } else {
-          console.log(chalk.dim(`\n  No folders selected. Using placeholder.`));
-          const placeholder = `${name}.md`;
-          files = [{ src: placeholder, dest: placeholder }];
-        }
-      } else {
-        const placeholder = `${name}.md`;
-        console.log(chalk.dim(`\n  No matching ${category} folders found. Using placeholder: ${placeholder}`));
-        files = [{ src: placeholder, dest: placeholder }];
       }
     }
 
@@ -488,6 +828,7 @@ async function initInteractive(
       description: description || `A ${category} tool`,
       category,
       files,
+      ...(category === 'mcp-tool' ? { mcpServer: defaultMcpServerForInit(files) } : {}),
       ...(nativeFor ? { nativeFor } : {}),
       ...(author ? { author } : {}),
       ...(repository ? { repository } : {}),
@@ -502,6 +843,95 @@ async function initInteractive(
     rl.close();
     throw err;
   }
+}
+
+// -- manifest files -------------------------------------------------------------
+
+interface ManifestFilesOptions {
+  category?: string;
+  yes?: boolean;
+  force?: boolean;
+}
+
+function createManifestFilesCommand(): Command {
+  return new Command('files')
+    .description(`Select publish files and install destinations in ${MANIFEST_FILENAME}`)
+    .option('--category <category>', 'Tool category when no manifest exists yet')
+    .option('-y, --yes', 'Include all detected files with default dest (no prompts)')
+    .option('--force', 'Replace files[] entirely instead of merging with existing entries')
+    .action(async (options: ManifestFilesOptions) => {
+      const cwd = process.cwd();
+      const existing = readManifest(cwd);
+      const defaultName = path.basename(cwd).toLowerCase().replace(/[^a-z0-9-]/g, '-');
+
+      let category: Category;
+      let name: string;
+      let existingFiles: Array<{ src: string; dest: string }> = [];
+
+      if (existing && isPublishable(existing)) {
+        category = existing.category as Category;
+        name = existing.name;
+        existingFiles = (existing.files ?? []).map((f) => ({
+          src: f.src,
+          dest: f.dest,
+        }));
+      } else if (options.category) {
+        category = options.category as Category;
+        name = defaultName;
+      } else {
+        console.error(chalk.red(`No publishable ${MANIFEST_FILENAME} found.`));
+        console.error(chalk.dim('Run: aitools manifest init, or pass --category'));
+        process.exit(1);
+      }
+
+      const candidates = collectManifestFileCandidates(cwd, category, name);
+      let selected: Array<{ src: string; dest: string }>;
+
+      if (options.yes) {
+        selected = resolveManifestFilesNonInteractive(candidates);
+      } else {
+        const rl = createInterface({ input, output, terminal: true });
+        try {
+          selected = await promptForManifestFiles(rl, cwd, category, name, existingFiles);
+        } finally {
+          rl.close();
+        }
+      }
+
+      const files = mergeFileSelections(existingFiles, candidates, selected, options.force ?? false);
+
+      if (files.length === 0 && category !== 'mcp-tool') {
+        console.error(chalk.red('No files selected.'));
+        process.exit(1);
+      }
+
+      const updated: Record<string, unknown> = {
+        ...(existing ?? {}),
+        name: existing?.name ?? name,
+        version: existing?.version ?? '1.0.0',
+        description: existing?.description ?? `A ${category} tool`,
+        category,
+        files,
+      };
+
+      if (category === 'mcp-tool') {
+        const currentMcp = existing?.mcpServer as { args?: string[] } | undefined;
+        if (mcpServerNeedsRefresh(currentMcp, files)) {
+          updated['mcpServer'] = defaultMcpServerForInit(files);
+        }
+      }
+
+      if (category === 'plugin' && !updated['nativeFor']) {
+        updated['nativeFor'] = 'cursor';
+      }
+
+      writeUpdatedPublishDoc(cwd, updated);
+      console.log(chalk.green(`\n  Updated files (${files.length}) in ${MANIFEST_FILENAME}`));
+      for (const f of files) {
+        console.log(`    ${chalk.dim(f.src)} → ${f.dest}`);
+      }
+      console.log(chalk.dim('\n  Run: aitools manifest validate'));
+    });
 }
 
 // -- manifest validate ---------------------------------------------------------
@@ -917,6 +1347,7 @@ export function createManifestCommand(): Command {
     `Manage the unified publish manifest (${MANIFEST_FILENAME})`,
   );
   cmd.addCommand(createManifestInitCommand());
+  cmd.addCommand(createManifestFilesCommand());
   cmd.addCommand(createManifestValidateCommand());
   cmd.addCommand(createManifestBumpCommand());
   cmd.addCommand(createManifestUpdateCommand());

@@ -67,8 +67,16 @@
 
 ---
 
-### manifest init / validate / bump — 2026-04-26 `d0b6f60`
-**What**: `aitools manifest init` scaffolds `aitools.manifest.json` interactively or with `--yes` for non-interactive defaults. Interactive mode uses `detectSkillFolders` to find subdirectories that directly contain content files, then prompts per folder (`Include .agents/skills/create-ai-tool? (Y/n)`). `validate` runs Zod schema checks + verifies declared files exist. `bump patch|minor|major` increments the version with semver.  
+### manifest init / validate / bump — 2026-04-26 `d0b6f60` (updated 2026-07-15)
+**What**: `aitools manifest init` scaffolds publish fields in `aitools.json` interactively or with `--yes`. Interactive mode detects root-level content files and content folders (`detectContentFolders`), prompts per group, and falls back to per-file selection (`--pick-files` or when folder selection is declined). Category-aware placeholders and file extensions for skill, subagent, prompt, and mcp-tool; mcp-tool scaffolds `mcpServer`. `validate` runs Zod schema checks + verifies declared files exist. `bump patch|minor|major` increments the version with semver.  
+**Key flags**: `--pick-files`, `--category`, `--nativeFor` (plugin), `-y/--yes`, `--force`  
+**Key files**: `packages/cli/src/commands/manifest.ts`
+
+---
+
+### manifest files — 2026-07-15
+**What**: `aitools manifest files` walks detected publish candidates and lets the user include/exclude each file and set install `dest` paths. Merges with existing `files[]` by default; `--force` replaces the list. `--yes` includes all detected files with `dest: src`. Re-scaffolds `mcpServer` entry path when needed for mcp-tool packages.  
+**Key flags**: `--category` (when no manifest yet), `-y/--yes`, `--force`  
 **Key files**: `packages/cli/src/commands/manifest.ts`
 
 ---
