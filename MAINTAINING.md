@@ -278,10 +278,11 @@ npm run version:patch          # or version:minor / version:major
 
 That script:
 
-1. Runs `npm version <level> --workspaces --no-git-tag-version`
-2. `git add .` → `git commit -m "chore: bump"`
-3. `git tag v<version>` (must match `packages/core` and `packages/cli`)
-4. `git push origin <current-branch> --tags`
+1. Runs `npm run verify` (`tsc -b` + unit tests) **before** `npm version` updates any `package.json`
+2. Runs `npm version <level> --workspaces --no-git-tag-version`
+3. `git add .` → `git commit -m "chore: bump"`
+4. `git tag v<version>` (must match `packages/core` and `packages/cli`)
+5. `git push origin <current-branch> --tags`
 
 Pushing the `v*` tag triggers `.github/workflows/npm-publish.yml`, which:
 

@@ -14,7 +14,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import fs from 'node:fs';
 import path from 'node:path';
-import type { ToolManifest, InstalledTool, InstallScope, AiToolsLock, ToolFile, TargetPlatform, ToolCategory } from '@bitgenetics/aitools-core';
+import type { ToolManifest, InstalledTool, InstallScope, AiToolsLock, ToolFile, TargetPlatform, ToolCategory, PluginMember } from '@bitgenetics/aitools-core';
 import {
   readLockFile,
   writeLockFile,
@@ -30,6 +30,7 @@ import {
 } from '@bitgenetics/aitools-core';
 import type { ConfigManager } from './config-manager.js';
 import type { RegistryClient } from './registry-client.js';
+import { toAdapterFileCategory } from '../adapters/types.js';
 import { CacheManager } from './cache-manager.js';
 import {
   transform,
@@ -212,8 +213,7 @@ export class Installer {
       integrity = entry.integrity;
     }
 
-    const category = manifest.category as Exclude<typeof manifest.category, 'mcp-tool' | 'hook' | 'plugin'>;
-    const installBase = this.configManager.resolveInstallPath(category, scope);
+    const installBase = this.configManager.resolveInstallPath(toAdapterFileCategory(manifest.category), scope);
     fs.mkdirSync(installBase, { recursive: true });
 
     const activePlatform = this.configManager.getPlatform();
@@ -373,7 +373,7 @@ export class Installer {
       }
     }
 
-    const members = classified.members.filter((m) => m.kind !== 'skip');
+    const members = classified.members.filter((m: PluginMember) => m.kind !== 'skip');
 
     // First pass: resolve final destinations for file members (needed for path map)
     type FilePlan = {
@@ -475,7 +475,7 @@ export class Installer {
     }
 
     // MCP merge
-    const mcpMember = members.find((m) => m.kind === 'mcp');
+    const mcpMember = members.find((m: PluginMember) => m.kind === 'mcp');
     if (mcpMember) {
       const mcpSrc = path.join(agentsDir, mcpMember.src);
       if (!fs.existsSync(mcpSrc)) {
@@ -497,7 +497,7 @@ export class Installer {
     }
 
     // Hooks merge
-    const hookMember = members.find((m) => m.kind === 'hook');
+    const hookMember = members.find((m: PluginMember) => m.kind === 'hook');
     if (hookMember) {
       const hooksConfigPath = this.configManager.resolveHooksConfig(scope);
       if (!hooksConfigPath) {
@@ -584,7 +584,7 @@ export class Installer {
       }
       if (previous.mcpKeys?.length && previous.mcpConfig) {
         const keep = new Set(mcpKeys);
-        const stale = previous.mcpKeys.filter((k) => !keep.has(k));
+        const stale = previous.mcpKeys.filter((k: string) => !keep.has(k));
         if (stale.length > 0) {
           removeMcpKeys(
             resolveStoredPath(this.cwd, previous.mcpConfig),

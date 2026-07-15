@@ -41,8 +41,8 @@ describe('mergeReferenceBindings', () => {
     const merged = mergeReferenceBindings(manifest, {
       sharedref: { into: ['skills/review', 'skills/audit'] },
     });
-    expect(merged.sharedref.into).toEqual(['skills/review', 'skills/audit']);
-    expect(merged.sharedref.range).toBe('^2.0.0');
+    expect(merged.sharedref!.into).toEqual(['skills/review', 'skills/audit']);
+    expect(merged.sharedref!.range).toBe('^2.0.0');
   });
 });
 

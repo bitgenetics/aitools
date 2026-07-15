@@ -85,6 +85,31 @@ const ReferenceBindingObjectSchema = z
 
 export const ReferenceBindingSchema = z.union([z.string().min(1), ReferenceBindingObjectSchema]);
 
+const ReferenceBindingOverrideObjectSchema = z
+  .object({
+    range: z.string().min(1).optional(),
+    into: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
+    layout: z.enum(['named', 'flat']).optional(),
+  })
+  .superRefine((data, ctx) => {
+    const intoList = data.into === undefined ? [] : Array.isArray(data.into) ? data.into : [data.into];
+    for (const into of intoList) {
+      if (into === 'plugin') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'references.into cannot be "plugin" — use skills/<name> paths',
+          path: ['into'],
+        });
+      }
+    }
+  });
+
+/** Consumer override in aitools.config.json — `range` optional when patching manifest bindings. */
+export const ReferenceBindingOverrideSchema = z.union([
+  z.string().min(1),
+  ReferenceBindingOverrideObjectSchema,
+]);
+
 const REFERENCE_METADATA = new Set(['index.md', 'readme.md', 'license', 'license.md', 'license.txt']);
 
 function referenceContentFileCount(files: { dest: string }[]): number {

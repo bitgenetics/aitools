@@ -14,9 +14,9 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import os from 'node:os';
 import path from 'node:path';
-import type { PlatformAdapter } from './types.js';
+import type { PlatformAdapter, AdapterFileCategory } from './types.js';
 import { resolveFileCategory } from './types.js';
-import type { ToolCategory, InstallScope, FileCategory } from '@bitgenetics/aitools-core';
+import type { InstallScope, FileCategory } from '@bitgenetics/aitools-core';
 
 /**
  * Universal adapter ? internal fallback when no platform is configured.
@@ -42,7 +42,7 @@ export class UniversalAdapter implements PlatformAdapter {
     },
   };
 
-  resolveDir(category: Exclude<ToolCategory, 'mcp-tool' | 'hook' | 'plugin'>, scope: InstallScope, cwd: string): string {
+  resolveDir(category: AdapterFileCategory, scope: InstallScope, cwd: string): string {
     const fileCategory = resolveFileCategory(category);
     const p = this.DIRS[scope][fileCategory];
     return scope === 'project' ? path.resolve(cwd, p) : p;

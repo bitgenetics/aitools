@@ -20,7 +20,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import semver from 'semver';
 import { ToolManifestSchema, MANIFEST_FILENAME, LEGACY_PUBLISH_MANIFEST_FILENAME, readManifest, writeManifest, isPublishable, AitoolsJsonSchema, validatePluginStructure, parseCursorPluginJson, getPluginBundleScanPlan, resolvePluginBundleSources } from '@bitgenetics/aitools-core';
-import type { AiToolsManifest } from '@bitgenetics/aitools-core';
+import type { AiToolsManifest, ToolFile } from '@bitgenetics/aitools-core';
 
 type Category = 'skill' | 'subagent' | 'prompt' | 'mcp-tool' | 'plugin';
 type ContentCategory = Exclude<Category, 'plugin'>;
@@ -194,7 +194,7 @@ function collectPluginInitFiles(
     pluginJson,
   });
 
-  const files = sources.map((src) => ({ src, dest: src }));
+  const files = sources.map((src: string) => ({ src, dest: src }));
   return { files, warnings: errors };
 }
 
@@ -351,7 +351,7 @@ function defaultMcpServerForInit(
     .filter((f) => !f.src.includes('/'))
     .sort((a, b) => a.src.localeCompare(b.src));
   if (rootLevel.length > 0) {
-    return buildMcpServerForFile(rootLevel[0].src);
+    return buildMcpServerForFile(rootLevel[0]!.src);
   }
 
   const primary =
@@ -779,7 +779,7 @@ async function initInteractive(
     const tagsRaw = await ask('tags, comma-separated', options.tags ?? '');
 
     // -- File resolution ----------------------------------------------------
-    let files: Array<{ src: string; dest: string }>;
+    let files: Array<{ src: string; dest: string }> = [];
 
     if (options.file && options.file.length > 0) {
       files = options.file.map(parseFileEntry);
@@ -870,8 +870,8 @@ function createManifestFilesCommand(): Command {
 
       if (existing && isPublishable(existing)) {
         category = existing.category as Category;
-        name = existing.name;
-        existingFiles = (existing.files ?? []).map((f) => ({
+        name = existing.name ?? defaultName;
+        existingFiles = (existing.files ?? []).map((f: ToolFile) => ({
           src: f.src,
           dest: f.dest,
         }));

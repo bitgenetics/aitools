@@ -15,6 +15,9 @@
 import type { ToolCategory, InstallScope, TargetPlatform, FileCategory } from '@bitgenetics/aitools-core';
 import { normalizeCategory } from '@bitgenetics/aitools-core';
 
+/** Categories that install as regular files through platform adapters. */
+export type AdapterFileCategory = Exclude<ToolCategory, 'mcp-tool' | 'hook' | 'plugin' | 'reference'>;
+
 /**
  * A platform adapter translates the universal ai-tools category model into
  * the concrete file-system paths and config-file locations required by a
@@ -28,7 +31,7 @@ export interface PlatformAdapter {
    * Does not apply to mcp-tool (use resolveMcpConfig) or hook (use resolveHooksConfig).
    */
   resolveDir(
-    category: Exclude<ToolCategory, 'mcp-tool' | 'hook' | 'plugin'>,
+    category: AdapterFileCategory,
     scope: InstallScope,
     cwd: string,
   ): string;
@@ -47,11 +50,33 @@ export interface PlatformAdapter {
 
 /** Map manifest category (including deprecated aliases) to adapter directory key. */
 export function resolveFileCategory(
-  category: Exclude<ToolCategory, 'mcp-tool' | 'hook' | 'plugin'>,
+  category: AdapterFileCategory,
 ): FileCategory {
   const { category: normalized } = normalizeCategory(category);
-  if (normalized === 'hook' || normalized === 'mcp-tool' || normalized === 'plugin') {
+  if (
+    normalized === 'hook' ||
+    normalized === 'mcp-tool' ||
+    normalized === 'plugin' ||
+    normalized === 'reference'
+  ) {
     throw new Error(`Category "${category}" is not file-based`);
+  }
+  return normalized;
+}
+
+/** Normalize manifest category to an adapter file category or throw. */
+export function toAdapterFileCategory(category: ToolCategory): AdapterFileCategory {
+  if (category === 'mcp-tool' || category === 'hook' || category === 'plugin' || category === 'reference') {
+    throw new Error(`Category "${category}" is not installed as regular files`);
+  }
+  const { category: normalized } = normalizeCategory(category);
+  if (
+    normalized === 'mcp-tool' ||
+    normalized === 'hook' ||
+    normalized === 'plugin' ||
+    normalized === 'reference'
+  ) {
+    throw new Error(`Category "${category}" is not installed as regular files`);
   }
   return normalized;
 }

@@ -19,6 +19,7 @@ import { ConfigCascade, CONFIG_FILENAME, resolvePluginInstallDir } from '@bitgen
 import type { AiToolsConfig, InstallScope, TargetPlatform, ToolCategory } from '@bitgenetics/aitools-core';
 import { getAdapter } from '../adapters/index.js';
 import type { PlatformAdapter } from '../adapters/index.js';
+import type { AdapterFileCategory } from '../adapters/types.js';
 
 // -- Platform auto-detection --------------------------------------------------
 
@@ -100,7 +101,7 @@ export class ConfigManager {
    * Checks installPaths overrides in config before delegating to the adapter.
    */
   resolveInstallPath(
-    category: Exclude<ToolCategory, 'mcp-tool' | 'hook' | 'plugin'>,
+    category: AdapterFileCategory,
     scope: InstallScope,
   ): string {
     const overrideKey = `${scope}.${category}`;

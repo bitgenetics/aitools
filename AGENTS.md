@@ -41,6 +41,8 @@ Test files live alongside source: `src/foo.ts` → `src/foo.test.ts`.
 ### Running tests
 ```
 npm test                     # run all unit-test projects (core, cli, server)
+npm run typecheck            # full-project tsc via workspace references (catches CI build errors)
+npm run verify               # typecheck + unit tests — same gate as version:* (before bump)
 npm run test:core            # single project via jest multi-project runner
 npm run test:cli             # includes config layer unit tests
 npm run test:server
@@ -49,5 +51,8 @@ npm test -w @bitgenetics/aitools-e2e     # local e2e (registry must be running)
 npm run test:e2e             # full docker e2e (CI parity)
 npm run test:coverage         # unit tests + coverage in packages/*/coverage/
 ```
+
+`npm test` alone does not typecheck the full project. CI runs `tsc` before tests.
+`npm run version:*` runs `verify` before `npm version` bumps workspace package.json files.
 IMPORTANT: only use available tools, do not assume you have acess to one.
 if you attempt to use a tool that is not available to you, adjust your approach.

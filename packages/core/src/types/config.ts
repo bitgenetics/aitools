@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import type { InstallScope, TargetPlatform } from './tool.js';
-import type { ReferenceBindingInput } from './reference.js';
+import type { ReferenceBindingInput, ReferenceBindingOverrideInput } from './reference.js';
 
 /** Shared fields for all registry types. */
 interface RegistryConfigBase {
@@ -89,7 +89,7 @@ export interface AiToolsConfig {
    * Per-package overrides for reference vendoring (`into`, `layout`).
    * Keys are parent package names; values map reference name -> binding.
    */
-  referenceBindings?: Record<string, Record<string, ReferenceBindingInput>>;
+  referenceBindings?: Record<string, Record<string, ReferenceBindingOverrideInput>>;
 }
 
 /**

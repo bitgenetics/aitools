@@ -15,6 +15,7 @@
 import { parseSkillFrontmatter, analyzeCompat, rewriteSkillFrontmatter } from './compat.js';
 import { createCompatCommand } from './compat.js';
 import { PLATFORM_SPECS } from '@bitgenetics/aitools-core';
+import type { TargetPlatform } from '@bitgenetics/aitools-core';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -129,7 +130,7 @@ describe('analyzeCompat', () => {
   });
 
   it('produces results for every known platform when all are specified', () => {
-    const allPlatforms = Object.keys(PLATFORM_SPECS) as Array<keyof typeof PLATFORM_SPECS>;
+    const allPlatforms = Object.keys(PLATFORM_SPECS) as TargetPlatform[];
     const results = analyzeCompat({}, 'skill', allPlatforms);
     expect(results).toHaveLength(allPlatforms.length);
   });

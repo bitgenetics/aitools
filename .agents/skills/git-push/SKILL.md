@@ -48,11 +48,17 @@ npm run version:patch   # or version:minor / version:major
 
 `scripts/version-release.cjs` performs, in order:
 
-1. `npm version <level> --workspaces --no-git-tag-version`
-2. `git add .`
-3. `git commit -m "chore: bump"`
-4. `git tag v<version>` — version from `packages/core/package.json`
-5. `git push origin <current-branch> --tags`
+1. `npm run verify` — **before any `package.json` version changes** (`tsc -b` then `npm test`)
+2. `npm version <level> --workspaces --no-git-tag-version`
+3. `git add .`
+4. `git commit -m "chore: bump"`
+5. `git tag v<version>` — version from `packages/core/package.json`
+6. `git push origin <current-branch> --tags`
+
+If verify fails, workspace versions are not bumped and no commit/tag/push runs.
+
+Run `npm run verify` manually when you want the same checks without changing versions.
+Use `npm run typecheck` for a faster compile-only gate during development.
 
 Commit any non-version work **before** running the script, or leave it unstaged —
 `git add .` stages everything, so the bump commit may include other pending changes.

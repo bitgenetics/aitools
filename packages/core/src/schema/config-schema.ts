@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import { z } from 'zod';
-import { McpServerConfigSchema, ToolCategorySchema, ToolFileSchema, ReferenceBindingSchema } from './tool-schema.js';
+import { McpServerConfigSchema, ToolCategorySchema, ToolFileSchema, ReferenceBindingSchema, ReferenceBindingOverrideSchema } from './tool-schema.js';
 
 function normalizeLegacyDepFields(val: unknown): unknown {
   if (!val || typeof val !== 'object' || Array.isArray(val)) return val;
@@ -96,7 +96,7 @@ export const AiToolsConfigSchema = z.object({
   defaultScope: z.enum(['project', 'user']).optional(),
   platform: TargetPlatformSchema.optional(),
   installPaths: z.record(z.string()).optional(),
-  referenceBindings: z.record(z.record(ReferenceBindingSchema)).optional(),
+  referenceBindings: z.record(z.record(ReferenceBindingOverrideSchema)).optional(),
 });
 
 // -- aitools.json -----------------------------------------------------------

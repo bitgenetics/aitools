@@ -25,7 +25,7 @@ import {
   type CallToolResult,
 } from '@modelcontextprotocol/sdk/types.js';
 import { ToolManifestSchema, readLockFile } from '@bitgenetics/aitools-core';
-import type { TargetPlatform } from '@bitgenetics/aitools-core';
+import type { TargetPlatform, LockEntry } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { createRegistryClient } from '../utils/registry-client.js';
 import { Installer } from '../utils/installer.js';
@@ -274,7 +274,7 @@ export async function handleMcpToolCall(
       }
       case 'aitools_list': {
         const lock = readLockFile(cwd);
-        const tools = Object.entries(lock.tools).map(([entryName, entry]) => ({
+        const tools = Object.entries(lock.tools).map(([entryName, entry]: [string, LockEntry]) => ({
           name: entryName,
           version: entry.version,
           category: entry.category,

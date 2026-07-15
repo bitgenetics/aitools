@@ -43,7 +43,7 @@ function resolveToolManifest(
 ): { manifest: ToolManifest; manifestDir: string } | null {
   let source;
   try {
-    source = resolvePublishSource(cwd, explicitPath, (message) => console.warn(chalk.yellow(message)));
+    source = resolvePublishSource(cwd, explicitPath, (message: string) => console.warn(chalk.yellow(message)));
   } catch (err) {
     console.error(chalk.red((err as Error).message));
     return null;

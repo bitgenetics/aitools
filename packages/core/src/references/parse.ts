@@ -5,7 +5,13 @@
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-import type { ReferenceBinding, ReferenceBindingInput, ReferenceLayout } from '../types/reference.js';
+import type {
+  ReferenceBinding,
+  ReferenceBindingInput,
+  ReferenceBindingOverride,
+  ReferenceBindingOverrideInput,
+  ReferenceLayout,
+} from '../types/reference.js';
 
 export interface ParsedReferenceDeclarations {
   [refName: string]: ReferenceBinding;
@@ -36,26 +42,45 @@ export function parseReferenceBinding(input: ReferenceBindingInput): ReferenceBi
   };
 }
 
+export function parseReferenceBindingOverride(
+  input: ReferenceBindingOverrideInput,
+): ReferenceBindingOverride {
+  if (typeof input === 'string') {
+    return { range: input };
+  }
+  return {
+    ...(input.range !== undefined ? { range: input.range } : {}),
+    ...(input.into !== undefined ? { into: input.into } : {}),
+    ...(input.layout !== undefined ? { layout: input.layout } : {}),
+  };
+}
+
 /**
  * Merge consumer `referenceBindings` overrides onto parsed manifest declarations.
  * Override wins per reference name.
  */
 export function mergeReferenceBindings(
   manifest: ParsedReferenceDeclarations,
-  overrides: Record<string, ReferenceBindingInput> | undefined,
+  overrides: Record<string, ReferenceBindingOverrideInput> | undefined,
 ): ParsedReferenceDeclarations {
   if (!overrides || Object.keys(overrides).length === 0) return { ...manifest };
   const merged = { ...manifest };
   for (const [name, value] of Object.entries(overrides)) {
     const base = merged[name];
-    const parsed = parseReferenceBinding(value);
-    merged[name] = base
-      ? {
-          range: parsed.range || base.range,
-          into: parsed.into !== undefined ? parsed.into : base.into,
-          layout: parsed.layout !== undefined ? parsed.layout : base.layout,
-        }
-      : parsed;
+    const parsed = parseReferenceBindingOverride(value);
+    if (base) {
+      merged[name] = {
+        range: parsed.range ?? base.range,
+        into: parsed.into !== undefined ? parsed.into : base.into,
+        layout: parsed.layout !== undefined ? parsed.layout : base.layout,
+      };
+    } else if (parsed.range !== undefined) {
+      merged[name] = {
+        range: parsed.range,
+        ...(parsed.into !== undefined ? { into: parsed.into } : {}),
+        ...(parsed.layout !== undefined ? { layout: parsed.layout } : {}),
+      };
+    }
   }
   return merged;
 }

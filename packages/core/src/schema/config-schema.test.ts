@@ -12,7 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-import { AiToolsLockSchema, AitoolsJsonSchema, RegistryAuthSchema, RegistryConfigSchema } from '../schema/config-schema.js';
+import { AiToolsConfigSchema, AiToolsLockSchema, AitoolsJsonSchema, RegistryAuthSchema, RegistryConfigSchema } from '../schema/config-schema.js';
 
 describe('RegistryAuthSchema — bearer', () => {
   it('accepts bearer auth with a token', () => {
@@ -134,15 +134,9 @@ describe('AiToolsLockSchema references', () => {
   });
 });
 
-describe('AitoolsJsonSchema referenceBindings', () => {
+describe('AiToolsConfigSchema referenceBindings', () => {
   it('accepts consumer referenceBindings overrides per package', () => {
-    const result = AitoolsJsonSchema.safeParse({
-      name: 'my-plugin',
-      version: '1.0.0',
-      description: 'Plugin with refs',
-      category: 'plugin',
-      files: [{ src: 'skills/review/SKILL.md', dest: 'skills/review/SKILL.md' }],
-      references: { sharedref: { range: '^2.0.0', into: 'skills/review' } },
+    const result = AiToolsConfigSchema.safeParse({
       referenceBindings: {
         'my-plugin': {
           sharedref: { into: ['skills/review', 'skills/audit'] },

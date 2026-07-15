@@ -25,7 +25,7 @@ import {
   resolvePublishSource,
   toPublishManifest,
 } from '@bitgenetics/aitools-core';
-import type { PlatformSpec, FieldSupport } from '@bitgenetics/aitools-core';
+import type { PlatformSpec, FieldSupport, ToolManifest } from '@bitgenetics/aitools-core';
 import type { TargetPlatform } from '@bitgenetics/aitools-core';
 import { estimateCategoryConfidence } from '../transformers/index.js';
 import type { TransformConfidence } from '../transformers/index.js';
@@ -141,6 +141,7 @@ function supportIcon(support: FieldSupport): string {
     case 'ignored':     return chalk.yellow('?');
     case 'unsupported': return chalk.red('?');
     case 'unknown':     return chalk.dim('?');
+    default:            return chalk.dim('?');
   }
 }
 
@@ -197,7 +198,7 @@ export function createCompatCommand(): Command {
       const cwd = process.cwd();
       let source;
       try {
-        source = resolvePublishSource(cwd, options.manifest, (msg) =>
+        source = resolvePublishSource(cwd, options.manifest, (msg: string) =>
           console.warn(chalk.yellow(msg)),
         );
       } catch {
@@ -210,7 +211,7 @@ export function createCompatCommand(): Command {
         process.exit(1);
       }
 
-      let manifest;
+      let manifest: ToolManifest;
       try {
         manifest = toPublishManifest(source.unified);
       } catch (err) {

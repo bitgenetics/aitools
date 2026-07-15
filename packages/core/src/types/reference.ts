@@ -22,6 +22,19 @@ export interface ReferenceBinding {
 /** Raw manifest value: semver shorthand or binding object. */
 export type ReferenceBindingInput = string | ReferenceBinding;
 
+/**
+ * Partial binding for consumer `referenceBindings` overrides.
+ * `range` is optional — manifest declaration supplies the default.
+ */
+export interface ReferenceBindingOverride {
+  range?: string;
+  into?: string | string[];
+  layout?: ReferenceLayout;
+}
+
+/** Raw override value: semver shorthand or partial binding object. */
+export type ReferenceBindingOverrideInput = string | ReferenceBindingOverride;
+
 /** Single install location recorded in the lock file for a vendored reference. */
 export interface ReferenceInstallLock {
   into: string;

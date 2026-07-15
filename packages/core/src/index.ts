@@ -18,6 +18,8 @@ export type {
   ReferenceLayout,
   ReferenceBinding,
   ReferenceBindingInput,
+  ReferenceBindingOverride,
+  ReferenceBindingOverrideInput,
   ReferenceInstallLock,
   ReferenceLockEntry,
 } from './types/reference.js';

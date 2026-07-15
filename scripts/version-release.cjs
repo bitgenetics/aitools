@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
  * Bump workspace versions, commit, tag v<version>, and push branch + tags.
+ * Runs npm run verify (typecheck + test) before npm version bumps package.json files.
  * Cross-platform (Windows + macOS). Used by npm run version:patch|minor|major.
  */
 const { spawnSync } = require('node:child_process');
@@ -58,6 +59,9 @@ function main() {
   if (!branch) {
     throw new Error('Detached HEAD — checkout a branch before releasing.');
   }
+
+  console.log('Running verify before version bump (typecheck + test)...');
+  runNpm(['run', 'verify']);
 
   console.log(`Bumping ${level} across workspaces...`);
   runNpm(['version', level, '--workspaces', '--no-git-tag-version']);

@@ -6,6 +6,8 @@
   ],
   "scripts": {
     "build": "npm run build -w @bitgenetics/aitools-core && npm run build -w @bitgenetics/aitools-cli && npm run build -w @bitgenetics/aitools-server",
+    "typecheck": "tsc -b",
+    "verify": "npm run typecheck && npm test",
     "dev": "npm run dev --workspaces --if-present",
     "test": "jest",
     "test:coverage": "jest --coverage",
