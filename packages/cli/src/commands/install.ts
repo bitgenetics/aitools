@@ -28,12 +28,14 @@ import type { InstallScope } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { createRegistryClient } from '../utils/registry-client.js';
 import { Installer } from '../utils/installer.js';
+import { PLATFORM_OPTION_DESCRIPTION, resolvePlatformOption } from '../utils/platform-option.js';
 
 interface InstallOptions {
   scope?: InstallScope;
   global?: boolean;
   dev?: boolean;
   version?: string;
+  platform?: string;
 }
 
 /**
@@ -51,9 +53,11 @@ export function createInstallCommand(): Command {
     .option('-g, --global', 'Install to user scope (same as --scope user)')
     .option('-D, --dev', 'Save as a devTool dependency')
     .option('-v, --version <version>', 'Specific version to install (overrides @version in name)')
+    .option('-p, --platform <platform>', PLATFORM_OPTION_DESCRIPTION)
     .action(async (pkg: string | undefined, options: InstallOptions) => {
       const cwd = process.cwd();
-      const configManager = new ConfigManager(cwd);
+      const platformOverride = resolvePlatformOption(options.platform);
+      const configManager = new ConfigManager(cwd, { platform: platformOverride });
       const installer = new Installer(configManager, cwd);
 
       if (options.global && options.scope && options.scope !== 'user') {
@@ -129,7 +133,8 @@ async function installSingle(
   if (configManager.getPlatform() === 'universal') {
     console.log(
       chalk.yellow('\n  Tip: no platform configured -- files were installed to .agents/') +
-      chalk.dim('\n  Run: aitools config set platform vscode  (or claude|cursor|windsurf)'),
+      chalk.dim('\n  Run: aitools config set platform vscode  (or claude|cursor|windsurf)') +
+      chalk.dim('\n  Or pass: aitools install <package> --platform cursor'),
     );
   } else if (configManager.detectedPlatform) {
     console.log(

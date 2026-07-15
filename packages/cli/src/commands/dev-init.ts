@@ -23,10 +23,9 @@ import {
   readManifest,
   writeManifest,
   upsertDependency,
-  PLATFORM_SPECS,
 } from '@bitgenetics/aitools-core';
-import type { TargetPlatform } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
+import { PLATFORM_OPTION_DESCRIPTION, resolvePlatformOption } from '../utils/platform-option.js';
 import { SKILL_MD, MANIFEST_REFERENCE_MD, PLATFORM_PATHS_MD } from '../bundled/create-ai-tool.js';
 
 /**
@@ -47,16 +46,6 @@ interface DevInitOptions {
   platform?: string;
 }
 
-function resolvePlatformOption(platform: string | undefined): TargetPlatform | undefined {
-  if (platform === undefined) return undefined;
-  if (!(platform in PLATFORM_SPECS)) {
-    console.error(chalk.red(`Unknown platform: ${platform}`));
-    console.error(`  Known platforms: ${Object.keys(PLATFORM_SPECS).join(', ')}`);
-    process.exit(1);
-  }
-  return platform as TargetPlatform;
-}
-
 /**
  * aitools dev-init
  *
@@ -69,10 +58,7 @@ export function createDevInitCommand(): Command {
     .description('Install the bundled create-ai-tool skill without a registry')
     .option('--force', 'Overwrite if already installed')
     .option('--scope <scope>', 'Install scope: project or user (default: project)')
-    .option(
-      '-p, --platform <platform>',
-      'Target platform: universal, vscode, claude, cursor, or windsurf',
-    )
+    .option('-p, --platform <platform>', PLATFORM_OPTION_DESCRIPTION)
     .action((options: DevInitOptions) => {
       const cwd = process.cwd();
       const platformOverride = resolvePlatformOption(options.platform);

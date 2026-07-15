@@ -21,6 +21,7 @@ import { ConfigManager } from '../utils/config-manager.js';
 import { createRegistryClient } from '../utils/registry-client.js';
 import { Installer } from '../utils/installer.js';
 import type { InstallScope } from '@bitgenetics/aitools-core';
+import { PLATFORM_OPTION_DESCRIPTION, resolvePlatformOption } from '../utils/platform-option.js';
 
 /**
  * aitools update [name]
@@ -34,9 +35,11 @@ export function createUpdateCommand(): Command {
     .description('Update installed AITools package(s) to the latest matching version')
     .argument('[package]', 'Package name to update (omit to update all)')
     .option('-s, --scope <scope>', 'Override install scope: project or user (defaults to the scope recorded in the lock file)')
-    .action(async (pkg: string | undefined, options: { scope?: string }) => {
+    .option('-p, --platform <platform>', PLATFORM_OPTION_DESCRIPTION)
+    .action(async (pkg: string | undefined, options: { scope?: string; platform?: string }) => {
       const cwd = process.cwd();
-      const configManager = new ConfigManager(cwd);
+      const platformOverride = resolvePlatformOption(options.platform);
+      const configManager = new ConfigManager(cwd, { platform: platformOverride });
       const installer = new Installer(configManager, cwd);
       // scope is resolved per-tool below; only used when --scope is explicit
       const explicitScope = options.scope as InstallScope | undefined;

@@ -355,12 +355,28 @@ aitools dev-init
 | `-g, --global` | | Install to user scope (same as `--scope user`) |
 | `--dev` | `false` | Save as a dev dependency in `aitools.json` |
 | `-v, --version <version>` | | Specific version to install (overrides `@version` in name) |
+| `-p, --platform <platform>` | config / auto-detect | Target IDE — controls install directory layout |
+
+### dev-init options
+
+| Flag | Description |
+|---|---|
+| `--force` | Overwrite bundled create-ai-tool if already installed |
+| `--scope <project\|user>` | Install scope (default: project) |
+| `-p, --platform <platform>` | Target IDE — controls install directory layout |
+
+### Uninstall options
+
+| Flag | Description |
+|---|---|
+| `-p, --platform <platform>` | Target IDE — must match the platform used at install time |
 
 ### Update options
 
 | Flag | Default | Description |
 |---|---|---|
 | `-s, --scope <project\|user>` | `project` | Scope of packages to update |
+| `-p, --platform <platform>` | config / auto-detect | Target IDE — controls install directory layout |
 
 ### List options
 

@@ -330,6 +330,20 @@ describe('install command action', () => {
     expect(readLockFile(tmp).tools['test-skill']).toBeDefined();
   });
 
+  it('installs to cursor skill path when --platform cursor overrides config', async () => {
+    await createInstallCommand().parseAsync(['test-skill', '--platform', 'cursor'], { from: 'user' });
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'skills', 'skill.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, '.github', 'skills', 'skill.md'))).toBe(false);
+  });
+
+  it('exits when --platform is invalid', async () => {
+    const exitSpy = mockExit();
+    await expect(
+      createInstallCommand().parseAsync(['test-skill', '--platform', 'not-a-platform'], { from: 'user' }),
+    ).rejects.toThrow('process.exit:1');
+    exitSpy.mockRestore();
+  });
+
   it('saves dev dependencies when --dev is passed', async () => {
     await createInstallCommand().parseAsync(['test-skill', '--dev'], { from: 'user' });
     const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {

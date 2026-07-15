@@ -18,6 +18,7 @@ import chalk from 'chalk';
 import { readManifest, writeManifest, removeDependency } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { Installer } from '../utils/installer.js';
+import { PLATFORM_OPTION_DESCRIPTION, resolvePlatformOption } from '../utils/platform-option.js';
 
 /**
  * aitools uninstall <name>
@@ -32,9 +33,11 @@ export function createUninstallCommand(): Command {
     .alias('un')
     .description('Remove an installed AITools package')
     .argument('<package>', 'Package name to remove')
-    .action((pkg: string) => {
+    .option('-p, --platform <platform>', PLATFORM_OPTION_DESCRIPTION)
+    .action((pkg: string, options: { platform?: string }) => {
       const cwd = process.cwd();
-      const configManager = new ConfigManager(cwd);
+      const platformOverride = resolvePlatformOption(options.platform);
+      const configManager = new ConfigManager(cwd, { platform: platformOverride });
       const installer = new Installer(configManager, cwd);
 
       const spinner = ora(`Removing ${chalk.cyan(pkg)}...`).start();
