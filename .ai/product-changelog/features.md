@@ -13,6 +13,14 @@
 
 ---
 
+### Plugin-bundle install layout — 2026-07-16
+**What**: `aitools install <pkg> --plugin-bundle` installs skill/rule/command/agent/mcp-tool/hook packages into the plugin **author layout** under cwd (`skills/`, `rules/`, `agents/`, `commands/`, `mcp.json`, `hooks/hooks.json` — respecting `.cursor-plugin/plugin.json` path overrides via `getPluginBundleScanPlan`). Lock records `installMethod: plugin-bundle`. Project scope only; rejects `-g` / `--scope user` / `--cursor-plugin`. Reinstall (`aitools install` / `update`) honors the lock method. `list` shows `[plugin-bundle]`. Uninstall deletes locked paths / unmerges MCP/hooks as usual. Default install (no flag) still uses platform dirs (e.g. `.cursor/skills/`). Rejects `category: plugin` and `category: reference` with a clear error. Does not auto-edit the consuming plugin’s publish `files[]` — authors run `manifest files` / validate.  
+**Why**: Plugin authors need registry packages as distribute-with-plugin members under author roots; platform install remains the local/dev dependency path (`-D`).  
+**Impact**: E2e must assert author-root destinations + lock method for `--plugin-bundle`, and platform destinations without the flag.  
+**Key files**: `packages/core/src/manifest/plugin-bundle-install.ts`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/commands/install.ts`, `packages/e2e/src/cli.test.ts`
+
+---
+
 ### search / find — 2026-04-26 `d0b6f60`
 **What**: `aitools search <query>` queries all configured registries and merges results. `aitools find <description>` is a natural-language smart search — the description is forwarded to the registry's AI-assisted search endpoint.  
 **Key files**: `packages/cli/src/commands/search.ts`, `packages/server/src/routes/tools.ts` (`GET /search?q=`)

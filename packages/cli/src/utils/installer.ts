@@ -33,10 +33,14 @@ import {
   resolveCursorLocalPluginDir,
   sanitizePackageDirName,
   PLUGIN_PLATFORM_DESCRIPTOR,
+  loadCursorPluginJsonFromCwd,
+  resolvePluginBundleInstallBase,
+  resolvePluginBundleMcpConfig,
+  resolvePluginBundleHooksConfig,
 } from '@bitgenetics/aitools-core';
 import type { ConfigManager } from './config-manager.js';
 import type { RegistryClient } from './registry-client.js';
-import { toAdapterFileCategory } from '../adapters/types.js';
+import { toAdapterFileCategory, resolveFileCategory } from '../adapters/types.js';
 import { CacheManager } from './cache-manager.js';
 import {
   transform,
@@ -62,6 +66,8 @@ export interface InstallResult extends InstalledTool {
 export interface InstallOptions {
   /** Opaque copy into ~/.cursor/plugins/local/ instead of explode. */
   cursorPlugin?: boolean;
+  /** Install into plugin author-layout roots (skills/, rules/, …) under project cwd. */
+  pluginBundle?: boolean;
 }
 
 /**
@@ -104,6 +110,10 @@ export class Installer {
     scope: InstallScope,
     options: InstallOptions = {},
   ): Promise<InstallResult> {
+    if (options.cursorPlugin && options.pluginBundle) {
+      throw new Error('Cannot combine --cursor-plugin and --plugin-bundle.');
+    }
+
     if (options.cursorPlugin) {
       return this.installCursorPluginLocal(client, manifest);
     }
@@ -113,20 +123,41 @@ export class Installer {
       process.stderr.write(`[aitools] ${categoryWarning}\n`);
     }
 
+    if (options.pluginBundle) {
+      if (scope !== 'project') {
+        throw new Error('--plugin-bundle requires project scope (omit -g / --scope user).');
+      }
+      if (normalized === 'plugin') {
+        throw new Error(
+          '--plugin-bundle cannot install category "plugin". Install member packages (skill, rule, agent, …) instead.',
+        );
+      }
+      if (normalized === 'reference') {
+        throw new Error(
+          '--plugin-bundle cannot install category "reference". Use reference vendoring into a skill when available.',
+        );
+      }
+    }
+
     if (normalized === 'mcp-tool') {
-      const installed = this.installMcp(manifest, scope, client.config.url);
+      const installed = this.installMcp(manifest, scope, client.config.url, options.pluginBundle);
       return { ...installed, fileResults: [] };
     }
 
     if (normalized === 'hook') {
-      return this.installHooks(client, manifest, scope);
+      return this.installHooks(client, manifest, scope, options.pluginBundle);
     }
 
     if (normalized === 'plugin') {
       return this.installPlugin(client, manifest, scope);
     }
 
-    const installed = await this.installFiles(client, { ...manifest, category: normalized }, scope);
+    const installed = await this.installFiles(
+      client,
+      { ...manifest, category: normalized },
+      scope,
+      options.pluginBundle,
+    );
     return installed;
   }
 
@@ -134,8 +165,12 @@ export class Installer {
     client: RegistryClient,
     manifest: ToolManifest,
     scope: InstallScope,
+    pluginBundle = false,
   ): Promise<InstallResult> {
-    const hooksConfigPath = this.configManager.resolveHooksConfig(scope);
+    const pluginJson = pluginBundle ? loadCursorPluginJsonFromCwd(this.cwd) : null;
+    const hooksConfigPath = pluginBundle
+      ? resolvePluginBundleHooksConfig(this.cwd, pluginJson)
+      : this.configManager.resolveHooksConfig(scope);
     if (!hooksConfigPath) {
       throw new Error(
         `Hooks are not supported on platform "${this.configManager.getPlatform()}". ` +
@@ -169,6 +204,7 @@ export class Installer {
     }
 
     let mergedContent = existingContent;
+    let hooksAdded: Record<string, unknown[]> | undefined;
 
     for (const file of filesToInstall) {
       const srcPath = path.join(agentsDir, file.src);
@@ -176,6 +212,7 @@ export class Installer {
       const relDest = path.relative(this.cwd, hooksConfigPath).replace(/\\/g, '/');
 
       let result: TransformResult;
+      let incoming = rawContent;
       if (sourcePlatform !== activePlatform && sourcePlatform !== 'universal') {
         result = transform(rawContent, 'hook', sourcePlatform, activePlatform, { destPath: relDest });
         emitTransformMessages(relDest, result);
@@ -188,10 +225,19 @@ export class Installer {
           fileResults.push({ dest: relDest, transform: result, skipped: true });
           continue;
         }
-        mergedContent = mergeHookConfigs(mergedContent, result.content, activePlatform);
+        incoming = result.content;
+        mergedContent = mergeHookConfigs(mergedContent, incoming, activePlatform);
       } else {
         mergedContent = mergeHookConfigs(mergedContent, rawContent, activePlatform);
         result = { content: rawContent, confidence: 'native', warnings: [] };
+      }
+
+      if (pluginBundle && incoming.trim()) {
+        const added = extractHooksAdded(incoming, activePlatform);
+        hooksAdded = hooksAdded ? { ...hooksAdded } : {};
+        for (const [event, handlers] of Object.entries(added)) {
+          hooksAdded[event] = [...(hooksAdded[event] ?? []), ...handlers];
+        }
       }
 
       fileResults.push({ dest: relDest, transform: result });
@@ -199,7 +245,10 @@ export class Installer {
 
     if (mergedContent !== existingContent) {
       fs.writeFileSync(hooksConfigPath, mergedContent!, 'utf8');
-      writtenFiles.push(hooksConfigPath);
+      // Shared author-layout hooks.json must not be deleted wholesale on uninstall.
+      if (!pluginBundle) {
+        writtenFiles.push(hooksConfigPath);
+      }
     }
 
     const installedTool: InstalledTool = {
@@ -212,6 +261,10 @@ export class Installer {
       files: writtenFiles,
       registry: client.config.url,
       integrity,
+      ...(pluginBundle ? { installMethod: 'plugin-bundle' as const } : {}),
+      ...(pluginBundle && hooksAdded && Object.keys(hooksAdded).length > 0
+        ? { hooksAdded, hooksConfig: hooksConfigPath }
+        : {}),
     };
 
     const track = this.trackDir(scope);
@@ -225,6 +278,7 @@ export class Installer {
     client: RegistryClient,
     manifest: ToolManifest,
     scope: InstallScope,
+    pluginBundle = false,
   ): Promise<InstallResult> {
     if (manifest.platforms && manifest.platforms.length > 0) {
       const activePlatform = this.configManager.getPlatform();
@@ -250,7 +304,11 @@ export class Installer {
       integrity = entry.integrity;
     }
 
-    const installBase = this.configManager.resolveInstallPath(toAdapterFileCategory(manifest.category), scope);
+    const fileCategory = resolveFileCategory(toAdapterFileCategory(manifest.category));
+    const pluginJson = pluginBundle ? loadCursorPluginJsonFromCwd(this.cwd) : null;
+    const installBase = pluginBundle
+      ? resolvePluginBundleInstallBase(fileCategory, this.cwd, pluginJson)
+      : this.configManager.resolveInstallPath(toAdapterFileCategory(manifest.category), scope);
     fs.mkdirSync(installBase, { recursive: true });
 
     const activePlatform = this.configManager.getPlatform();
@@ -331,6 +389,7 @@ export class Installer {
       files: writtenFiles,
       registry: client.config.url,
       integrity,
+      ...(pluginBundle ? { installMethod: 'plugin-bundle' as const } : {}),
     };
 
     const lock = readLockFile(track);
@@ -638,6 +697,7 @@ export class Installer {
     manifest: ToolManifest,
     scope: InstallScope,
     registryUrl: string,
+    pluginBundle = false,
   ): InstalledTool {
     if (!manifest.mcpServer) {
       throw new Error(
@@ -645,7 +705,10 @@ export class Installer {
       );
     }
 
-    const configPath = this.configManager.resolveMcpConfig(scope);
+    const pluginJson = pluginBundle ? loadCursorPluginJsonFromCwd(this.cwd) : null;
+    const configPath = pluginBundle
+      ? resolvePluginBundleMcpConfig(this.cwd, pluginJson)
+      : this.configManager.resolveMcpConfig(scope);
     fs.mkdirSync(path.dirname(configPath), { recursive: true });
 
     let mcpJson: McpJson = { servers: {} };
@@ -686,6 +749,7 @@ export class Installer {
       integrity: 'mcp-config',
       mcpKeys: [serverKey],
       mcpConfig: configPath,
+      ...(pluginBundle ? { installMethod: 'plugin-bundle' as const } : {}),
     };
 
     const lock = readLockFile(track);

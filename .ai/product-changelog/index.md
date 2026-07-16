@@ -24,6 +24,7 @@
 
 ## Recent Changes
 
+- **2026-07-16** — Plugin-bundle install layout (`--plugin-bundle` → author roots `skills/`/`rules/`/…) — see `features.md`, `constraints.md`, `patterns.md`
 - **2026-07-16** `ad7a20d` — Catch-up `a8239bb..HEAD` + user-scope/`--cursor-plugin`/MCP paths/changelog-first e2e — see `features.md`, `architecture.md`, `constraints.md`, `patterns.md`
 - **2026-07-15** `a556dd4` / `dee6a92` / `43b5c50` — Shared references core; manifest init/files; `reference` not an adapter file category — see `features.md`, `architecture.md`, `patterns.md`
 - **2026-07-14** `8a80e17` — Plugin explode + path rewrite + lock mcpKeys/hooksAdded (landed under mislabeled bump) — see `features.md`, `patterns.md`, `constraints.md`
@@ -36,5 +37,5 @@
 
 ---
 
-<!-- Last SHA: c7b86e6 -->
+<!-- Last SHA: 4b69be8 -->
 <!-- Last updated: 2026-07-16 -->

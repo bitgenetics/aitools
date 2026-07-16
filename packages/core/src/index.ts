@@ -107,6 +107,13 @@ export type {
   PluginBundleScanPlan,
 } from './manifest/plugin-explode.js';
 export {
+  loadCursorPluginJsonFromCwd,
+  resolvePluginBundleInstallBase,
+  resolvePluginBundleMcpConfig,
+  resolvePluginBundleHooksConfig,
+  PluginBundleInstallError,
+} from './manifest/plugin-bundle-install.js';
+export {
   REGISTRY_MANIFEST_CANDIDATES,
   pickRegistryManifestBasename,
 } from './manifest/registry-manifest.js';

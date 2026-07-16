@@ -1764,3 +1764,177 @@ describe('Installer user-scope tracking + cursor-plugin', () => {
     ).rejects.toThrow(/requires category "plugin"/);
   });
 });
+
+describe('Installer.install (--plugin-bundle)', () => {
+  let tmp: string;
+  let cacheTmp: string;
+  let installer: Installer;
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-bundle-'));
+    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cache-'));
+    process.env.AITOOLS_CONFIG_ROOT = tmp;
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'cursor' }),
+      'utf8',
+    );
+    installer = new Installer(new ConfigManager(tmp), tmp, new CacheManager(cacheTmp));
+  });
+
+  afterEach(() => {
+    delete process.env.AITOOLS_CONFIG_ROOT;
+    fs.rmSync(tmp, { recursive: true, force: true });
+    fs.rmSync(cacheTmp, { recursive: true, force: true });
+  });
+
+  it('installs a skill under skills/ and records installMethod plugin-bundle', async () => {
+    const manifest: ToolManifest = {
+      name: 'bundle-skill',
+      version: '1.0.0',
+      description: 'A skill',
+      category: 'skill',
+      files: [{ src: 'SKILL.md', dest: 'bundle-skill/SKILL.md' }],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([{ path: 'SKILL.md', content: '# Bundle Skill' }]),
+      'utf8',
+    );
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+
+    const installed = await installer.install(mockClient as never, manifest, 'project', {
+      pluginBundle: true,
+    });
+
+    expect(fs.existsSync(path.join(tmp, 'skills', 'bundle-skill', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'skills', 'bundle-skill', 'SKILL.md'))).toBe(false);
+    expect(installed.installMethod).toBe('plugin-bundle');
+    expect(installer.getLock().tools['bundle-skill']?.installMethod).toBe('plugin-bundle');
+  });
+
+  it('uninstalls plugin-bundle skill files from author layout', async () => {
+    const manifest: ToolManifest = {
+      name: 'bundle-skill',
+      version: '1.0.0',
+      description: 'A skill',
+      category: 'skill',
+      files: [{ src: 'SKILL.md', dest: 'bundle-skill/SKILL.md' }],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([{ path: 'SKILL.md', content: '# Bundle Skill' }]),
+      'utf8',
+    );
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+
+    await installer.install(mockClient as never, manifest, 'project', { pluginBundle: true });
+    expect(fs.existsSync(path.join(tmp, 'skills', 'bundle-skill', 'SKILL.md'))).toBe(true);
+
+    installer.uninstall('bundle-skill', 'project');
+    expect(fs.existsSync(path.join(tmp, 'skills', 'bundle-skill', 'SKILL.md'))).toBe(false);
+    expect(installer.getLock().tools['bundle-skill']).toBeUndefined();
+  });
+
+  it('merges mcp-tool into project mcp.json under plugin-bundle', async () => {
+    const mcpManifest: ToolManifest = {
+      name: 'bundle-mcp',
+      version: '1.0.0',
+      description: 'MCP',
+      category: 'mcp-tool',
+      files: [],
+      mcpServer: { command: 'npx', args: ['-y', 'server'] },
+    };
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn(),
+    };
+
+    const installed = await installer.install(mockClient as never, mcpManifest, 'project', {
+      pluginBundle: true,
+    });
+
+    expect(installed.installMethod).toBe('plugin-bundle');
+    const mcpPath = path.join(tmp, 'mcp.json');
+    expect(fs.existsSync(mcpPath)).toBe(true);
+    const mcp = JSON.parse(fs.readFileSync(mcpPath, 'utf8')) as {
+      servers: Record<string, unknown>;
+    };
+    expect(mcp.servers['bundle-mcp']).toBeDefined();
+  });
+
+  it('rejects plugin-bundle for category plugin', async () => {
+    const pluginManifest: ToolManifest = {
+      name: 'nested-plugin',
+      version: '1.0.0',
+      description: 'Plugin',
+      category: 'plugin',
+      files: [{ src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' }],
+    };
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn(),
+    };
+    await expect(
+      installer.install(mockClient as never, pluginManifest, 'project', { pluginBundle: true }),
+    ).rejects.toThrow(/cannot install category "plugin"/);
+  });
+
+  it('rejects plugin-bundle for category reference', async () => {
+    const refManifest: ToolManifest = {
+      name: 'shared-ref',
+      version: '1.0.0',
+      description: 'Reference',
+      category: 'reference',
+      files: [{ src: 'notes.md', dest: 'notes.md' }],
+    };
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn(),
+    };
+    await expect(
+      installer.install(mockClient as never, refManifest, 'project', { pluginBundle: true }),
+    ).rejects.toThrow(/cannot install category "reference"/);
+  });
+
+  it('rejects plugin-bundle with user scope', async () => {
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn(),
+    };
+    await expect(
+      installer.install(mockClient as never, SKILL_MANIFEST, 'user', { pluginBundle: true }),
+    ).rejects.toThrow(/requires project scope/);
+  });
+
+  it('rejects combining cursor-plugin and plugin-bundle', async () => {
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn(),
+    };
+    await expect(
+      installer.install(mockClient as never, SKILL_MANIFEST, 'project', {
+        cursorPlugin: true,
+        pluginBundle: true,
+      }),
+    ).rejects.toThrow(/Cannot combine/);
+  });
+});

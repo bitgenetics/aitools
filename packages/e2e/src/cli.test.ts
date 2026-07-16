@@ -108,6 +108,42 @@ describe('aitools install', () => {
     expect(lock.tools).toHaveProperty(fixtureName);
   });
 
+  it('installs into plugin author layout with --plugin-bundle', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'aitools.config.json'),
+      JSON.stringify({
+        platform: 'cursor',
+        registries: [{ name: 'e2e-registry', url: REGISTRY_URL, priority: 1 }],
+      }),
+    );
+    run(`install ${fixtureName} --plugin-bundle --platform cursor`, tmpDir);
+
+    expect(fs.existsSync(path.join(tmpDir, 'skills', `${fixtureName}.md`))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.cursor', 'skills', `${fixtureName}.md`))).toBe(false);
+
+    const lock = JSON.parse(fs.readFileSync(path.join(tmpDir, 'aitools-lock.json'), 'utf8')) as {
+      tools: Record<string, { installMethod?: string }>;
+    };
+    expect(lock.tools[fixtureName]?.installMethod).toBe('plugin-bundle');
+
+    run(`uninstall ${fixtureName}`, tmpDir);
+    expect(fs.existsSync(path.join(tmpDir, 'skills', `${fixtureName}.md`))).toBe(false);
+  });
+
+  it('default install still uses platform skill dirs (not skills/)', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'aitools.config.json'),
+      JSON.stringify({
+        platform: 'cursor',
+        registries: [{ name: 'e2e-registry', url: REGISTRY_URL, priority: 1 }],
+      }),
+    );
+    run(`install ${fixtureName} --platform cursor`, tmpDir);
+
+    expect(fs.existsSync(path.join(tmpDir, '.cursor', 'skills', `${fixtureName}.md`))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'skills', `${fixtureName}.md`))).toBe(false);
+  });
+
   it('exits non-zero when the tool does not exist in the registry', () => {
     expect(() => {
       run(`install no-such-tool-zzz-xyzzy --scope project`, tmpDir);

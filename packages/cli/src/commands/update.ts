@@ -107,7 +107,8 @@ export function createUpdateCommand(): Command {
             const resolvedVersion = semver.maxSatisfying(versions, range) ?? 'latest';
             const toolManifest = await client.getManifest(name, resolvedVersion);
             const cursorPlugin = locked?.installMethod === 'cursor-plugin-local';
-            await installer.install(client, toolManifest, scope, { cursorPlugin });
+            const pluginBundle = locked?.installMethod === 'plugin-bundle';
+            await installer.install(client, toolManifest, scope, { cursorPlugin, pluginBundle });
             spinner.succeed(`${chalk.green(name)}@${toolManifest.version}`);
             success = true;
             updated++;

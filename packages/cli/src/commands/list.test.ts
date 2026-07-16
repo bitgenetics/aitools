@@ -104,6 +104,22 @@ describe('list command', () => {
     }
   });
 
+  it('shows [plugin-bundle] for plugin-bundle lock entries', () => {
+    writeLockFile(
+      tmp,
+      upsertLockEntry(emptyLock(), 'bundled-skill', makeLockEntry({ installMethod: 'plugin-bundle' })),
+    );
+    const spy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      createListCommand().parse([], { from: 'user' });
+      const output = spy.mock.calls.map((a) => String(a[0])).join('\n');
+      expect(output).toContain('bundled-skill');
+      expect(output).toContain('[plugin-bundle]');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('exits when --global conflicts with --scope project', () => {
     const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {

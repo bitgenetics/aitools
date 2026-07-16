@@ -354,6 +354,43 @@ describe('install command action', () => {
     exitSpy.mockRestore();
   });
 
+  it('exits when --plugin-bundle is combined with --global', async () => {
+    const exitSpy = mockExit();
+    await expect(
+      createInstallCommand().parseAsync(['test-skill', '--plugin-bundle', '--global'], { from: 'user' }),
+    ).rejects.toThrow('process.exit:1');
+    exitSpy.mockRestore();
+  });
+
+  it('exits when --plugin-bundle is combined with --cursor-plugin', async () => {
+    const exitSpy = mockExit();
+    await expect(
+      createInstallCommand().parseAsync(['test-skill', '--plugin-bundle', '--cursor-plugin'], {
+        from: 'user',
+      }),
+    ).rejects.toThrow('process.exit:1');
+    exitSpy.mockRestore();
+  });
+
+  it('installs with --plugin-bundle into skills/ author layout', async () => {
+    mockGetManifest.mockResolvedValue({
+      ...SKILL_MANIFEST,
+      files: [{ src: 'skill.md', dest: 'test-skill/skill.md' }],
+    });
+    mockDownload.mockResolvedValue({
+      data: Buffer.from(
+        JSON.stringify([{ path: 'skill.md', content: '# Test Skill' }]),
+        'utf8',
+      ),
+    });
+    await createInstallCommand().parseAsync(['test-skill', '--plugin-bundle', '--platform', 'cursor'], {
+      from: 'user',
+    });
+    expect(fs.existsSync(path.join(tmp, 'skills', 'test-skill', 'skill.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'skills', 'test-skill', 'skill.md'))).toBe(false);
+    expect(readLockFile(tmp).tools['test-skill']?.installMethod).toBe('plugin-bundle');
+  });
+
   it('installs a package and writes aitools.json', async () => {
     await createInstallCommand().parseAsync(['test-skill'], { from: 'user' });
     const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as { dependencies: Record<string, string> };

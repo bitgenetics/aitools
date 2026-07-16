@@ -35,6 +35,7 @@ interface InstallOptions {
   version?: string;
   platform?: string;
   cursorPlugin?: boolean;
+  pluginBundle?: boolean;
 }
 
 /**
@@ -57,6 +58,10 @@ export function createInstallCommand(): Command {
       '--cursor-plugin',
       'Install a Cursor plugin as an opaque tree under ~/.cursor/plugins/local/ (user scope; tracked in ~/.aitools)',
     )
+    .option(
+      '--plugin-bundle',
+      'Install into plugin author-layout roots (skills/, rules/, agents/, …) for distribution with a plugin',
+    )
     .action(async (pkg: string | undefined, options: InstallOptions) => {
       const cwd = process.cwd();
       const platformOverride = resolvePlatformOption(options.platform);
@@ -68,8 +73,18 @@ export function createInstallCommand(): Command {
         process.exit(1);
       }
 
+      if (options.cursorPlugin && options.pluginBundle) {
+        console.error(chalk.red('Cannot combine --cursor-plugin and --plugin-bundle.'));
+        process.exit(1);
+      }
+
       if (options.cursorPlugin && options.scope === 'project') {
         console.error(chalk.red('--cursor-plugin requires user scope (omit --scope project).'));
+        process.exit(1);
+      }
+
+      if (options.pluginBundle && (options.global || options.scope === 'user')) {
+        console.error(chalk.red('--plugin-bundle requires project scope (omit -g / --scope user).'));
         process.exit(1);
       }
 
@@ -128,6 +143,7 @@ async function installSingle(
   try {
     installed = await installer.install(client, manifest, scope, {
       cursorPlugin: options.cursorPlugin,
+      pluginBundle: options.pluginBundle,
     });
     spinner.succeed(
       `Installed ${chalk.green(installed.name)}@${installed.version} (${installed.files.length} file(s))`,
@@ -140,18 +156,23 @@ async function installSingle(
         chalk.dim('\n  Cursor local plugin installed. Reload Window (or restart Cursor) to load it.'),
       );
     }
+    if (options.pluginBundle) {
+      console.log(
+        chalk.dim('\n  Installed into plugin author layout. Run `aitools manifest files` to include paths in publish files[].'),
+      );
+    }
   } catch (err) {
     spinner.fail(`Installation failed: ${(err as Error).message}`);
     process.exit(1);
   }
 
-  if (configManager.getPlatform() === 'universal' && !options.cursorPlugin) {
+  if (configManager.getPlatform() === 'universal' && !options.cursorPlugin && !options.pluginBundle) {
     console.log(
       chalk.yellow('\n  Tip: no platform configured -- files were installed to .agents/') +
       chalk.dim('\n  Run: aitools config set platform vscode  (or claude|cursor|windsurf)') +
       chalk.dim('\n  Or pass: aitools install <package> --platform cursor'),
     );
-  } else if (configManager.detectedPlatform && !options.cursorPlugin) {
+  } else if (configManager.detectedPlatform && !options.cursorPlugin && !options.pluginBundle) {
     console.log(
       chalk.dim(`\n  Auto-detected platform: ${configManager.detectedPlatform}`) +
       chalk.dim(`\n  Pin it permanently: aitools config set platform ${configManager.detectedPlatform}`),
@@ -218,7 +239,8 @@ async function installAll(
         const resolvedVersion = semver.maxSatisfying(versions, range) ?? 'latest';
         const toolManifest = await client.getManifest(name, resolvedVersion);
         const cursorPlugin = locked?.installMethod === 'cursor-plugin-local';
-        await installer.install(client, toolManifest, scope, { cursorPlugin });
+        const pluginBundle = locked?.installMethod === 'plugin-bundle';
+        await installer.install(client, toolManifest, scope, { cursorPlugin, pluginBundle });
         spinner.succeed(`${chalk.green(name)}@${toolManifest.version}`);
         success = true;
         installed++;

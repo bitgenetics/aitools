@@ -75,8 +75,9 @@ export interface LockEntry {
    * How the package was installed.
    * - absent / undefined: explode or standard file/MCP/hook install
    * - cursor-plugin-local: opaque copy into ~/.cursor/plugins/local/
+   * - plugin-bundle: author-layout roots under project cwd (skills/, rules/, …)
    */
-  installMethod?: 'cursor-plugin-local';
+  installMethod?: 'cursor-plugin-local' | 'plugin-bundle';
 }
 
 /** Construct a lock entry from an InstalledTool record. */

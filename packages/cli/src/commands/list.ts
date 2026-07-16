@@ -66,7 +66,11 @@ export function createListCommand(): Command {
 
       for (const [name, entry] of tools) {
         const method =
-          entry.installMethod === 'cursor-plugin-local' ? '  [cursor-plugin]' : '';
+          entry.installMethod === 'cursor-plugin-local'
+            ? '  [cursor-plugin]'
+            : entry.installMethod === 'plugin-bundle'
+              ? '  [plugin-bundle]'
+              : '';
         console.log(`  ${chalk.green(name)}  ${chalk.dim(entry.version)}${chalk.dim(method)}`);
         console.log(`    ${chalk.dim(`installed: ${entry.installedAt.split('T')[0]}`)}`);
         console.log(`    ${chalk.dim(`files: ${entry.files.length}`)}`);

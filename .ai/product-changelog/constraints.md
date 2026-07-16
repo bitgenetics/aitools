@@ -151,6 +151,14 @@
 **Do not change**: Dual-writing explode + local without an explicit product decision.  
 **Key files**: `packages/core/src/manifest/plugin-explode.ts`, `packages/cli/src/utils/installer.ts`, `packages/e2e/src/plugin-install.test.ts`, `docs/design/plugin-marketplaces-comparison.md`
 
+---
+
+### Plugin-bundle install is project-scope author layout only — 2026-07-16
+**Constraint**: `--plugin-bundle` writes under cwd author roots only (project scope). It rejects user scope (`-g` / `--scope user`), `--cursor-plugin`, and packages with `category: plugin` or `category: reference`. Install method is persisted on the lock (`plugin-bundle`), not as rich dependency objects in `aitools.json` (v1). Does not auto-mutate the plugin package’s publish `files[]`.  
+**Reason**: Author layout is always repo-relative; nesting whole plugins or reference vendoring are separate workflows; surprising publish-set edits are out of scope for the installer.  
+**Do not change**: Do not allow user-scope plugin-bundle installs or dual-write platform + author layout for one lock entry.  
+**Key files**: `packages/cli/src/commands/install.ts`, `packages/core/src/manifest/plugin-bundle-install.ts`, `packages/e2e/src/cli.test.ts`
+
 ### User-scope tracking root — 2026-07-16 `ad7a20d`
 **Constraint**: Project-scope installs track in `{cwd}/aitools.json` + `aitools-lock.json`. User-scope (`-g` / `--scope user`) tracks in `~/.aitools/aitools.json` + `~/.aitools/aitools-lock.json`. Payload files still go to platform vendor user dirs (e.g. `~/.cursor/skills/`). Settings remain in `~/aitools.config.json` / `~/.aitools.config.json`.  
 **Reason**: User installs must not be coupled to whichever project directory happened to be cwd.  

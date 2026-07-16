@@ -163,6 +163,7 @@ export interface InstalledTool {
    * How the package was installed.
    * - absent: explode / standard file install
    * - cursor-plugin-local: opaque tree under ~/.cursor/plugins/local/
+   * - plugin-bundle: author-layout roots under project cwd (skills/, rules/, …)
    */
-  installMethod?: 'cursor-plugin-local';
+  installMethod?: 'cursor-plugin-local' | 'plugin-bundle';
 }
