@@ -14,7 +14,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import type { TargetPlatform } from '@bitgenetics/aitools-core';
 import type { TransformResult } from './types.js';
-import { annotate, mergeConfidence, nativeResult } from './types.js';
+import { mergeConfidence, nativeResult } from './types.js';
 
 /** Events with approximate cross-platform support. */
 export const PORTABLE_HOOK_EVENTS = new Set([
@@ -161,7 +161,7 @@ export function transformHook(
     input = extractHooks(content, from);
   } catch {
     return {
-      content,
+      content: '',
       confidence: 'unsupported',
       warnings: ['Invalid hook JSON'],
       skillPrompt: '/aitools-convert — fix malformed hook config',
@@ -193,8 +193,9 @@ export function transformHook(
   }
 
   if (Object.keys(output).length === 0) {
+    warnings.push('No portable hook events survived transformation');
     return {
-      content: annotate('{}', 'No portable hook events survived transformation'),
+      content: '',
       confidence: 'unsupported',
       warnings,
       skillPrompt: '/aitools-convert — no portable hooks remained after transformation',
@@ -227,7 +228,16 @@ export function mergeHookConfigs(
   };
 
   const existing = parseExisting();
-  const incoming = extractHooks(incomingContent, platform);
+  let incoming: HookConfig;
+  try {
+    incoming = extractHooks(incomingContent, platform);
+  } catch {
+    process.stderr.write('[aitools] Skipping invalid hook JSON\n');
+    if (existingContent) return existingContent.endsWith('\n') ? existingContent : `${existingContent}\n`;
+    return platform === 'claude'
+      ? JSON.stringify({ hooks: {} }, null, 2) + '\n'
+      : JSON.stringify({}, null, 2) + '\n';
+  }
 
   for (const [event, handlers] of Object.entries(incoming)) {
     if (!Array.isArray(handlers)) continue;
@@ -296,7 +306,13 @@ export function extractHooksAdded(
   incomingContent: string,
   platform: TargetPlatform,
 ): Record<string, unknown[]> {
-  const incoming = extractHooks(incomingContent, platform);
+  let incoming: HookConfig;
+  try {
+    incoming = extractHooks(incomingContent, platform);
+  } catch {
+    process.stderr.write('[aitools] Skipping invalid hook JSON\n');
+    return {};
+  }
   const out: Record<string, unknown[]> = {};
   for (const [event, handlers] of Object.entries(incoming)) {
     if (Array.isArray(handlers) && handlers.length > 0) {

@@ -45,6 +45,25 @@ export function annotate(content: string, note: string): string {
   return `# aitools: ${note}\n${content}`;
 }
 
+/**
+ * Prefix markdown transform output with an inline review marker when the
+ * result is lossy (medium/low + warnings). Never use for JSON hook/MCP content.
+ */
+export function annotateMarkdownIfLossy(result: TransformResult): TransformResult {
+  if (
+    (result.confidence !== 'medium' && result.confidence !== 'low') ||
+    result.warnings.length === 0 ||
+    !result.content.trim()
+  ) {
+    return result;
+  }
+  const note = result.warnings[0]!;
+  if (result.content.startsWith('# aitools:')) {
+    return result;
+  }
+  return { ...result, content: annotate(result.content, note) };
+}
+
 export function mergeConfidence(a: TransformConfidence, b: TransformConfidence): TransformConfidence {
   const order: TransformConfidence[] = ['native', 'high', 'medium', 'low', 'unsupported'];
   return order[Math.max(order.indexOf(a), order.indexOf(b))]!;

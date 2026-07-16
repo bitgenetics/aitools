@@ -26,10 +26,11 @@ Use this skill when \`aitools install\` or \`aitools_transform\` reports \`mediu
 ## Workflow
 
 1. Read the target file (often already written as a mechanical skeleton).
-2. Find inline \`# aitools:\` annotations marking lossy or unresolved sections.
-3. Apply semantic judgment to complete or correct the conversion for the active platform.
-4. Write the refined result in-place.
-5. Remove resolved \`# aitools:\` annotations when done.
+2. For **markdown** rule / command / agent files: find inline \`# aitools:\` annotations marking lossy or unresolved sections.
+3. For **hooks** (\`hooks.json\`, Claude \`settings.json\` hooks): there are **no** inline \`# aitools:\` markers — rely on install stderr warnings / \`skillPrompt\` instead. Invalid or non-portable hooks are skipped rather than written as annotated JSON.
+4. Apply semantic judgment to complete or correct the conversion for the active platform.
+5. Write the refined result in-place.
+6. Remove resolved \`# aitools:\` annotations from markdown when done.
 
 ## Mechanism equivalents
 

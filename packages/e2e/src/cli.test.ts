@@ -165,10 +165,37 @@ describe('aitools init', () => {
 
 describe('aitools list', () => {
   const fixtureName = 'cli-e2e-list-fixture';
+  const pluginName = 'cli-e2e-list-plugin';
+  const pluginVersion = '1.0.0';
   let tmpDir: string;
 
   beforeAll(async () => {
     await publishFixture(fixtureName, '1.0.0');
+    const res = await fetch(`${REGISTRY_URL}/api/tools`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        manifest: {
+          name: pluginName,
+          version: pluginVersion,
+          description: 'List e2e plugin',
+          category: 'plugin',
+          nativeFor: 'cursor',
+          author: 'e2e',
+          files: [
+            { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+            { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md' },
+          ],
+        },
+        files: {
+          '.cursor-plugin/plugin.json': JSON.stringify({ name: pluginName }),
+          'skills/x/SKILL.md': '# X\n',
+        },
+      }),
+    });
+    if (!res.ok && res.status !== 409) {
+      throw new Error(`Failed to publish list plugin: ${res.status} ${await res.text()}`);
+    }
   });
 
   beforeEach(() => {
@@ -203,6 +230,27 @@ describe('aitools list', () => {
     const out = run('list --json', tmpDir);
     const parsed = JSON.parse(out) as { tools: Record<string, unknown> };
     expect(parsed.tools).toHaveProperty(fixtureName);
+  });
+
+  it('lists user-scope tools with -g from ~/.aitools tracking', () => {
+    run(`install ${fixtureName} --global`, tmpDir);
+    expect(fs.existsSync(path.join(tmpDir, 'aitools-lock.json'))).toBe(false);
+    const out = run('list -g', tmpDir);
+    expect(out).toContain(fixtureName);
+  });
+
+  it('marks cursor-plugin installs with [cursor-plugin] on list -g', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'aitools.config.json'),
+      JSON.stringify({
+        platform: 'cursor',
+        registries: [{ name: 'e2e-registry', url: REGISTRY_URL, priority: 1 }],
+      }),
+    );
+    run(`install ${pluginName}@${pluginVersion} --cursor-plugin`, tmpDir);
+    const out = run('list -g', tmpDir);
+    expect(out).toContain(pluginName);
+    expect(out).toContain('[cursor-plugin]');
   });
 });
 
@@ -479,6 +527,22 @@ describe('aitools publish', () => {
     const manifest = await res.json() as { name: string; version: string };
     expect(manifest.name).toBe(toolName);
     expect(manifest.version).toBe('1.0.0');
+  });
+
+  it('rejects legacy aitools.manifest.json as the publish source', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'aitools.manifest.json'),
+      JSON.stringify({
+        name: 'cli-e2e-legacy-manifest',
+        version: '1.0.0',
+        description: 'legacy only',
+        category: 'skill',
+        files: [{ src: 'index.md', dest: 'legacy.md' }],
+      }),
+    );
+    fs.writeFileSync(path.join(tmpDir, 'index.md'), '# legacy');
+
+    expect(() => run(`publish --dry-run --registry ${REGISTRY_URL}`, tmpDir)).toThrow();
   });
 });
 

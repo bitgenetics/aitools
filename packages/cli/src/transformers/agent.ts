@@ -14,7 +14,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import type { TargetPlatform } from '@bitgenetics/aitools-core';
 import type { TransformResult } from './types.js';
-import { annotate, nativeResult, unsupportedCategory } from './types.js';
+import { annotateMarkdownIfLossy, nativeResult, unsupportedCategory } from './types.js';
 
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
 
@@ -63,7 +63,11 @@ export function transformAgent(
 
   const parsed = parseFrontmatter(content);
   if (!parsed) {
-    return { content, confidence: 'medium', warnings: ['No frontmatter to map between agent formats'] };
+    return annotateMarkdownIfLossy({
+      content,
+      confidence: 'medium',
+      warnings: ['No frontmatter to map between agent formats'],
+    });
   }
 
   const warnings: string[] = [];
@@ -84,5 +88,5 @@ export function transformAgent(
   let destExtension: string | undefined;
   if (to === 'vscode') destExtension = '.agent.md';
 
-  return { content: output, confidence, warnings, destExtension };
+  return annotateMarkdownIfLossy({ content: output, confidence, warnings, destExtension });
 }

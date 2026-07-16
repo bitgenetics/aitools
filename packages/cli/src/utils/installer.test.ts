@@ -1389,8 +1389,77 @@ describe('Installer.install (cross-platform transformation)', () => {
     expect(result.files).toHaveLength(2);
     expect(result.files.some((f) => f.endsWith('aitools.json'))).toBe(true);
     const written = fs.readFileSync(path.resolve(tmp, result.files[0]!), 'utf8');
-    expect(written).toBe('# Rule body');
+    expect(written).toContain('# aitools:');
+    expect(written).toContain('# Rule body');
     expect(result.fileResults[0]?.transform?.confidence).toBe('medium');
+  });
+
+  it('skips cursor-only plugin hooks when installing to claude without throwing', async () => {
+    const PLUGIN_MANIFEST: ToolManifest = {
+      name: 'cursor-hooks-plugin',
+      version: '1.0.0',
+      description: 'Plugin with cursor-only hooks',
+      category: 'plugin',
+      nativeFor: 'cursor',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md' },
+        { src: 'hooks/hooks.json', dest: 'hooks/hooks.json' },
+      ],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([
+        { path: '.cursor-plugin/plugin.json', content: '{}' },
+        { path: 'skills/x/SKILL.md', content: '# X' },
+        {
+          path: 'hooks/hooks.json',
+          content: JSON.stringify({
+            hooks: { afterFileEdit: [{ command: './scripts/fmt.sh' }] },
+          }),
+        },
+      ]),
+      'utf8',
+    );
+
+    const result = await installer.install(makeClient(tarball) as never, PLUGIN_MANIFEST, 'project');
+
+    expect(fs.existsSync(path.join(tmp, '.claude', 'skills', 'x', 'SKILL.md'))).toBe(true);
+    expect(result.fileResults.some((f) => f.skipped && f.transform?.confidence === 'unsupported')).toBe(
+      true,
+    );
+    const settingsPath = path.join(tmp, '.claude', 'settings.json');
+    if (fs.existsSync(settingsPath)) {
+      const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) as {
+        hooks?: Record<string, unknown>;
+      };
+      expect(settings.hooks?.['afterFileEdit']).toBeUndefined();
+    }
+  });
+
+  it('skips malformed same-platform hook package JSON without throwing', async () => {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'cursor' }),
+      'utf8',
+    );
+    installer = new Installer(new ConfigManager(tmp), tmp, new CacheManager(cacheTmp));
+
+    const HOOK_MANIFEST: ToolManifest = {
+      name: 'bad-hooks',
+      version: '1.0.0',
+      description: 'Malformed hooks',
+      category: 'hook',
+      nativeFor: 'cursor',
+      files: [{ src: 'hooks.json', dest: 'hooks.json' }],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([{ path: 'hooks.json', content: '{ not valid json' }]),
+      'utf8',
+    );
+
+    await expect(
+      installer.install(makeClient(tarball) as never, HOOK_MANIFEST, 'project'),
+    ).resolves.toBeDefined();
   });
 
   it('skips agent install on windsurf when transformation is unsupported', async () => {

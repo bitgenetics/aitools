@@ -70,6 +70,9 @@ export function isolatedEnv(): NodeJS.ProcessEnv {
     HOME: E2E_HOME,
     USERPROFILE: E2E_HOME,
     AITOOLS_CONFIG_ROOT: E2E_HOME,
+    // Pin Windows profile dirs so VS Code user MCP does not write to the real profile.
+    APPDATA: path.join(E2E_HOME, 'AppData', 'Roaming'),
+    LOCALAPPDATA: path.join(E2E_HOME, 'AppData', 'Local'),
   };
 }
 

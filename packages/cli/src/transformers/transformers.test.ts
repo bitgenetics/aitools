@@ -19,6 +19,7 @@ import {
   transformHook,
   mergeHookConfigs,
   unmergeHookConfigs,
+  extractHooksAdded,
   estimateCategoryConfidence,
   estimateHookConfidence,
 } from './hook.js';
@@ -42,6 +43,7 @@ describe('transformRule', () => {
     const result = transformRule(input, 'cursor', 'vscode');
     expect(result.confidence).toBe('medium');
     expect(result.warnings.length).toBeGreaterThan(0);
+    expect(result.content).toContain('# aitools:');
   });
 
   it('maps cursor alwaysApply to windsurf trigger always_on', () => {
@@ -60,7 +62,8 @@ describe('transformRule', () => {
     const input = `---\nglobs: src/**\n---\n# Rule body`;
     const result = transformRule(input, 'cursor', 'claude');
     expect(result.confidence).toBe('medium');
-    expect(result.content).toBe('# Rule body');
+    expect(result.content).toContain('# aitools:');
+    expect(result.content).toContain('# Rule body');
   });
 
   it('maps vscode applyTo to cursor globs', () => {
@@ -74,7 +77,8 @@ describe('transformRule', () => {
   it('strips frontmatter for vscode to claude', () => {
     const input = `---\napplyTo: src/**\n---\n# Rule body`;
     const result = transformRule(input, 'vscode', 'claude');
-    expect(result.content).toBe('# Rule body');
+    expect(result.content).toContain('# aitools:');
+    expect(result.content).toContain('# Rule body');
   });
 
   it('passes through unrecognized platform pairs', () => {
@@ -110,12 +114,14 @@ describe('transformCommand', () => {
     const result = transformCommand('# Cmd', 'cursor', 'vscode');
     expect(result.destExtension).toBe('.prompt.md');
     expect(result.confidence).toBe('medium');
+    expect(result.content).toContain('# aitools:');
   });
 
   it('adds description frontmatter for cursor to windsurf when missing', () => {
     const result = transformCommand('# Cmd', 'cursor', 'windsurf');
     expect(result.content).toContain('description: Command');
     expect(result.confidence).toBe('medium');
+    expect(result.content).toContain('# aitools:');
   });
 
   it('maps claude $ARGUMENTS to cursor $1', () => {
@@ -149,19 +155,22 @@ describe('transformAgent', () => {
     const result = transformAgent('Body only', 'cursor', 'claude');
     expect(result.confidence).toBe('medium');
     expect(result.warnings[0]).toContain('No frontmatter');
+    expect(result.content).toContain('# aitools:');
   });
 
   it('drops cursor-only fields when targeting claude', () => {
     const input = `---\nname: my-agent\nreadonly: true\nmodel: sonnet\n---\nBody`;
     const result = transformAgent(input, 'cursor', 'claude');
-    expect(result.content).not.toContain('readonly');
+    expect(result.content).not.toMatch(/^readonly:/m);
+    expect(result.content).not.toContain('\nreadonly:');
     expect(result.warnings.some((w) => w.includes('readonly'))).toBe(true);
+    expect(result.content).toContain('# aitools:');
   });
 
   it('drops claude-only fields when targeting cursor', () => {
     const input = `---\nname: my-agent\ntools: []\nmaxTurns: 3\n---\nBody`;
     const result = transformAgent(input, 'claude', 'cursor');
-    expect(result.content).not.toContain('maxTurns');
+    expect(result.content).not.toContain('\nmaxTurns:');
   });
 
   it('adds agent extension for vscode target', () => {
@@ -173,7 +182,7 @@ describe('transformAgent', () => {
   it('drops claude-only fields when targeting vscode', () => {
     const input = `---\nname: my-agent\nskills: []\n---\nBody`;
     const result = transformAgent(input, 'claude', 'vscode');
-    expect(result.content).not.toContain('skills:');
+    expect(result.content).not.toContain('\nskills:');
   });
 });
 
@@ -245,11 +254,15 @@ describe('transformHook', () => {
     });
     const result = transformHook(input, 'cursor', 'claude');
     expect(result.confidence).toBe('unsupported');
+    expect(result.content).toBe('');
+    expect(result.content).not.toContain('# aitools:');
+    expect(result.warnings).toContain('No portable hook events survived transformation');
   });
 
   it('returns unsupported for malformed hook JSON', () => {
     const result = transformHook('{ not json', 'cursor', 'vscode');
     expect(result.confidence).toBe('unsupported');
+    expect(result.content).toBe('');
     expect(result.warnings).toContain('Invalid hook JSON');
   });
 
@@ -398,6 +411,32 @@ describe('mergeHookConfigs', () => {
     const parsed = JSON.parse(merged) as Record<string, unknown[]>;
     expect(parsed.preToolUse).toBeUndefined();
     expect(parsed.sessionStart).toHaveLength(1);
+  });
+
+  it('skips invalid incoming hook JSON without throwing', () => {
+    const existing = JSON.stringify({
+      sessionStart: [{ type: 'command', command: 'echo start' }],
+    });
+    const merged = mergeHookConfigs(existing, '{ not json', 'cursor');
+    expect(JSON.parse(merged)).toEqual({
+      sessionStart: [{ type: 'command', command: 'echo start' }],
+    });
+  });
+});
+
+describe('extractHooksAdded', () => {
+  it('returns empty object for invalid hook JSON', () => {
+    expect(extractHooksAdded('{ not json', 'cursor')).toEqual({});
+  });
+
+  it('extracts non-empty event handlers', () => {
+    const incoming = JSON.stringify({
+      preToolUse: [{ type: 'command', command: 'x' }],
+      sessionStart: [],
+    });
+    expect(extractHooksAdded(incoming, 'cursor')).toEqual({
+      preToolUse: [{ type: 'command', command: 'x' }],
+    });
   });
 });
 

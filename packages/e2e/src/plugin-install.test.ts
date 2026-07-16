@@ -14,6 +14,9 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 /**
  * Plugin category install e2e — explode into platform paths, not opaque plugin roots.
+ *
+ * Changelog contracts: features → plugin category; constraints → plugin install dirs,
+ * user-scope tracking, platform user MCP paths.
  */
 
 import fs from 'node:fs';
@@ -21,43 +24,110 @@ import path from 'node:path';
 import { E2E_HOME, REGISTRY_URL, makeE2eProjectDir, rmTmpDir, run } from './test-env.js';
 
 const PLUGIN_NAME = 'e2e-test-plugin';
-const PLUGIN_VERSION = '1.1.0';
+const PLUGIN_VERSION = '1.2.0';
+const MCP_PATH_PLUGIN = 'e2e-mcp-path-plugin';
+const MCP_PATH_VERSION = '1.0.0';
+const MCP_SERVER_KEY = 'plugin-db';
 
-beforeAll(async () => {
-  const manifest = {
-    name: PLUGIN_NAME,
-    version: PLUGIN_VERSION,
-    description: 'E2E plugin fixture',
-    category: 'plugin',
-    nativeFor: 'cursor',
-    author: 'e2e',
-    files: [
-      { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
-      { src: 'skills/review/SKILL.md', dest: 'skills/review/SKILL.md' },
-      { src: 'rules/style.mdc', dest: 'rules/style.mdc' },
-      { src: 'scripts/fmt.sh', dest: 'scripts/fmt.sh' },
-      { src: 'hooks/hooks.json', dest: 'hooks/hooks.json' },
-    ],
-  };
-  const fileContents = {
-    '.cursor-plugin/plugin.json': JSON.stringify({ name: PLUGIN_NAME }),
-    'skills/review/SKILL.md': '# Review\nE2E plugin skill.',
-    'rules/style.mdc': '---\ndescription: style\nalwaysApply: true\n---\nBe tidy.\n',
-    'scripts/fmt.sh': '#!/bin/sh\necho fmt\n',
-    'hooks/hooks.json': JSON.stringify({
-      hooks: { afterFileEdit: [{ command: './scripts/fmt.sh' }] },
+/** VS Code user MCP under isolated E2E_HOME (matches resolveVsCodeUserMcpConfig + pinned APPDATA). */
+function e2eVsCodeUserMcpPath(): string {
+  if (process.platform === 'win32') {
+    return path.join(E2E_HOME, 'AppData', 'Roaming', 'Code', 'User', 'mcp.json');
+  }
+  if (process.platform === 'darwin') {
+    return path.join(E2E_HOME, 'Library', 'Application Support', 'Code', 'User', 'mcp.json');
+  }
+  return path.join(E2E_HOME, '.config', 'Code', 'User', 'mcp.json');
+}
+
+function writeProjectConfig(tmpDir: string, platform: string): void {
+  fs.writeFileSync(
+    path.join(tmpDir, 'aitools.config.json'),
+    JSON.stringify({
+      platform,
+      registries: [{ name: 'e2e', url: REGISTRY_URL, priority: 1 }],
     }),
-  };
+  );
+}
 
+function readMcpServers(mcpPath: string): Record<string, unknown> {
+  const raw = JSON.parse(fs.readFileSync(mcpPath, 'utf8')) as Record<string, unknown>;
+  return (
+    (raw['servers'] as Record<string, unknown> | undefined) ??
+    (raw['mcpServers'] as Record<string, unknown> | undefined) ??
+    {}
+  );
+}
+
+async function publishPlugin(
+  manifest: Record<string, unknown>,
+  files: Record<string, string>,
+): Promise<void> {
   const res = await fetch(`${REGISTRY_URL}/api/tools`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ manifest, files: fileContents }),
+    body: JSON.stringify({ manifest, files }),
   });
-
   if (!res.ok && res.status !== 409) {
-    throw new Error(`Failed to publish plugin: ${res.status} ${await res.text()}`);
+    throw new Error(`Failed to publish ${String(manifest['name'])}: ${res.status} ${await res.text()}`);
   }
+}
+
+beforeAll(async () => {
+  await publishPlugin(
+    {
+      name: PLUGIN_NAME,
+      version: PLUGIN_VERSION,
+      description: 'E2E plugin fixture',
+      category: 'plugin',
+      nativeFor: 'cursor',
+      author: 'e2e',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'skills/review/SKILL.md', dest: 'skills/review/SKILL.md' },
+        { src: 'rules/style.mdc', dest: 'rules/style.mdc' },
+        { src: 'scripts/fmt.sh', dest: 'scripts/fmt.sh' },
+        { src: 'hooks/hooks.json', dest: 'hooks/hooks.json' },
+        { src: 'mcp.json', dest: 'mcp.json' },
+      ],
+    },
+    {
+      '.cursor-plugin/plugin.json': JSON.stringify({ name: PLUGIN_NAME }),
+      'skills/review/SKILL.md': '# Review\nE2E plugin skill.',
+      'rules/style.mdc': '---\ndescription: style\nalwaysApply: true\n---\nBe tidy.\n',
+      'scripts/fmt.sh': '#!/bin/sh\necho fmt\n',
+      'hooks/hooks.json': JSON.stringify({
+        hooks: { afterFileEdit: [{ command: './scripts/fmt.sh' }] },
+      }),
+      'mcp.json': JSON.stringify({
+        mcpServers: { [MCP_SERVER_KEY]: { command: 'npx', args: ['-y', 'server'] } },
+      }),
+    },
+  );
+
+  // Lean universal plugin for cross-platform user MCP path tests (no hooks/rules → no transform annotations).
+  await publishPlugin(
+    {
+      name: MCP_PATH_PLUGIN,
+      version: MCP_PATH_VERSION,
+      description: 'E2E MCP path fixture',
+      category: 'plugin',
+      nativeFor: 'universal',
+      author: 'e2e',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'skills/mcp-skill/SKILL.md', dest: 'skills/mcp-skill/SKILL.md' },
+        { src: 'mcp.json', dest: 'mcp.json' },
+      ],
+    },
+    {
+      '.cursor-plugin/plugin.json': JSON.stringify({ name: MCP_PATH_PLUGIN }),
+      'skills/mcp-skill/SKILL.md': '# MCP skill\n',
+      'mcp.json': JSON.stringify({
+        mcpServers: { [MCP_SERVER_KEY]: { command: 'npx', args: ['-y', 'server'] } },
+      }),
+    },
+  );
 });
 
 describe('plugin explode install', () => {
@@ -65,13 +135,7 @@ describe('plugin explode install', () => {
 
   beforeEach(() => {
     tmpDir = makeE2eProjectDir('aitools-plugin-e2e-');
-    fs.writeFileSync(
-      path.join(tmpDir, 'aitools.config.json'),
-      JSON.stringify({
-        platform: 'cursor',
-        registries: [{ name: 'e2e', url: REGISTRY_URL, priority: 1 }],
-      }),
-    );
+    writeProjectConfig(tmpDir, 'cursor');
   });
 
   afterEach(() => {
@@ -106,6 +170,36 @@ describe('plugin explode install', () => {
     expect(fs.existsSync(path.join(tmpDir, '.cursor', 'skills', PLUGIN_NAME))).toBe(false);
   });
 
+  it('merges plugin MCP into project mcp.json and records mcpKeys', () => {
+    const mcpPath = path.join(tmpDir, '.cursor', 'mcp.json');
+    fs.mkdirSync(path.dirname(mcpPath), { recursive: true });
+    fs.writeFileSync(mcpPath, JSON.stringify({ servers: { keep: { command: 'node' } } }));
+
+    run(`install ${PLUGIN_NAME}@${PLUGIN_VERSION} --scope project`, tmpDir);
+
+    const lock = JSON.parse(fs.readFileSync(path.join(tmpDir, 'aitools-lock.json'), 'utf8')) as {
+      tools: Record<string, { mcpKeys?: string[] }>;
+    };
+    expect(lock.tools[PLUGIN_NAME]?.mcpKeys).toEqual([MCP_SERVER_KEY]);
+
+    const servers = readMcpServers(mcpPath);
+    expect(servers['keep']).toBeDefined();
+    expect(servers[MCP_SERVER_KEY]).toBeDefined();
+  });
+
+  it('uninstall removes merged MCP keys and keeps unrelated entries', () => {
+    const mcpPath = path.join(tmpDir, '.cursor', 'mcp.json');
+    fs.mkdirSync(path.dirname(mcpPath), { recursive: true });
+    fs.writeFileSync(mcpPath, JSON.stringify({ servers: { keep: { command: 'node' } } }));
+
+    run(`install ${PLUGIN_NAME}@${PLUGIN_VERSION} --scope project`, tmpDir);
+    run(`uninstall ${PLUGIN_NAME}`, tmpDir);
+
+    const servers = readMcpServers(mcpPath);
+    expect(servers[MCP_SERVER_KEY]).toBeUndefined();
+    expect(servers['keep']).toBeDefined();
+  });
+
   it('installs to user skill roots with --global under ~/.aitools tracking', () => {
     run(`install ${PLUGIN_NAME}@${PLUGIN_VERSION} --global`, tmpDir);
 
@@ -128,6 +222,61 @@ describe('plugin explode install', () => {
     expect(fs.existsSync(homeSkills)).toBe(false);
   });
 
+  it('merges user-scope MCP into ~/.claude.json for platform claude', () => {
+    writeProjectConfig(tmpDir, 'claude');
+    const claudeMcp = path.join(E2E_HOME, '.claude.json');
+    fs.writeFileSync(claudeMcp, JSON.stringify({ mcpServers: { keep: { command: 'node' } } }));
+
+    run(`install ${MCP_PATH_PLUGIN}@${MCP_PATH_VERSION} --global`, tmpDir);
+
+    expect(fs.existsSync(path.join(E2E_HOME, '.claude', 'mcp.json'))).toBe(false);
+    const servers = readMcpServers(claudeMcp);
+    expect(servers['keep']).toBeDefined();
+    expect(servers[MCP_SERVER_KEY]).toBeDefined();
+
+    const userLock = JSON.parse(
+      fs.readFileSync(path.join(E2E_HOME, '.aitools', 'aitools-lock.json'), 'utf8'),
+    ) as { tools: Record<string, { mcpKeys?: string[] }> };
+    expect(userLock.tools[MCP_PATH_PLUGIN]?.mcpKeys).toEqual([MCP_SERVER_KEY]);
+
+    run(`uninstall ${MCP_PATH_PLUGIN} -g`, tmpDir);
+    const after = readMcpServers(claudeMcp);
+    expect(after[MCP_SERVER_KEY]).toBeUndefined();
+    expect(after['keep']).toBeDefined();
+  });
+
+  it('merges user-scope MCP into VS Code profile mcp.json', () => {
+    writeProjectConfig(tmpDir, 'vscode');
+    const vscodeMcp = e2eVsCodeUserMcpPath();
+    fs.mkdirSync(path.dirname(vscodeMcp), { recursive: true });
+    fs.writeFileSync(vscodeMcp, JSON.stringify({ servers: { keep: { command: 'node' } } }));
+
+    run(`install ${MCP_PATH_PLUGIN}@${MCP_PATH_VERSION} --global`, tmpDir);
+
+    const servers = readMcpServers(vscodeMcp);
+    expect(servers['keep']).toBeDefined();
+    expect(servers[MCP_SERVER_KEY]).toBeDefined();
+
+    run(`uninstall ${MCP_PATH_PLUGIN} -g`, tmpDir);
+    const after = readMcpServers(vscodeMcp);
+    expect(after[MCP_SERVER_KEY]).toBeUndefined();
+    expect(after['keep']).toBeDefined();
+  });
+
+  it('installs full cursor plugin with hooks to claude user scope without throwing', () => {
+    writeProjectConfig(tmpDir, 'claude');
+    run(`install ${PLUGIN_NAME}@${PLUGIN_VERSION} --global`, tmpDir);
+
+    expect(fs.existsSync(path.join(E2E_HOME, '.claude', 'skills', 'review', 'SKILL.md'))).toBe(true);
+    const userLock = JSON.parse(
+      fs.readFileSync(path.join(E2E_HOME, '.aitools', 'aitools-lock.json'), 'utf8'),
+    ) as { tools: Record<string, { scope?: string }> };
+    expect(userLock.tools[PLUGIN_NAME]?.scope).toBe('user');
+
+    run(`uninstall ${PLUGIN_NAME} -g`, tmpDir);
+    expect(fs.existsSync(path.join(E2E_HOME, '.claude', 'skills', 'review', 'SKILL.md'))).toBe(false);
+  });
+
   it('installs opaque tree with --cursor-plugin under plugins/local', () => {
     run(`install ${PLUGIN_NAME}@${PLUGIN_VERSION} --cursor-plugin`, tmpDir);
 
@@ -144,5 +293,11 @@ describe('plugin explode install', () => {
 
     run(`uninstall ${PLUGIN_NAME} --cursor-plugin`, tmpDir);
     expect(fs.existsSync(localRoot)).toBe(false);
+  });
+
+  it('rejects --cursor-plugin with --scope project', () => {
+    expect(() =>
+      run(`install ${PLUGIN_NAME}@${PLUGIN_VERSION} --cursor-plugin --scope project`, tmpDir),
+    ).toThrow();
   });
 });

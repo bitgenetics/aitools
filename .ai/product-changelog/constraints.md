@@ -95,11 +95,12 @@
 
 ---
 
-### Cross-platform transforms are mechanical, not semantic — 2026-06-27 `6eba41d`
+### Cross-platform transforms are mechanical, not semantic — 2026-06-27 `6eba41d` (updated hook/markdown annotate)
 **Constraint**: Install-time transforms produce best-effort skeletons. `low`/`unsupported` confidence may skip writes or emit advisories; full conversion requires the bundled `aitools-convert` skill or manual edit. HTTP/MCP hook types may be dropped when the target platform has no equivalent.  
-**Reason**: Reliable regex/JSON rewriting cannot capture all platform semantics; confidence scoring sets user expectations.  
-**Do not change**: Skipping empty post-transform content — writing broken hooks/rules is worse than skipping with a clear message.  
-**Key files**: `packages/cli/src/transformers/`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/bundled/aitools-convert.ts`
+**Markdown vs JSON**: `# aitools:` inline annotations are for **markdown** rule/command/agent skeletons only (lossy `medium`/`low`). Hook/MCP JSON is never annotated — empty portable or invalid hook content skips merge; invalid incoming soft-fails with stderr.  
+**Reason**: Reliable regex/JSON rewriting cannot capture all platform semantics; confidence scoring sets user expectations. Annotated JSON breaks `JSON.parse` during install.  
+**Do not change**: Skipping empty post-transform hook content; writing broken hooks/rules is worse than skipping with a clear message. Do not annotate JSON configs.  
+**Key files**: `packages/cli/src/transformers/`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/bundled/aitools-convert.ts`, `packages/e2e/src/plugin-install.test.ts`
 
 ---
 
@@ -131,7 +132,7 @@
 **Constraint**: `resolvePublishSource` only accepts unified `aitools.json`. Passing or discovering `aitools.manifest.json` throws and directs users to `aitools manifest migrate`.  
 **Reason**: Dual publish-manifest formats increased bugs and test surface; unified doc is the single authoring path.  
 **Do not change**: Do not reintroduce silent fallback to the legacy filename.  
-**Key files**: `packages/core/src/manifest/manifest-file.ts`, `packages/cli/src/commands/publish.ts`
+**Key files**: `packages/core/src/manifest/manifest-file.ts`, `packages/cli/src/commands/publish.ts`, `packages/e2e/src/cli.test.ts`
 
 ---
 
@@ -162,4 +163,4 @@
 **Constraint**: Claude user MCP merges into `~/.claude.json` (not `~/.claude/mcp.json`). VS Code user MCP uses the profile path via `resolveVsCodeUserMcpConfig()` (e.g. `%APPDATA%/Code/User/mcp.json` on Windows). VS Code user prompts remain `~/.copilot/prompts` (Copilot-aligned convention; not VS Code profile prompts).  
 **Reason**: Align explode/user-scope MCP with official vendor locations.  
 **Do not change**: Do not reintroduce `~/.claude/mcp.json` or `~/.vscode/mcp.json` as the Claude/VS Code *user* MCP target.  
-**Key files**: `packages/core/src/platforms/claude.ts`, `packages/cli/src/adapters/vscode.ts`, `packages/cli/src/commands/mcp.ts`
+**Key files**: `packages/core/src/platforms/claude.ts`, `packages/cli/src/adapters/vscode.ts`, `packages/cli/src/commands/mcp.ts`, `packages/e2e/src/plugin-install.test.ts`, `packages/e2e/src/test-env.ts` (pins `APPDATA` under `E2E_HOME`)

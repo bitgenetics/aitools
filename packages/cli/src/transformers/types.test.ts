@@ -14,6 +14,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import {
   annotate,
+  annotateMarkdownIfLossy,
   buildSkillPrompt,
   mergeConfidence,
   nativeResult,
@@ -30,6 +31,24 @@ describe('transformer types helpers', () => {
 
   it('annotate prefixes content with an aitools marker', () => {
     expect(annotate('body', 'lossy section')).toBe('# aitools: lossy section\nbody');
+  });
+
+  it('annotateMarkdownIfLossy prefixes medium results that have warnings', () => {
+    const result = annotateMarkdownIfLossy({
+      content: 'body',
+      confidence: 'medium',
+      warnings: ['lossy note'],
+    });
+    expect(result.content).toBe('# aitools: lossy note\nbody');
+  });
+
+  it('annotateMarkdownIfLossy leaves high confidence unchanged', () => {
+    const result = annotateMarkdownIfLossy({
+      content: 'body',
+      confidence: 'high',
+      warnings: ['ignored'],
+    });
+    expect(result.content).toBe('body');
   });
 
   it('mergeConfidence returns the lower confidence level', () => {

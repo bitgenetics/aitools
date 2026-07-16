@@ -14,7 +14,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import type { TargetPlatform } from '@bitgenetics/aitools-core';
 import type { TransformResult } from './types.js';
-import { annotate, nativeResult, passthrough } from './types.js';
+import { annotateMarkdownIfLossy, nativeResult, passthrough } from './types.js';
 
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
 
@@ -59,10 +59,11 @@ export function transformCommand(
     output = content.replace(/\$ARGUMENTS/g, '$1');
   } else if (to === 'vscode' && !content.endsWith('.prompt.md')) {
     destExtension = '.prompt.md';
+    warnings.push('VS Code command files use .prompt.md extension');
     confidence = 'medium';
   } else {
     return passthrough(content);
   }
 
-  return { content: output, confidence, warnings, destExtension };
+  return annotateMarkdownIfLossy({ content: output, confidence, warnings, destExtension });
 }

@@ -90,7 +90,7 @@
 
 ### list — 2026-04-26 `d0b6f60` (updated `ad7a20d`)
 **What**: `aitools list [-g|--scope project|user] [--json]` reads the scope’s lock and prints installed tools (version, install date, optional `[cursor-plugin]` marker).  
-**Key files**: `packages/cli/src/commands/list.ts`, `packages/e2e/src/config-layers.test.ts`
+**Key files**: `packages/cli/src/commands/list.ts`, `packages/e2e/src/config-layers.test.ts`, `packages/e2e/src/cli.test.ts`
 
 ---
 

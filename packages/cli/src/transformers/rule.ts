@@ -14,7 +14,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import type { TargetPlatform } from '@bitgenetics/aitools-core';
 import type { TransformResult } from './types.js';
-import { annotate, mergeConfidence, nativeResult, passthrough } from './types.js';
+import { annotateMarkdownIfLossy, nativeResult, passthrough } from './types.js';
 
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
 
@@ -94,12 +94,12 @@ export function transformRule(
     destExtension = '.md';
   } else if (from === 'cursor' && to === 'claude') {
     warnings.push('Claude rules are plain markdown — frontmatter scoping is lost');
-    return {
+    return annotateMarkdownIfLossy({
       content: body.trimStart(),
       confidence: 'medium',
       warnings,
       destExtension: '.md',
-    };
+    });
   } else if (from === 'vscode' && to === 'cursor') {
     if (fields.has('applyTo')) {
       fields.set('globs', fields.get('applyTo') as string);
@@ -109,12 +109,12 @@ export function transformRule(
     destExtension = '.mdc';
   } else if (to === 'claude') {
     warnings.push('Stripped frontmatter for Claude plain-markdown rules');
-    return {
+    return annotateMarkdownIfLossy({
       content: body.trimStart(),
       confidence: 'medium',
       warnings,
       destExtension: '.md',
-    };
+    });
   } else {
     return passthrough(content);
   }
@@ -123,7 +123,7 @@ export function transformRule(
     ? serializeFrontmatter(fields) + body
     : body;
 
-  return { content: output, confidence, warnings, destExtension };
+  return annotateMarkdownIfLossy({ content: output, confidence, warnings, destExtension });
 }
 
 export function applyRuleExtension(filename: string, to: TargetPlatform): string | undefined {
