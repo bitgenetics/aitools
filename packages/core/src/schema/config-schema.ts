@@ -164,6 +164,7 @@ export const LockEntrySchema = z.object({
   hooksAdded: z.record(z.array(z.unknown())).optional(),
   hooksConfig: z.string().optional(),
   references: z.record(ReferenceLockEntrySchema).optional(),
+  installMethod: z.literal('cursor-plugin-local').optional(),
 });
 
 export const AiToolsLockSchema = z.object({

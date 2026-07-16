@@ -4,10 +4,10 @@
 
 ---
 
-### install / uninstall / update — 2026-04-26 `d0b6f60` (updated `e0a753f`)
-**What**: Full package lifecycle. `aitools install <name[@version]>` downloads from the highest-priority registry that has the package, extracts to cache, copies files to the platform-specific install path, and records the result in `aitools-lock.json`. Default install scope is **project**; `-g`/`--global` (or `--scope user`) installs to user paths. `uninstall` removes files and the lock entry. `update` re-fetches latest (or a specified version).  
-**Key APIs**: `Installer.install(client, manifest, scope)`, `Installer.uninstall(name, cwd)`, `CacheManager.get/set`  
-**Key files**: `packages/cli/src/commands/install.ts`, `packages/cli/src/commands/uninstall.ts`, `packages/cli/src/commands/update.ts`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/utils/cache-manager.ts`
+### install / uninstall / update — 2026-04-26 `d0b6f60` (updated 2026-07-16)
+**What**: Full package lifecycle. `aitools install <name[@version]>` downloads from the highest-priority registry that has the package, extracts to cache, copies files to the platform-specific install path, and records the result in the scope’s lock file. Default install scope is **project** (`./aitools.json` + `./aitools-lock.json`); `-g`/`--global` (or `--scope user`) installs to platform user paths and tracks under `~/.aitools/`. `uninstall` / `list` / `update` accept `-g` / `--scope` to target the matching tracking root.  
+**Key APIs**: `Installer.install(client, manifest, scope, options?)`, `Installer.uninstall(name, scope)`, `trackingRoot()`, `CacheManager.get/set`  
+**Key files**: `packages/cli/src/commands/install.ts`, `packages/cli/src/commands/uninstall.ts`, `packages/cli/src/commands/update.ts`, `packages/cli/src/utils/installer.ts`, `packages/core/src/paths/tracking-root.ts`
 
 ---
 
@@ -23,10 +23,10 @@
 
 ---
 
-### plugin category — 2026-06-28 (updated explode install 2026-07-14)
-**What**: `category: plugin` for multi-file plugin bundles. `manifest init --category plugin --nativeFor cursor` walks the tree. **Install explodes** members into normal platform paths (skills/rules/commands/agents + MCP/hooks merge) for project or user scope; lock tracks `files`, `mcpKeys`, and `hooksAdded` for clean uninstall. Plugin-level `scripts/`/`assets/` land under a synthetic skill package (`skills/<sanitized-pkg>/…`). Structure validation requires every `files[]` entry to have an install home. Relative paths rewritten via transformer path map. Never writes whole packages to `.cursor/plugins/local/`.  
-**Key APIs**: `classifyPluginMembers()`, `validatePluginStructure()`, `rewriteRelativePaths()`, `Installer.installPlugin()`, `unmergeHookConfigs()`  
-**Key files**: `packages/core/src/manifest/plugin-explode.ts`, `packages/cli/src/transformers/path-rewrite.ts`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/commands/manifest.ts`  
+### plugin category — 2026-06-28 (updated explode 2026-07-14; `--cursor-plugin` 2026-07-16)
+**What**: `category: plugin` for multi-file plugin bundles. **Default install explodes** members into normal platform paths (skills/rules/commands/agents + MCP/hooks merge) for project or user scope. **`aitools install <pkg> --cursor-plugin`** copies an opaque tree to `~/.cursor/plugins/local/<name>/` (always user scope; `installMethod: cursor-plugin-local` in `~/.aitools` lock). Plugin-level `scripts/`/`assets/` land under a synthetic skill package on explode. Structure validation requires every `files[]` entry to have an install home.  
+**Key APIs**: `classifyPluginMembers()`, `Installer.installPlugin()`, `Installer.installCursorPluginLocal()`, `resolveCursorLocalPluginDir()`  
+**Key files**: `packages/core/src/manifest/plugin-explode.ts`, `packages/cli/src/utils/installer.ts`  
 **Design doc**: `docs/design/plugin-marketplaces-comparison.md`
 
 ---
@@ -149,9 +149,9 @@
 
 ---
 
-### E2E config layer contract — 2026-06-28 `e0a753f`
-**What**: `packages/e2e/src/config-layers.test.ts` (17 tests) is the canonical e2e spec for settings write targets, cascade read merge, and install scope defaults. Uses `E2E_USER_CONFIG` + `clearE2eUserConfig()` so user config does not leak between tests.  
-**Key files**: `packages/e2e/src/config-layers.test.ts`, `packages/e2e/src/test-env.ts`, `AGENTS.md`
+### E2E config layer contract — 2026-06-28 `e0a753f` (updated 2026-07-16)
+**What**: `packages/e2e/src/config-layers.test.ts` is the executable e2e for settings write targets, cascade read merge, and install scope (including user tracking under `~/.aitools/`). Product expectations for that model live in this changelog; e2e implements them.  
+**Key files**: `packages/e2e/src/config-layers.test.ts`, `packages/e2e/src/test-env.ts`, `AGENTS.md`, `.agents/skills/project-changelog/SKILL.md`
 
 ---
 

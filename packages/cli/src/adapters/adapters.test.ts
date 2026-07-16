@@ -18,7 +18,7 @@ import { ClaudeAdapter } from './claude.js';
 import { CursorAdapter } from './cursor.js';
 import { WindsurfAdapter } from './windsurf.js';
 import { UniversalAdapter } from './universal.js';
-import { VsCodeAdapter } from './vscode.js';
+import { VsCodeAdapter, resolveVsCodeUserMcpConfig } from './vscode.js';
 import { getAdapter } from './index.js';
 import { resolveFileCategory } from './types.js';
 
@@ -53,7 +53,7 @@ describe('ClaudeAdapter', () => {
   });
 
   it('returns user-scope mcp config path', () => {
-    expect(adapter.resolveMcpConfig('user', CWD)).toBe(path.join(HOME, '.claude', 'mcp.json'));
+    expect(adapter.resolveMcpConfig('user', CWD)).toBe(path.join(HOME, '.claude.json'));
   });
 
   it('returns project-scope mcp config path', () => {
@@ -78,6 +78,12 @@ describe('CursorAdapter', () => {
 
   it('returns user-scope hooks config', () => {
     expect(adapter.resolveHooksConfig('user', CWD)).toBe(path.join(HOME, '.cursor', 'hooks.json'));
+  });
+
+  it('returns user-scope skill, command, and agent paths', () => {
+    expect(adapter.resolveDir('skill', 'user', CWD)).toBe(path.join(HOME, '.cursor', 'skills'));
+    expect(adapter.resolveDir('command', 'user', CWD)).toBe(path.join(HOME, '.cursor', 'commands'));
+    expect(adapter.resolveDir('agent', 'user', CWD)).toBe(path.join(HOME, '.cursor', 'agents'));
   });
 
   it('returns user-scope rule path', () => {
@@ -156,7 +162,38 @@ describe('VsCodeAdapter', () => {
   });
 
   it('returns user-scope mcp config path', () => {
-    expect(adapter.resolveMcpConfig('user', CWD)).toBe(path.join(HOME, '.vscode', 'mcp.json'));
+    expect(adapter.resolveMcpConfig('user', CWD)).toBe(resolveVsCodeUserMcpConfig());
+  });
+
+  it('resolveVsCodeUserMcpConfig uses platform profile paths', () => {
+    const home = path.join(path.sep, 'Users', 'dev');
+    const originalPlatform = process.platform;
+    const originalAppData = process.env.APPDATA;
+    try {
+      Object.defineProperty(process, 'platform', { value: 'darwin' });
+      expect(resolveVsCodeUserMcpConfig(home)).toBe(
+        path.join(home, 'Library', 'Application Support', 'Code', 'User', 'mcp.json'),
+      );
+      Object.defineProperty(process, 'platform', { value: 'linux' });
+      expect(resolveVsCodeUserMcpConfig(home)).toBe(
+        path.join(home, '.config', 'Code', 'User', 'mcp.json'),
+      );
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+      delete process.env.APPDATA;
+      expect(resolveVsCodeUserMcpConfig(home)).toBe(
+        path.join(home, 'AppData', 'Roaming', 'Code', 'User', 'mcp.json'),
+      );
+    } finally {
+      Object.defineProperty(process, 'platform', { value: originalPlatform });
+      if (originalAppData === undefined) delete process.env.APPDATA;
+      else process.env.APPDATA = originalAppData;
+    }
+  });
+
+  it('returns user-scope skill and agent paths under ~/.copilot', () => {
+    expect(adapter.resolveDir('skill', 'user', CWD)).toBe(path.join(HOME, '.copilot', 'skills'));
+    expect(adapter.resolveDir('agent', 'user', CWD)).toBe(path.join(HOME, '.copilot', 'agents'));
+    expect(adapter.resolveDir('command', 'user', CWD)).toBe(path.join(HOME, '.copilot', 'prompts'));
   });
 
   it('returns project-scope mcp config path', () => {

@@ -38,7 +38,7 @@ export const claudeSpec: PlatformSpec = {
     agent:      { project: '.claude/agents',   user: '~/.claude/agents' },
     prompt:     { project: '.claude/commands', user: '~/.claude/commands' },
     subagent:   { project: '.claude/agents',   user: '~/.claude/agents' },
-    mcpConfig:  { project: '.mcp.json',        user: '~/.claude/mcp.json' },
+    mcpConfig:  { project: '.mcp.json',        user: '~/.claude.json' },
     hookConfig: { project: '.claude/settings.json', user: '~/.claude/settings.json' },
   },
 };

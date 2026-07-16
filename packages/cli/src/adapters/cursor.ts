@@ -32,25 +32,29 @@ import type { InstallScope, FileCategory } from '@bitgenetics/aitools-core';
 export class CursorAdapter implements PlatformAdapter {
   readonly platform = 'cursor' as const;
 
-  private readonly DIRS: Record<InstallScope, Record<FileCategory, string>> = {
-    project: {
-      skill:   path.join('.cursor', 'skills'),
-      rule:    path.join('.cursor', 'rules'),
-      command: path.join('.cursor', 'commands'),
-      agent:   path.join('.cursor', 'agents'),
-    },
-    user: {
-      skill:   path.join(os.homedir(), '.cursor', 'skills'),
-      rule:    path.join(os.homedir(), '.cursor', 'rules'),
-      command: path.join(os.homedir(), '.cursor', 'commands'),
-      agent:   path.join(os.homedir(), '.cursor', 'agents'),
-    },
+  private projectDirs: Record<FileCategory, string> = {
+    skill:   path.join('.cursor', 'skills'),
+    rule:    path.join('.cursor', 'rules'),
+    command: path.join('.cursor', 'commands'),
+    agent:   path.join('.cursor', 'agents'),
   };
+
+  private userDirs(): Record<FileCategory, string> {
+    const home = os.homedir();
+    return {
+      skill:   path.join(home, '.cursor', 'skills'),
+      rule:    path.join(home, '.cursor', 'rules'),
+      command: path.join(home, '.cursor', 'commands'),
+      agent:   path.join(home, '.cursor', 'agents'),
+    };
+  }
 
   resolveDir(category: AdapterFileCategory, scope: InstallScope, cwd: string): string {
     const fileCategory = resolveFileCategory(category);
-    const p = this.DIRS[scope][fileCategory];
-    return scope === 'project' ? path.resolve(cwd, p) : p;
+    if (scope === 'project') {
+      return path.resolve(cwd, this.projectDirs[fileCategory]);
+    }
+    return this.userDirs()[fileCategory];
   }
 
   resolveMcpConfig(scope: InstallScope, cwd: string): string {

@@ -141,4 +141,36 @@ describe('update command', () => {
     expect(output).toContain('not in aitools.json');
     logSpy.mockRestore();
   });
+
+  it('exits when --global conflicts with --scope project', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      await expect(
+        createUpdateCommand().parseAsync(['--global', '--scope', 'project'], { from: 'user' }),
+      ).rejects.toThrow('process.exit(1)');
+    } finally {
+      mockExit.mockRestore();
+    }
+  });
+
+  it('reads user tracking root with --global', async () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-update-home-'));
+    const userRoot = path.join(home, '.aitools');
+    fs.mkdirSync(userRoot, { recursive: true });
+    fs.writeFileSync(path.join(userRoot, 'aitools.json'), JSON.stringify({ tools: {} }), 'utf8');
+    const homedirSpy = jest.spyOn(os, 'homedir').mockReturnValue(home);
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await createUpdateCommand().parseAsync(['--global'], { from: 'user' });
+      const output = logSpy.mock.calls.map((a) => String(a[0])).join('\n');
+      expect(output.toLowerCase()).toContain('no tools');
+    } finally {
+      logSpy.mockRestore();
+      homedirSpy.mockRestore();
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
 });

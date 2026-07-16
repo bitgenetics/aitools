@@ -1586,3 +1586,112 @@ describe('Installer.install (hook category)', () => {
     expect(fs.existsSync(path.join(tmp, '.cursor', 'hooks.json'))).toBe(true);
   });
 });
+
+describe('Installer user-scope tracking + cursor-plugin', () => {
+  let tmp: string;
+  let home: string;
+  let installer: Installer;
+  let homedirSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-user-track-'));
+    home = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-user-home-'));
+    process.env.AITOOLS_CONFIG_ROOT = home;
+    homedirSpy = jest.spyOn(os, 'homedir').mockReturnValue(home);
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'cursor' }),
+      'utf8',
+    );
+    installer = new Installer(new ConfigManager(tmp), tmp);
+  });
+
+  afterEach(() => {
+    homedirSpy.mockRestore();
+    delete process.env.AITOOLS_CONFIG_ROOT;
+    fs.rmSync(tmp, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
+  });
+
+  it('writes user-scope lock under ~/.aitools, not the project', async () => {
+    const tarball = Buffer.from(
+      JSON.stringify([{ path: 'skill.md', content: '# Skill' }]),
+      'utf8',
+    );
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+
+    await installer.install(mockClient as never, SKILL_MANIFEST, 'user');
+
+    expect(fs.existsSync(path.join(tmp, 'aitools-lock.json'))).toBe(false);
+    const userLock = path.join(home, '.aitools', 'aitools-lock.json');
+    expect(fs.existsSync(userLock)).toBe(true);
+    const lock = JSON.parse(fs.readFileSync(userLock, 'utf8')) as {
+      tools: Record<string, { scope?: string; files: string[] }>;
+    };
+    expect(lock.tools['my-skill']?.scope).toBe('user');
+    expect(fs.existsSync(path.join(home, '.cursor', 'skills', 'skill.md'))).toBe(true);
+  });
+
+  it('installs --cursor-plugin as opaque tree under plugins/local', async () => {
+    const PLUGIN_MANIFEST: ToolManifest = {
+      name: '@team/my-plugin',
+      version: '1.0.0',
+      description: 'A plugin',
+      category: 'plugin',
+      nativeFor: 'cursor',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'skills/review/SKILL.md', dest: 'skills/review/SKILL.md' },
+      ],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([
+        { path: '.cursor-plugin/plugin.json', content: '{"name":"my-plugin"}' },
+        { path: 'skills/review/SKILL.md', content: '# Review' },
+      ]),
+      'utf8',
+    );
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+
+    const installed = await installer.install(mockClient as never, PLUGIN_MANIFEST, 'user', {
+      cursorPlugin: true,
+    });
+
+    const localRoot = path.join(home, '.cursor', 'plugins', 'local', 'my-plugin');
+    expect(fs.existsSync(path.join(localRoot, '.cursor-plugin', 'plugin.json'))).toBe(true);
+    expect(fs.existsSync(path.join(localRoot, 'skills', 'review', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(home, '.cursor', 'skills', 'review', 'SKILL.md'))).toBe(false);
+    expect(fs.existsSync(path.join(tmp, 'aitools-lock.json'))).toBe(false);
+    expect(installed.installMethod).toBe('cursor-plugin-local');
+
+    const userLock = JSON.parse(
+      fs.readFileSync(path.join(home, '.aitools', 'aitools-lock.json'), 'utf8'),
+    ) as { tools: Record<string, { installMethod?: string }> };
+    expect(userLock.tools['@team/my-plugin']?.installMethod).toBe('cursor-plugin-local');
+
+    installer.uninstall('@team/my-plugin', 'user');
+    expect(fs.existsSync(localRoot)).toBe(false);
+  });
+
+  it('rejects --cursor-plugin for non-plugin categories', async () => {
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn(),
+    };
+    await expect(
+      installer.install(mockClient as never, SKILL_MANIFEST, 'user', { cursorPlugin: true }),
+    ).rejects.toThrow(/requires category "plugin"/);
+  });
+});

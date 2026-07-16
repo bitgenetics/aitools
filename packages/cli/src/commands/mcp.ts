@@ -31,6 +31,7 @@ import { createRegistryClient } from '../utils/registry-client.js';
 import { Installer } from '../utils/installer.js';
 import { transform, estimateCategoryConfidence } from '../transformers/index.js';
 import { CLI_VERSION } from '../version.js';
+import { resolveVsCodeUserMcpConfig } from '../adapters/vscode.js';
 
 const SERVER_NAME = 'aitools';
 const SERVER_ENTRY = {
@@ -54,8 +55,8 @@ export function detectMcpTargets(cwd: string, userLevel: boolean): PlatformMcpTa
   const candidates: PlatformMcpTarget[] = userLevel
     ? [
         { platform: 'cursor', configPath: path.join(home, '.cursor', 'mcp.json'), serversKey: 'mcpServers' },
-        { platform: 'vscode', configPath: path.join(home, '.vscode', 'mcp.json'), serversKey: 'servers' },
-        { platform: 'claude', configPath: path.join(home, '.claude', 'mcp.json'), serversKey: 'mcpServers' },
+        { platform: 'vscode', configPath: resolveVsCodeUserMcpConfig(home), serversKey: 'servers' },
+        { platform: 'claude', configPath: path.join(home, '.claude.json'), serversKey: 'mcpServers' },
         { platform: 'windsurf', configPath: path.join(home, '.windsurf', 'mcp.json'), serversKey: 'mcpServers' },
       ]
     : [];

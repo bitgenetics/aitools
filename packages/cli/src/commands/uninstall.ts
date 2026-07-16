@@ -15,7 +15,8 @@
 import { Command } from 'commander';
 import ora from 'ora';
 import chalk from 'chalk';
-import { readManifest, writeManifest, removeDependency } from '@bitgenetics/aitools-core';
+import { readManifest, writeManifest, removeDependency, trackingRoot } from '@bitgenetics/aitools-core';
+import type { InstallScope } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { Installer } from '../utils/installer.js';
 import { PLATFORM_OPTION_DESCRIPTION, resolvePlatformOption } from '../utils/platform-option.js';
@@ -33,18 +34,43 @@ export function createUninstallCommand(): Command {
     .alias('un')
     .description('Remove an installed AITools package')
     .argument('<package>', 'Package name to remove')
+    .option('-s, --scope <scope>', 'Install scope: project (default) or user')
+    .option('-g, --global', 'Remove from user scope (same as --scope user)')
     .option('-p, --platform <platform>', PLATFORM_OPTION_DESCRIPTION)
-    .action((pkg: string, options: { platform?: string }) => {
+    .option(
+      '--cursor-plugin',
+      'Remove a Cursor local plugin install (user scope; ~/.cursor/plugins/local/)',
+    )
+    .action((pkg: string, options: {
+      platform?: string;
+      scope?: InstallScope;
+      global?: boolean;
+      cursorPlugin?: boolean;
+    }) => {
       const cwd = process.cwd();
       const platformOverride = resolvePlatformOption(options.platform);
       const configManager = new ConfigManager(cwd, { platform: platformOverride });
       const installer = new Installer(configManager, cwd);
 
+      if (options.global && options.scope && options.scope !== 'user') {
+        console.error(chalk.red('Use either --global or --scope project, not both.'));
+        process.exit(1);
+      }
+
+      if (options.cursorPlugin && options.scope === 'project') {
+        console.error(chalk.red('--cursor-plugin requires user scope (omit --scope project).'));
+        process.exit(1);
+      }
+
+      const scope: InstallScope = options.cursorPlugin || options.global
+        ? 'user'
+        : (options.scope ?? 'project');
+
       const spinner = ora(`Removing ${chalk.cyan(pkg)}...`).start();
 
       let removed: string[];
       try {
-        removed = installer.uninstall(pkg);
+        removed = installer.uninstall(pkg, scope);
         spinner.succeed(`Removed ${chalk.green(pkg)} (${removed.length} file(s))`);
         for (const f of removed) {
           console.log(chalk.dim(`  - ${f}`));
@@ -54,12 +80,13 @@ export function createUninstallCommand(): Command {
         process.exit(1);
       }
 
-      // Remove from aitools.json if present
-      const manifest = readManifest(cwd);
+      const trackDir = trackingRoot(scope, cwd);
+      const manifest = readManifest(trackDir);
       if (manifest) {
         const updated = removeDependency(manifest, pkg);
-        writeManifest(cwd, updated);
-        console.log(chalk.dim('  Removed from aitools.json'));
+        writeManifest(trackDir, updated);
+        const label = scope === 'user' ? '~/.aitools/aitools.json' : 'aitools.json';
+        console.log(chalk.dim(`  Removed from ${label}`));
       }
     });
 }

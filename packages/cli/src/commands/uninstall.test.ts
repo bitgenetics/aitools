@@ -89,4 +89,44 @@ describe('uninstall command', () => {
     jest.spyOn(console, 'error').mockImplementation(() => {});
     expect(() => createUninstallCommand().parse(['ghost-tool'], { from: 'user' })).toThrow('process.exit(1)');
   });
+
+  it('exits when --global conflicts with --scope project', () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() =>
+      createUninstallCommand().parse(['my-skill', '--global', '--scope', 'project'], { from: 'user' }),
+    ).toThrow('process.exit(1)');
+  });
+
+  it('exits when --cursor-plugin is combined with --scope project', () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() =>
+      createUninstallCommand().parse(['my-skill', '--cursor-plugin', '--scope', 'project'], { from: 'user' }),
+    ).toThrow('process.exit(1)');
+  });
+
+  it('uninstalls from user tracking root with --global', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-uninstall-home-'));
+    const userRoot = path.join(home, '.aitools');
+    fs.mkdirSync(userRoot, { recursive: true });
+    const installedFile = path.join(home, 'user-skill.md');
+    fs.writeFileSync(installedFile, '# Skill', 'utf8');
+    // Portable lock path so resolveStoredPath uses the mocked homedir.
+    writeLockFile(userRoot, upsertLockEntry(emptyLock(), 'my-skill', makeLockEntry(['~/user-skill.md'])));
+    fs.writeFileSync(
+      path.join(userRoot, 'aitools.json'),
+      JSON.stringify({ tools: { 'my-skill': '^1.0.0' } }),
+      'utf8',
+    );
+    const homedirSpy = jest.spyOn(os, 'homedir').mockReturnValue(home);
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      createUninstallCommand().parse(['my-skill', '--global'], { from: 'user' });
+      expect(fs.existsSync(installedFile)).toBe(false);
+      expect(readLockFile(userRoot).tools['my-skill']).toBeUndefined();
+      expect(fs.existsSync(path.join(tmp, 'aitools-lock.json'))).toBe(false);
+    } finally {
+      homedirSpy.mockRestore();
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
 });

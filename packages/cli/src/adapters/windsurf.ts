@@ -32,25 +32,29 @@ import type { InstallScope, FileCategory } from '@bitgenetics/aitools-core';
 export class WindsurfAdapter implements PlatformAdapter {
   readonly platform = 'windsurf' as const;
 
-  private readonly DIRS: Record<InstallScope, Record<FileCategory, string>> = {
-    project: {
-      skill:   path.join('.windsurf', 'skills'),
-      rule:    path.join('.devin', 'rules'),
-      command: path.join('.windsurf', 'workflows'),
-      agent:   path.join('.windsurf', 'agents'),
-    },
-    user: {
-      skill:   path.join(os.homedir(), '.windsurf', 'skills'),
-      rule:    path.join(os.homedir(), '.devin', 'rules'),
-      command: path.join(os.homedir(), '.windsurf', 'workflows'),
-      agent:   path.join(os.homedir(), '.windsurf', 'agents'),
-    },
+  private projectDirs: Record<FileCategory, string> = {
+    skill:   path.join('.windsurf', 'skills'),
+    rule:    path.join('.devin', 'rules'),
+    command: path.join('.windsurf', 'workflows'),
+    agent:   path.join('.windsurf', 'agents'),
   };
+
+  private userDirs(): Record<FileCategory, string> {
+    const home = os.homedir();
+    return {
+      skill:   path.join(home, '.windsurf', 'skills'),
+      rule:    path.join(home, '.devin', 'rules'),
+      command: path.join(home, '.windsurf', 'workflows'),
+      agent:   path.join(home, '.windsurf', 'agents'),
+    };
+  }
 
   resolveDir(category: AdapterFileCategory, scope: InstallScope, cwd: string): string {
     const fileCategory = resolveFileCategory(category);
-    const p = this.DIRS[scope][fileCategory];
-    return scope === 'project' ? path.resolve(cwd, p) : p;
+    if (scope === 'project') {
+      return path.resolve(cwd, this.projectDirs[fileCategory]);
+    }
+    return this.userDirs()[fileCategory];
   }
 
   resolveMcpConfig(scope: InstallScope, cwd: string): string {

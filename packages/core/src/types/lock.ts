@@ -71,6 +71,12 @@ export interface LockEntry {
   hooksConfig?: string;
   /** Vendored registry reference packages owned by this install. */
   references?: Record<string, ReferenceLockEntry>;
+  /**
+   * How the package was installed.
+   * - absent / undefined: explode or standard file/MCP/hook install
+   * - cursor-plugin-local: opaque copy into ~/.cursor/plugins/local/
+   */
+  installMethod?: 'cursor-plugin-local';
 }
 
 /** Construct a lock entry from an InstalledTool record. */
@@ -90,6 +96,7 @@ export function toLockEntry(tool: InstalledTool, resolved: string): LockEntry {
       ? { hooksAdded: tool.hooksAdded }
       : {}),
     ...(tool.hooksConfig ? { hooksConfig: tool.hooksConfig } : {}),
+    ...(tool.installMethod ? { installMethod: tool.installMethod } : {}),
   };
 }
 

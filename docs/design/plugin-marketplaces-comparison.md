@@ -9,7 +9,7 @@ This document compares two independent channels for distributing AI IDE plugins.
 | **aitools registry** | `aitools install @team/my-plugin` | Elements explode into normal platform paths (skills, rules, MCP, hooks, …) | IDE loaders for those element types |
 | **Cursor marketplace** | Cursor UI / `/add-plugin` | Cursor plugin discovery paths (`.cursor/plugins/…`) | Cursor plugin loader |
 
-**aitools install never writes whole packages to `.cursor/plugins/local/`.** It places each member where a standalone skill/rule/command/agent/MCP/hook would land for the active platform and scope.
+**aitools install** by default **explodes** plugins into element paths — it does not write whole packages to `.cursor/plugins/local/`. Opt-in `aitools install <pkg> --cursor-plugin` copies an opaque tree into `~/.cursor/plugins/local/<name>/` for Cursor’s plugin loader (always user-scoped; tracked under `~/.aitools/`).
 
 `aitools uninstall` removes every path and merged config key recorded in `aitools-lock.json` for that package (no dirty-file checks — post-install edits are overwritten on remove).
 
@@ -83,14 +83,17 @@ aitools publish
 ## Consumer workflow (aitools)
 
 ```bash
-aitools install @team/my-review-plugin              # project scope (default)
-aitools install @team/my-review-plugin --global     # user scope
+aitools install @team/my-review-plugin              # project scope (default) — explode
+aitools install @team/my-review-plugin --global     # user scope — explode into platform user dirs; tracked in ~/.aitools/
+aitools install @team/my-review-plugin --cursor-plugin  # opaque Cursor local plugin under ~/.cursor/plugins/local/
 aitools uninstall @team/my-review-plugin
+aitools uninstall @team/my-review-plugin -g
+aitools uninstall @team/my-review-plugin --cursor-plugin
 ```
 
 ## Out of scope
 
-- Writing whole packages into `.cursor/plugins/local/`
+- Dual-write explode + local plugin tree
 - Install-time transitive `dependencies` resolution for arbitrary package types (see [Shared References](shared-references.md) for planned `category: "reference"` vendoring only)
 - Auto-compose registry skills into author trees before publish
 - Standalone `aitools plugin validate` (use `manifest validate`)

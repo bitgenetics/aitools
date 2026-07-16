@@ -66,6 +66,7 @@ function normalizeLock(projectRoot: string, lock: AiToolsLock): AiToolsLock {
  * Write an aitools-lock.json to disk atomically (write ? rename).
  */
 export function writeLockFile(dir: string, lock: AiToolsLock): void {
+  fs.mkdirSync(dir, { recursive: true });
   const filePath = path.join(dir, LOCK_FILENAME);
   const tmpPath = `${filePath}.tmp`;
   const content = JSON.stringify(normalizeLock(dir, lock), null, 2) + '\n';

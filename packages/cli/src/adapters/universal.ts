@@ -19,7 +19,7 @@ import { resolveFileCategory } from './types.js';
 import type { InstallScope, FileCategory } from '@bitgenetics/aitools-core';
 
 /**
- * Universal adapter ? internal fallback when no platform is configured.
+ * Universal adapter — internal fallback when no platform is configured.
  *
  * Project scope uses .agents/ convention.
  * User scope uses ~/.aitools/tools/.
@@ -27,25 +27,29 @@ import type { InstallScope, FileCategory } from '@bitgenetics/aitools-core';
 export class UniversalAdapter implements PlatformAdapter {
   readonly platform = 'universal' as const;
 
-  private readonly DIRS: Record<InstallScope, Record<FileCategory, string>> = {
-    project: {
-      skill:   path.join('.agents', 'skills'),
-      rule:    path.join('.agents', 'rules'),
-      command: path.join('.agents', 'commands'),
-      agent:   path.join('.agents', 'agents'),
-    },
-    user: {
-      skill:   path.join(os.homedir(), '.aitools', 'tools', 'skills'),
-      rule:    path.join(os.homedir(), '.aitools', 'tools', 'rules'),
-      command: path.join(os.homedir(), '.aitools', 'tools', 'commands'),
-      agent:   path.join(os.homedir(), '.aitools', 'tools', 'agents'),
-    },
+  private projectDirs: Record<FileCategory, string> = {
+    skill:   path.join('.agents', 'skills'),
+    rule:    path.join('.agents', 'rules'),
+    command: path.join('.agents', 'commands'),
+    agent:   path.join('.agents', 'agents'),
   };
+
+  private userDirs(): Record<FileCategory, string> {
+    const home = os.homedir();
+    return {
+      skill:   path.join(home, '.aitools', 'tools', 'skills'),
+      rule:    path.join(home, '.aitools', 'tools', 'rules'),
+      command: path.join(home, '.aitools', 'tools', 'commands'),
+      agent:   path.join(home, '.aitools', 'tools', 'agents'),
+    };
+  }
 
   resolveDir(category: AdapterFileCategory, scope: InstallScope, cwd: string): string {
     const fileCategory = resolveFileCategory(category);
-    const p = this.DIRS[scope][fileCategory];
-    return scope === 'project' ? path.resolve(cwd, p) : p;
+    if (scope === 'project') {
+      return path.resolve(cwd, this.projectDirs[fileCategory]);
+    }
+    return this.userDirs()[fileCategory];
   }
 
   resolveMcpConfig(scope: InstallScope, cwd: string): string {

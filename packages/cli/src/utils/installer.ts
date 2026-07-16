@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import type { ToolManifest, InstalledTool, InstallScope, AiToolsLock, ToolFile, TargetPlatform, ToolCategory, PluginMember } from '@bitgenetics/aitools-core';
 import {
@@ -27,6 +28,11 @@ import {
   classifyPluginMembers,
   parseCursorPluginJson,
   resolveStoredPath,
+  toStoredPath,
+  trackingRoot,
+  resolveCursorLocalPluginDir,
+  sanitizePackageDirName,
+  PLUGIN_PLATFORM_DESCRIPTOR,
 } from '@bitgenetics/aitools-core';
 import type { ConfigManager } from './config-manager.js';
 import type { RegistryClient } from './registry-client.js';
@@ -53,6 +59,11 @@ export interface InstallResult extends InstalledTool {
   fileResults: InstallFileResult[];
 }
 
+export interface InstallOptions {
+  /** Opaque copy into ~/.cursor/plugins/local/ instead of explode. */
+  cursorPlugin?: boolean;
+}
+
 /**
  * Handles the file-system mechanics of installing and removing tools.
  */
@@ -67,11 +78,36 @@ export class Installer {
     this.cache = cache ?? new CacheManager();
   }
 
+  /** Lock/manifest directory for the given scope (cwd or ~/.aitools). */
+  trackDir(scope: InstallScope): string {
+    return trackingRoot(scope, this.cwd);
+  }
+
+  private stopDir(scope: InstallScope): string {
+    return scope === 'user' ? os.homedir() : this.cwd;
+  }
+
+  /** Convert absolute install paths to portable stored form for return values / lock entries. */
+  private toStoredInstalled(tool: InstalledTool, scope: InstallScope): InstalledTool {
+    const track = this.trackDir(scope);
+    return {
+      ...tool,
+      files: tool.files.map((f) => toStoredPath(track, f)),
+      ...(tool.mcpConfig ? { mcpConfig: toStoredPath(track, tool.mcpConfig) } : {}),
+      ...(tool.hooksConfig ? { hooksConfig: toStoredPath(track, tool.hooksConfig) } : {}),
+    };
+  }
+
   async install(
     client: RegistryClient,
     manifest: ToolManifest,
     scope: InstallScope,
+    options: InstallOptions = {},
   ): Promise<InstallResult> {
+    if (options.cursorPlugin) {
+      return this.installCursorPluginLocal(client, manifest);
+    }
+
     const { category: normalized, warning: categoryWarning } = normalizeCategory(manifest.category);
     if (categoryWarning) {
       process.stderr.write(`[aitools] ${categoryWarning}\n`);
@@ -163,7 +199,7 @@ export class Installer {
 
     if (mergedContent !== existingContent) {
       fs.writeFileSync(hooksConfigPath, mergedContent!, 'utf8');
-      writtenFiles.push(path.relative(this.cwd, hooksConfigPath).replace(/\\/g, '/'));
+      writtenFiles.push(hooksConfigPath);
     }
 
     const installedTool: InstalledTool = {
@@ -178,10 +214,11 @@ export class Installer {
       integrity,
     };
 
-    const lock = readLockFile(this.cwd);
+    const track = this.trackDir(scope);
+    const lock = readLockFile(track);
     const updated = upsertLockEntry(lock, manifest.name, toLockEntry(installedTool, client.config.url));
-    writeLockFile(this.cwd, updated);
-    return { ...installedTool, fileResults };
+    writeLockFile(track, updated);
+    return { ...this.toStoredInstalled(installedTool, scope), fileResults };
   }
 
   private async installFiles(
@@ -269,19 +306,18 @@ export class Installer {
 
       fs.mkdirSync(path.dirname(destPath), { recursive: true });
       fs.writeFileSync(destPath, writeContent, 'utf8');
-      const writtenRel = path.relative(this.cwd, destPath).replace(/\\/g, '/');
-      writtenFiles.push(writtenRel);
-      fileResults.push({ dest: writtenRel, transform: transformResult });
+      writtenFiles.push(destPath);
+      fileResults.push({ dest: destPath, transform: transformResult });
     }
 
+    const track = this.trackDir(scope);
     if (writtenFiles.length > 0) {
-      const descriptorDir = lowestCommonInstallDir(this.cwd, writtenFiles);
+      const descriptorDir = lowestCommonInstallDirAbs(writtenFiles);
       const descriptorPath = path.join(descriptorDir, MANIFEST_FILENAME);
       fs.mkdirSync(descriptorDir, { recursive: true });
       fs.writeFileSync(descriptorPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
-      const descriptorRel = path.relative(this.cwd, descriptorPath).replace(/\\/g, '/');
-      if (!writtenFiles.includes(descriptorRel)) {
-        writtenFiles.push(descriptorRel);
+      if (!writtenFiles.includes(descriptorPath)) {
+        writtenFiles.push(descriptorPath);
       }
     }
 
@@ -297,23 +333,22 @@ export class Installer {
       integrity,
     };
 
-    const lock = readLockFile(this.cwd);
+    const lock = readLockFile(track);
     const previousEntry = lock.tools[manifest.name];
     if (previousEntry) {
-      const newFileSet = new Set(writtenFiles);
+      const newFileSet = new Set(writtenFiles.map((f) => path.resolve(f)));
       for (const oldFile of previousEntry.files) {
-        const absOldFile = resolveStoredPath(this.cwd, oldFile);
-        const relOldFile = path.relative(this.cwd, absOldFile).replace(/\\/g, '/');
-        if (!newFileSet.has(relOldFile) && fs.existsSync(absOldFile)) {
+        const absOldFile = resolveStoredPath(track, oldFile);
+        if (!newFileSet.has(path.resolve(absOldFile)) && fs.existsSync(absOldFile)) {
           fs.rmSync(absOldFile);
-          cleanEmptyDirs(path.dirname(absOldFile), this.cwd);
+          cleanEmptyDirs(path.dirname(absOldFile), this.stopDir(scope));
         }
       }
     }
 
     const updated = upsertLockEntry(lock, manifest.name, toLockEntry(installedTool, client.config.url));
-    writeLockFile(this.cwd, updated);
-    return { ...installedTool, fileResults };
+    writeLockFile(track, updated);
+    return { ...this.toStoredInstalled(installedTool, scope), fileResults };
   }
 
   private async installPlugin(
@@ -357,12 +392,13 @@ export class Installer {
 
     const activePlatform = this.configManager.getPlatform();
     const sourcePlatform = manifest.nativeFor ?? 'universal';
-    const lock = readLockFile(this.cwd);
+    const track = this.trackDir(scope);
+    const lock = readLockFile(track);
     const previousEntry = lock.tools[manifest.name];
 
     // On reinstall, unmerge previous hooks before merging the new set so handlers are not doubled.
     if (previousEntry?.hooksAdded && previousEntry.hooksConfig) {
-      const hooksPath = resolveStoredPath(this.cwd, previousEntry.hooksConfig);
+      const hooksPath = resolveStoredPath(track, previousEntry.hooksConfig);
       if (fs.existsSync(hooksPath)) {
         const cleaned = unmergeHookConfigs(
           fs.readFileSync(hooksPath, 'utf8'),
@@ -470,8 +506,8 @@ export class Installer {
 
       fs.mkdirSync(path.dirname(destPath), { recursive: true });
       fs.writeFileSync(destPath, writeContent, 'utf8');
-      writtenFiles.push(relDest);
-      fileResults.push({ dest: relDest, transform: transformResult });
+      writtenFiles.push(destPath);
+      fileResults.push({ dest: destPath, transform: transformResult });
     }
 
     // MCP merge
@@ -492,7 +528,7 @@ export class Installer {
       fs.mkdirSync(path.dirname(configPath), { recursive: true });
       const keys = mergePluginMcpServers(configPath, mcpContent);
       mcpKeys.push(...keys);
-      mcpConfigRel = path.relative(this.cwd, configPath).replace(/\\/g, '/');
+      mcpConfigRel = configPath;
       fileResults.push({ dest: mcpConfigRel });
     }
 
@@ -548,7 +584,7 @@ export class Installer {
           }
           const merged = mergeHookConfigs(existingContent, hookContent, activePlatform);
           fs.writeFileSync(hooksConfigPath, merged, 'utf8');
-          hooksConfigRel = path.relative(this.cwd, hooksConfigPath).replace(/\\/g, '/');
+          hooksConfigRel = hooksConfigPath;
           fileResults.push({ dest: hooksConfigRel, transform: transformResult });
         }
       }
@@ -570,16 +606,15 @@ export class Installer {
         : {}),
     };
 
-    const lockAfter = readLockFile(this.cwd);
+    const lockAfter = readLockFile(track);
     const previous = lockAfter.tools[manifest.name];
     if (previous) {
-      const newFileSet = new Set(writtenFiles);
+      const newFileSet = new Set(writtenFiles.map((f) => path.resolve(f)));
       for (const oldFile of previous.files) {
-        const absOldFile = resolveStoredPath(this.cwd, oldFile);
-        const relOldFile = path.relative(this.cwd, absOldFile).replace(/\\/g, '/');
-        if (!newFileSet.has(relOldFile) && fs.existsSync(absOldFile)) {
+        const absOldFile = resolveStoredPath(track, oldFile);
+        if (!newFileSet.has(path.resolve(absOldFile)) && fs.existsSync(absOldFile)) {
           fs.rmSync(absOldFile);
-          cleanEmptyDirs(path.dirname(absOldFile), this.cwd);
+          cleanEmptyDirs(path.dirname(absOldFile), this.stopDir(scope));
         }
       }
       if (previous.mcpKeys?.length && previous.mcpConfig) {
@@ -587,7 +622,7 @@ export class Installer {
         const stale = previous.mcpKeys.filter((k: string) => !keep.has(k));
         if (stale.length > 0) {
           removeMcpKeys(
-            resolveStoredPath(this.cwd, previous.mcpConfig),
+            resolveStoredPath(track, previous.mcpConfig),
             stale,
           );
         }
@@ -595,8 +630,8 @@ export class Installer {
     }
 
     const updated = upsertLockEntry(lockAfter, manifest.name, toLockEntry(installedTool, client.config.url));
-    writeLockFile(this.cwd, updated);
-    return { ...installedTool, fileResults };
+    writeLockFile(track, updated);
+    return { ...this.toStoredInstalled(installedTool, scope), fileResults };
   }
 
   private installMcp(
@@ -638,6 +673,7 @@ export class Installer {
 
     fs.writeFileSync(configPath, JSON.stringify(mcpJson, null, 2) + '\n', 'utf8');
 
+    const track = this.trackDir(scope);
     const installedTool: InstalledTool = {
       name: manifest.name,
       version: manifest.version,
@@ -645,27 +681,132 @@ export class Installer {
       scope,
       platform: this.configManager.getPlatform(),
       installedAt: new Date().toISOString(),
-      files: [path.relative(this.cwd, configPath).replace(/\\/g, '/')],
+      files: [configPath],
       registry: registryUrl,
       integrity: 'mcp-config',
       mcpKeys: [serverKey],
-      mcpConfig: path.relative(this.cwd, configPath).replace(/\\/g, '/'),
+      mcpConfig: configPath,
     };
 
-    const lock = readLockFile(this.cwd);
+    const lock = readLockFile(track);
     const updated = upsertLockEntry(lock, manifest.name, toLockEntry(installedTool, registryUrl));
-    writeLockFile(this.cwd, updated);
-    return installedTool;
+    writeLockFile(track, updated);
+    return this.toStoredInstalled(installedTool, scope);
   }
 
-  uninstall(name: string): string[] {
-    const lock = readLockFile(this.cwd);
+  /**
+   * Opaque install into ~/.cursor/plugins/local/<name>/ for Cursor's plugin loader.
+   * Always user-scoped; tracked under ~/.aitools only.
+   */
+  private async installCursorPluginLocal(
+    client: RegistryClient,
+    manifest: ToolManifest,
+  ): Promise<InstallResult> {
+    const scope: InstallScope = 'user';
+    const { category: normalized } = normalizeCategory(manifest.category);
+    if (normalized !== 'plugin') {
+      throw new Error(
+        `--cursor-plugin requires category "plugin" (got "${manifest.category}").`,
+      );
+    }
+
+    const descriptorRel = PLUGIN_PLATFORM_DESCRIPTOR.cursor!;
+    const hasDescriptor = manifest.files.some(
+      (f) => f.src.replace(/\\/g, '/') === descriptorRel,
+    );
+    if (!hasDescriptor) {
+      throw new Error(
+        `--cursor-plugin requires ${descriptorRel} in the package files list.`,
+      );
+    }
+
+    let agentsDir: string;
+    let integrity: string;
+    if (this.cache.has(manifest.name, manifest.version)) {
+      agentsDir = this.cache.agentsDir(manifest.name, manifest.version);
+      integrity = this.cache.getMetadata(manifest.name, manifest.version).integrity;
+    } else {
+      const { data, integrity: serverIntegrity } = await client.download(manifest.name, manifest.version);
+      const entry = this.cache.store(manifest.name, manifest.version, data, manifest, serverIntegrity);
+      agentsDir = entry.agentsDir;
+      integrity = entry.integrity;
+    }
+
+    const descriptorPath = path.join(agentsDir, descriptorRel);
+    let pluginDirName = sanitizePackageDirName(manifest.name);
+    if (fs.existsSync(descriptorPath)) {
+      const pj = parseCursorPluginJson(fs.readFileSync(descriptorPath, 'utf8'));
+      if (pj?.name && typeof pj.name === 'string' && pj.name.trim()) {
+        pluginDirName = pj.name.trim();
+      }
+    }
+
+    const destRoot = resolveCursorLocalPluginDir(pluginDirName);
+    if (fs.existsSync(destRoot)) {
+      fs.rmSync(destRoot, { recursive: true, force: true });
+    }
+    fs.mkdirSync(destRoot, { recursive: true });
+
+    const writtenFiles: string[] = [];
+    for (const file of manifest.files) {
+      const srcPath = path.join(agentsDir, file.src);
+      if (!fs.existsSync(srcPath)) {
+        throw new Error(`Package "${manifest.name}@${manifest.version}" missing file: ${file.src}`);
+      }
+      const destPath = path.join(destRoot, file.src);
+      fs.mkdirSync(path.dirname(destPath), { recursive: true });
+      fs.copyFileSync(srcPath, destPath);
+      writtenFiles.push(destPath);
+    }
+
+    const track = this.trackDir(scope);
+    const installedTool: InstalledTool = {
+      name: manifest.name,
+      version: manifest.version,
+      category: 'plugin',
+      scope,
+      platform: 'cursor',
+      installedAt: new Date().toISOString(),
+      files: [destRoot],
+      registry: client.config.url,
+      integrity,
+      installMethod: 'cursor-plugin-local',
+    };
+
+    const lock = readLockFile(track);
+    const updated = upsertLockEntry(lock, manifest.name, toLockEntry(installedTool, client.config.url));
+    writeLockFile(track, updated);
+
+    const stored = this.toStoredInstalled(installedTool, scope);
+    return {
+      ...stored,
+      fileResults: writtenFiles.map((dest) => ({ dest: toStoredPath(track, dest) })),
+    };
+  }
+
+  uninstall(name: string, scope: InstallScope = 'project'): string[] {
+    const track = this.trackDir(scope);
+    const lock = readLockFile(track);
     const entry = lock.tools[name];
     if (!entry) {
-      throw new Error(`Tool "${name}" is not installed in this project.`);
+      const where = scope === 'user' ? 'user scope' : 'this project';
+      throw new Error(`Tool "${name}" is not installed in ${where}.`);
     }
 
     const removed: string[] = [];
+
+    if (entry.installMethod === 'cursor-plugin-local') {
+      for (const rawFile of entry.files) {
+        const filePath = resolveStoredPath(track, rawFile);
+        if (fs.existsSync(filePath)) {
+          fs.rmSync(filePath, { recursive: true, force: true });
+          removed.push(filePath);
+        }
+      }
+      const updated = removeLockEntry(lock, name);
+      writeLockFile(track, updated);
+      return removed;
+    }
 
     const isMcpOnly =
       entry.category === 'mcp-tool' ||
@@ -673,22 +814,22 @@ export class Installer {
 
     if (isMcpOnly) {
       const rawPath = entry.files[0]!;
-      const configPath = resolveStoredPath(this.cwd, rawPath);
+      const configPath = resolveStoredPath(track, rawPath);
       removeMcpEntry(configPath, name);
       removed.push(configPath);
     } else {
       for (const rawFile of entry.files) {
-        const filePath = resolveStoredPath(this.cwd, rawFile);
+        const filePath = resolveStoredPath(track, rawFile);
         if (fs.existsSync(filePath)) {
-          fs.rmSync(filePath);
+          fs.rmSync(filePath, { recursive: true, force: true });
           removed.push(filePath);
-          cleanEmptyDirs(path.dirname(filePath), this.cwd);
+          cleanEmptyDirs(path.dirname(filePath), this.stopDir(scope));
         }
       }
 
       if (entry.mcpKeys?.length) {
         const configPath = entry.mcpConfig
-          ? resolveStoredPath(this.cwd, entry.mcpConfig)
+          ? resolveStoredPath(track, entry.mcpConfig)
           : null;
         if (configPath) {
           removeMcpKeys(configPath, entry.mcpKeys);
@@ -697,7 +838,7 @@ export class Installer {
       }
 
       if (entry.hooksAdded && entry.hooksConfig) {
-        const hooksPath = resolveStoredPath(this.cwd, entry.hooksConfig);
+        const hooksPath = resolveStoredPath(track, entry.hooksConfig);
         if (fs.existsSync(hooksPath)) {
           const platform = entry.platform ?? this.configManager.getPlatform();
           const next = unmergeHookConfigs(fs.readFileSync(hooksPath, 'utf8'), entry.hooksAdded, platform);
@@ -708,12 +849,12 @@ export class Installer {
     }
 
     const updated = removeLockEntry(lock, name);
-    writeLockFile(this.cwd, updated);
+    writeLockFile(track, updated);
     return removed;
   }
 
-  getLock(): AiToolsLock {
-    return readLockFile(this.cwd);
+  getLock(scope: InstallScope = 'project'): AiToolsLock {
+    return readLockFile(this.trackDir(scope));
   }
 }
 
@@ -842,6 +983,21 @@ function normalizePluginHooksContent(content: string): string {
 function lowestCommonInstallDir(cwd: string, writtenRelPaths: string[]): string {
   if (writtenRelPaths.length === 0) return cwd;
   const absDirs = writtenRelPaths.map((f) => path.dirname(path.resolve(cwd, f)));
+  const splitDirs = absDirs.map((d) => d.split(path.sep));
+  let common = splitDirs[0]!;
+  for (const parts of splitDirs.slice(1)) {
+    const len = Math.min(common.length, parts.length);
+    let i = 0;
+    while (i < len && common[i] === parts[i]) i++;
+    common = common.slice(0, i);
+  }
+  return common.join(path.sep) || absDirs[0]!;
+}
+
+
+function lowestCommonInstallDirAbs(writtenAbsPaths: string[]): string {
+  if (writtenAbsPaths.length === 0) return os.homedir();
+  const absDirs = writtenAbsPaths.map((f) => path.dirname(path.resolve(f)));
   const splitDirs = absDirs.map((d) => d.split(path.sep));
   let common = splitDirs[0]!;
   for (const parts of splitDirs.slice(1)) {

@@ -43,6 +43,7 @@ export interface PluginMember {
 
 /** Optional path overrides from `.cursor-plugin/plugin.json`. */
 export interface CursorPluginJsonPaths {
+  name?: string;
   skills?: string | string[];
   rules?: string | string[];
   agents?: string | string[];

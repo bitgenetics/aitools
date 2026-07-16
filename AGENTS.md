@@ -4,6 +4,12 @@ organize with ai context isolation and understandability in mind.
 
 ## Testing
 
+### Product expectations vs e2e
+- **Source of truth for product behaviour** is `.ai/product-changelog/` (especially `features.md` / `constraints.md`), maintained via the `project-changelog` skill.
+- E2e suites under `packages/e2e/` **implement** those expectations; they are not a substitute for the changelog.
+- When writing or generating an **implementation plan** that changes product behaviour: include an early todo **Update product changelog** (skill: `project-changelog`) **before** any “add/extend e2e” todo. Record the intended behaviour and name the e2e suite under **Key files**, then write e2e against that entry.
+- See `.ai/product-changelog/patterns.md` → *Changelog-first e2e contracts*.
+
 ### Framework
 Use **Jest** with `ts-jest` for all unit and integration tests.
 Test files live alongside source: `src/foo.ts` → `src/foo.test.ts`.
@@ -15,7 +21,7 @@ Test files live alongside source: `src/foo.ts` → `src/foo.test.ts`.
 - Registry client behaviour — mock the HTTP layer (`nock` or `jest.fn()`), assert request shape and error propagation.
 - **Config layer model** (required for any change to settings vs install scope):
   - Settings (`config`, `registry`) default writes to user config; `--project` writes project config; reads merge with project overriding user.
-  - Installs default to project scope; `-g` / `--global` uses user scope.
+  - Installs default to project scope; `-g` / `--global` uses user scope (tracking under `~/.aitools/`).
   - Unit: `config-write-target.test.ts`, `config.test.ts`, `registry.test.ts`, `config-manager.test.ts`, `install.test.ts`.
   - E2E: `packages/e2e/src/config-layers.test.ts` (must pass in CI via `npm run test:e2e`).
 

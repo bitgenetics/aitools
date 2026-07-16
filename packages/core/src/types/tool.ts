@@ -159,4 +159,10 @@ export interface InstalledTool {
   hooksAdded?: Record<string, unknown[]>;
   /** Path to the hooks config file updated by this install. */
   hooksConfig?: string;
+  /**
+   * How the package was installed.
+   * - absent: explode / standard file install
+   * - cursor-plugin-local: opaque tree under ~/.cursor/plugins/local/
+   */
+  installMethod?: 'cursor-plugin-local';
 }

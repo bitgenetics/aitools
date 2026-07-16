@@ -95,6 +95,7 @@ function normalizeManifestFiles(
  * Write an aitools.json manifest to disk.
  */
 export function writeManifest(dir: string, manifest: AiToolsManifest): void {
+  fs.mkdirSync(dir, { recursive: true });
   const filePath = path.join(dir, MANIFEST_FILENAME);
   const normalized = normalizeManifestFiles(dir, manifest);
   const content = JSON.stringify(normalized, null, 2) + '\n';

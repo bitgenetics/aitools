@@ -14,7 +14,7 @@
 | File | Contents | Load when... |
 |---|---|---|
 | [architecture.md](./architecture.md) | Major structural decisions with rationale | Touching core structure, choosing patterns, or when a decision's rationale matters |
-| [features.md](./features.md) | Completed features, their APIs and key files | Working on or near a feature area |
+| [features.md](./features.md) | Product behaviours & APIs (expectation source for e2e) | Working on or near a feature area; planning e2e |
 | [patterns.md](./patterns.md) | Recurring code patterns used across the codebase | Writing new code, reviewing, or refactoring |
 | [constraints.md](./constraints.md) | Accepted tradeoffs and known limitations | About to "fix" something that may be intentional |
 | [integrations.md](./integrations.md) | How subsystems connect to each other | Working across module boundaries |
@@ -24,6 +24,7 @@
 
 ## Recent Changes
 
+- **2026-07-16** — Changelog-first e2e contracts: plans must update product changelog (skill) before e2e; user-scope `~/.aitools` tracking + `--cursor-plugin` — see `patterns.md`, `features.md`, `constraints.md`, `AGENTS.md`
 - **2026-07-14** — Plugin install explodes into platform element paths; structure validate; path rewrite; lock mcpKeys/hooksAdded — see `features.md`, `constraints.md`, `docs/design/plugin-marketplaces-comparison.md`
 - **2026-06-28** — `plugin` category: aitools-managed install paths, `manifest init --category plugin`, comparison doc — see `features.md`, `docs/design/plugin-marketplaces-comparison.md`
 - **2026-06-28** `e0a753f` — Config layer model (settings write to user by default, project override on read; install defaults project scope), `config-layers` e2e, `test:coverage` CI gate, server coverage thresholds — see `architecture.md`, `features.md`, `patterns.md`, `integrations.md`, `constraints.md`
@@ -34,10 +35,7 @@
 - **2026-06-26** `d7f8fa0` — Git registry mode + Gitea Docker e2e (`gitea-init` CLI bootstrap, not web install) — see `architecture.md`, `features.md`, `integrations.md`, `constraints.md`
 - **2026-06-15** `907cce7` — CLI shebang moved to line 1 (copyright header follows) — fixes `tsc` TS18026 — see `constraints.md`
 - **2026-06-15** `21e553f` — Design docs (`docs/design/`) rewritten to match implemented API, storage, and auth — see `architecture.md`
-- **2026-06-15** `21e553f` — Experimental-software disclaimer added to `readme.md` — see `constraints.md`
-- **2026-06-15** `95123f3` — AGPL-3.0-or-later: `LICENSE` + copyright headers on all source files — see `architecture.md`
-- **2026-06-15** `95123f3` — GitHub Actions CI: unit tests, E2E (Docker), image build — see `architecture.md`
-- **2026-06-15** `95123f3` — User auth API (`/api/auth/*`) + HTML browse portal — see `features.md`
+- **2026-06-15** `95123f3` — AGPL-3.0-or-later: `LICENSE` + copyright headers; CI unit/E2E/image; user auth + portal — see `architecture.md`, `features.md`
 - **2026-04-30** `d22c706` — Admin portal login, provider abstractions, async stores — see `architecture.md`, `features.md`, `integrations.md`
 
 ---

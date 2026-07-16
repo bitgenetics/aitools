@@ -351,8 +351,9 @@ aitools dev-init
 
 | Flag | Default | Description |
 |---|---|---|
-| `--scope <project\|user>` | `project` | Where to install the tool |
+| `--scope <project\|user>` | `project` | Where to install the tool (user scope tracks under `~/.aitools/`) |
 | `-g, --global` | | Install to user scope (same as `--scope user`) |
+| `--cursor-plugin` | | Opaque Cursor local plugin under `~/.cursor/plugins/local/` (forces user scope) |
 | `--dev` | `false` | Save as a dev dependency in `aitools.json` |
 | `-v, --version <version>` | | Specific version to install (overrides `@version` in name) |
 | `-p, --platform <platform>` | config / auto-detect | Target IDE — controls install directory layout |
@@ -369,6 +370,9 @@ aitools dev-init
 
 | Flag | Description |
 |---|---|
+| `-s, --scope <project\|user>` | Tracking root to remove from (default: project) |
+| `-g, --global` | Remove from user scope (same as `--scope user`) |
+| `--cursor-plugin` | Remove a Cursor local plugin install (user scope) |
 | `-p, --platform <platform>` | Target IDE — must match the platform used at install time |
 
 ### Update options
@@ -376,12 +380,15 @@ aitools dev-init
 | Flag | Default | Description |
 |---|---|---|
 | `-s, --scope <project\|user>` | `project` | Scope of packages to update |
+| `-g, --global` | | Update user-scope installs |
 | `-p, --platform <platform>` | config / auto-detect | Target IDE — controls install directory layout |
 
 ### List options
 
 | Flag | Description |
 |---|---|
+| `-s, --scope <project\|user>` | List project (default) or user-scope installs |
+| `-g, --global` | List user-scope installs |
 | `--json` | Output raw JSON |
 
 ### Publish options
@@ -659,7 +666,7 @@ MCP tools inject a server entry into the platform's `mcp.json` config file.
 
 ### `plugin`
 
-Plugin bundles **explode** into normal platform element paths (skills, rules, commands, agents, MCP merge, hooks merge) for the active platform and scope. Plugin-level `scripts/` and `assets/` install under a synthetic skill package. Never writes whole packages to `.cursor/plugins/local/`.
+Plugin bundles **explode** into normal platform element paths (skills, rules, commands, agents, MCP merge, hooks merge) for the active platform and scope. Plugin-level `scripts/` and `assets/` install under a synthetic skill package. Default explode never writes whole packages to `.cursor/plugins/local/`. Use `aitools install <pkg> --cursor-plugin` for an opaque install into `~/.cursor/plugins/local/` (user scope; tracked in `~/.aitools/`).
 
 `manifest validate` requires every `files[]` entry to have an install home. See [docs/design/plugin-marketplaces-comparison.md](docs/design/plugin-marketplaces-comparison.md).
 

@@ -57,6 +57,7 @@ export { ConfigCascade, CONFIG_FILENAME } from './config/cascade.js';
 
 // Stored path helpers
 export { toPosixPath, toStoredPath, resolveStoredPath } from './paths/stored-path.js';
+export { userToolsRoot, trackingRoot } from './paths/tracking-root.js';
 
 // Lock file utilities
 export {
@@ -87,6 +88,7 @@ export { isPublishable, toPublishManifest } from './manifest/publish-manifest.js
 export {
   sanitizePackageDirName,
   resolvePluginInstallDir,
+  resolveCursorLocalPluginDir,
   PLUGIN_PLATFORM_DESCRIPTOR,
 } from './manifest/plugin-install.js';
 export {

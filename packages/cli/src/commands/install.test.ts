@@ -304,14 +304,24 @@ describe('install command action', () => {
   it('installs with project scope by default', async () => {
     const installSpy = jest.spyOn(Installer.prototype, 'install');
     await createInstallCommand().parseAsync(['test-skill'], { from: 'user' });
-    expect(installSpy).toHaveBeenCalledWith(expect.anything(), expect.anything(), 'project');
+    expect(installSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      'project',
+      expect.objectContaining({}),
+    );
     installSpy.mockRestore();
   });
 
   it('installs with user scope when --global is passed', async () => {
     const installSpy = jest.spyOn(Installer.prototype, 'install');
     await createInstallCommand().parseAsync(['test-skill', '--global'], { from: 'user' });
-    expect(installSpy).toHaveBeenCalledWith(expect.anything(), expect.anything(), 'user');
+    expect(installSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      'user',
+      expect.objectContaining({}),
+    );
     installSpy.mockRestore();
   });
 
@@ -319,6 +329,27 @@ describe('install command action', () => {
     const exitSpy = mockExit();
     await expect(
       createInstallCommand().parseAsync(['test-skill', '--global', '--scope', 'project'], { from: 'user' }),
+    ).rejects.toThrow('process.exit:1');
+    exitSpy.mockRestore();
+  });
+
+  it('writes user-scope deps to ~/.aitools/aitools.json with --global', async () => {
+    await createInstallCommand().parseAsync(['test-skill', '--global'], { from: 'user' });
+    expect(fs.existsSync(path.join(tmp, 'aitools.json'))).toBe(false);
+    expect(fs.existsSync(path.join(tmp, 'aitools-lock.json'))).toBe(false);
+    const userManifest = JSON.parse(
+      fs.readFileSync(path.join(isolatedHome, '.aitools', 'aitools.json'), 'utf8'),
+    ) as { dependencies: Record<string, string> };
+    expect(userManifest.dependencies['test-skill']).toBe('^2.0.0');
+    expect(fs.existsSync(path.join(isolatedHome, '.aitools', 'aitools-lock.json'))).toBe(true);
+  });
+
+  it('exits when --cursor-plugin is combined with --scope project', async () => {
+    const exitSpy = mockExit();
+    await expect(
+      createInstallCommand().parseAsync(['test-skill', '--cursor-plugin', '--scope', 'project'], {
+        from: 'user',
+      }),
     ).rejects.toThrow('process.exit:1');
     exitSpy.mockRestore();
   });

@@ -97,3 +97,11 @@
 **How**: Unit tests in `config-write-target.test.ts`, `config.test.ts`, `registry.test.ts`, `config-manager.test.ts`, `install.test.ts`. E2E in `config-layers.test.ts`. Isolate user home with mocked `os.homedir()` or `AITOOLS_CONFIG_ROOT` in unit tests; e2e uses `E2E_USER_CONFIG`.  
 **Example**: `AGENTS.md` Testing section, `packages/e2e/src/config-layers.test.ts`  
 **Do not**: Ship config-layer behaviour changes without updating both unit and e2e contracts.
+
+---
+
+### Changelog-first e2e contracts — 2026-07-16
+**Used for**: Any product-behaviour change that will (or should) be covered by `packages/e2e`.  
+**How**: When writing an implementation plan, include a **Update product changelog** step (skill: `project-changelog`) *before* e2e todos. Record the intended CLI/user-visible behaviour in `features.md` (plus `constraints.md` / `patterns.md` as needed) with the e2e suite under **Key files**. Implement e2e against that entry — not the reverse.  
+**Example**: `.agents/skills/project-changelog/SKILL.md` Workflow §0, `AGENTS.md` Testing  
+**Do not**: Treat e2e `it(...)` names as the product spec when the changelog is silent or stale; do not generate plans with e2e work and no preceding changelog step.

@@ -49,3 +49,14 @@ export function resolvePluginInstallDir(
 export const PLUGIN_PLATFORM_DESCRIPTOR: Partial<Record<string, string>> = {
   cursor: '.cursor-plugin/plugin.json',
 };
+
+/**
+ * Resolve Cursor's local plugin loader directory for an opaque plugin tree.
+ * Destination: ~/.cursor/plugins/local/<pluginDirName>/
+ */
+export function resolveCursorLocalPluginDir(
+  pluginDirName: string,
+  homeDir: string = os.homedir(),
+): string {
+  return path.join(homeDir, '.cursor', 'plugins', 'local', pluginDirName);
+}

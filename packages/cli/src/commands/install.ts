@@ -20,9 +20,7 @@ import {
   readManifest,
   writeManifest,
   upsertDependency,
-  removeDependency,
-  upsertToolDependency,
-  removeToolDependency,
+  trackingRoot,
 } from '@bitgenetics/aitools-core';
 import type { InstallScope } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
@@ -36,6 +34,7 @@ interface InstallOptions {
   dev?: boolean;
   version?: string;
   platform?: string;
+  cursorPlugin?: boolean;
 }
 
 /**
@@ -54,6 +53,10 @@ export function createInstallCommand(): Command {
     .option('-D, --dev', 'Save as a devTool dependency')
     .option('-v, --version <version>', 'Specific version to install (overrides @version in name)')
     .option('-p, --platform <platform>', PLATFORM_OPTION_DESCRIPTION)
+    .option(
+      '--cursor-plugin',
+      'Install a Cursor plugin as an opaque tree under ~/.cursor/plugins/local/ (user scope; tracked in ~/.aitools)',
+    )
     .action(async (pkg: string | undefined, options: InstallOptions) => {
       const cwd = process.cwd();
       const platformOverride = resolvePlatformOption(options.platform);
@@ -65,7 +68,12 @@ export function createInstallCommand(): Command {
         process.exit(1);
       }
 
-      const scope: InstallScope = options.global
+      if (options.cursorPlugin && options.scope === 'project') {
+        console.error(chalk.red('--cursor-plugin requires user scope (omit --scope project).'));
+        process.exit(1);
+      }
+
+      const scope: InstallScope = options.cursorPlugin || options.global
         ? 'user'
         : (options.scope ?? configManager.getDefaultScope());
 
@@ -118,37 +126,45 @@ async function installSingle(
 
   let installed;
   try {
-    installed = await installer.install(client, manifest, scope);
+    installed = await installer.install(client, manifest, scope, {
+      cursorPlugin: options.cursorPlugin,
+    });
     spinner.succeed(
       `Installed ${chalk.green(installed.name)}@${installed.version} (${installed.files.length} file(s))`,
     );
     for (const f of installed.files) {
       console.log(chalk.dim(`  -> ${f}`));
     }
+    if (options.cursorPlugin) {
+      console.log(
+        chalk.dim('\n  Cursor local plugin installed. Reload Window (or restart Cursor) to load it.'),
+      );
+    }
   } catch (err) {
     spinner.fail(`Installation failed: ${(err as Error).message}`);
     process.exit(1);
   }
 
-  if (configManager.getPlatform() === 'universal') {
+  if (configManager.getPlatform() === 'universal' && !options.cursorPlugin) {
     console.log(
       chalk.yellow('\n  Tip: no platform configured -- files were installed to .agents/') +
       chalk.dim('\n  Run: aitools config set platform vscode  (or claude|cursor|windsurf)') +
       chalk.dim('\n  Or pass: aitools install <package> --platform cursor'),
     );
-  } else if (configManager.detectedPlatform) {
+  } else if (configManager.detectedPlatform && !options.cursorPlugin) {
     console.log(
       chalk.dim(`\n  Auto-detected platform: ${configManager.detectedPlatform}`) +
       chalk.dim(`\n  Pin it permanently: aitools config set platform ${configManager.detectedPlatform}`),
     );
   }
 
-  // Update aitools.json
-  const existing = readManifest(cwd) ?? {};
+  const trackDir = trackingRoot(scope, cwd);
+  const existing = readManifest(trackDir) ?? {};
   const versionRange = `^${manifest.version}`;
   const updated = upsertDependency(existing, name, versionRange, options.dev ?? false);
-  writeManifest(cwd, updated);
-  console.log(chalk.dim(`  Saved to aitools.json`));
+  writeManifest(trackDir, updated);
+  const manifestLabel = scope === 'user' ? '~/.aitools/aitools.json' : 'aitools.json';
+  console.log(chalk.dim(`  Saved to ${manifestLabel}`));
 }
 
 async function installAll(
@@ -157,9 +173,14 @@ async function installAll(
   installer: Installer,
   cwd: string,
 ): Promise<void> {
-  const manifest = readManifest(cwd);
+  const trackDir = trackingRoot(scope, cwd);
+  const manifest = readManifest(trackDir);
   if (!manifest) {
-    console.error(chalk.red('No aitools.json found. Run: aitools init'));
+    const hint =
+      scope === 'user'
+        ? 'No ~/.aitools/aitools.json found. Install a package with: aitools install <name> -g'
+        : 'No aitools.json found. Run: aitools init';
+    console.error(chalk.red(hint));
     process.exit(1);
   }
 
@@ -170,21 +191,20 @@ async function installAll(
 
   const toolNames = Object.keys(allTools);
   if (toolNames.length === 0) {
-    console.log(chalk.yellow('No tools listed in aitools.json.'));
+    console.log(chalk.yellow(`No tools listed in ${scope === 'user' ? '~/.aitools/aitools.json' : 'aitools.json'}.`));
     return;
   }
 
   const registries = configManager.getRegistries();
-  const lock = installer.getLock();
+  const lock = installer.getLock(scope);
   let installed = 0;
 
   for (const name of toolNames) {
     const range = allTools[name] ?? 'latest';
     const locked = lock.tools[name];
 
-    // Skip if already installed at a satisfying version
     if (locked && semver.satisfies(locked.version, range)) {
-      console.log(chalk.dim(`  ${name}@${locked.version} ? already satisfied`));
+      console.log(chalk.dim(`  ${name}@${locked.version} — already satisfied`));
       continue;
     }
 
@@ -197,7 +217,8 @@ async function installAll(
         const versions = await client.listVersions(name);
         const resolvedVersion = semver.maxSatisfying(versions, range) ?? 'latest';
         const toolManifest = await client.getManifest(name, resolvedVersion);
-        await installer.install(client, toolManifest, scope);
+        const cursorPlugin = locked?.installMethod === 'cursor-plugin-local';
+        await installer.install(client, toolManifest, scope, { cursorPlugin });
         spinner.succeed(`${chalk.green(name)}@${toolManifest.version}`);
         success = true;
         installed++;

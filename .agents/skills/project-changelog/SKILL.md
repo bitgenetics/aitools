@@ -3,12 +3,14 @@ name: project-changelog
 description: >-
   Use this skill to initialize, update, and read a project changelog that keeps
   AI assistants continuously aware of key features, design decisions, and
-  architectural choices. Use when starting a new project, after architectural
-  decisions, after significant feature completions, when onboarding an AI to an
-  existing codebase, or when an AI session needs project context. Also use when
-  asked to "update the changelog", "record this decision", "add to project
-  context", or "summarize what we built".
-argument-hint: "init | add-entry | read | prune"
+  architectural choices. Use when starting a new project, when writing or
+  reviewing an implementation plan for product behaviour changes, before
+  adding or changing e2e tests, after architectural decisions, after significant
+  feature completions, when onboarding an AI to an existing codebase, or when
+  an AI session needs project context. Also use when asked to "update the
+  changelog", "record this decision", "add to project context", or "summarize
+  what we built".
+argument-hint: "init | add-entry | read | prune | plan-step"
 ---
 
 # Project Changelog Skill
@@ -21,18 +23,22 @@ The folder structure keeps each concern in a separate file so the AI loads **onl
 .ai/product-changelog/
 ├── index.md          ← Always read first: system overview + section map (keep < 80 lines)
 ├── architecture.md   ← ADR-style: major structural choices with rationale
-├── features.md       ← Completed features with API surface & key files
+├── features.md       ← Product behaviours & API surface (expectation source for e2e)
 ├── patterns.md       ← Recurring code patterns used across the codebase
 ├── constraints.md    ← Accepted tradeoffs and known limitations
 ├── integrations.md   ← How subsystems connect to each other
 └── archived.md       ← Superseded entries (history, never delete)
 ```
 
+**E2e contract rule:** Product behaviour expectations live in the changelog first. E2e suites implement those expectations — they are not the sole source of truth. Plans that change product behaviour must include a changelog update step **before** e2e implementation.
+
 ## When to Use
 
 - **Session start**: Read `index.md`, then load only the files relevant to the task
+- **Writing / generating an implementation plan** for product behaviour changes: include a changelog plan step (see Workflow §0)
+- **Before adding or changing e2e tests**: update `features.md` / `constraints.md` / `patterns.md` so the contract exists, then write e2e against it
 - **After an architectural decision**: Add to `architecture.md`
-- **After a feature is completed**: Add to `features.md`
+- **After a feature is completed**: Refine `features.md` if implementation details (key files, SHAs) changed; do not wait until after e2e to invent the behaviour
 - **After adopting a codebase-wide pattern**: Add to `patterns.md`
 - **When accepting a tradeoff**: Add to `constraints.md`
 - **When two subsystems are wired together**: Add to `integrations.md`
@@ -41,6 +47,32 @@ The folder structure keeps each concern in a separate file so the AI loads **onl
 ---
 
 ## Workflow
+
+### 0. Plan product changes (changelog-first)
+
+When creating or updating an **implementation plan** that changes product behaviour (CLI UX, install/uninstall semantics, config layers, registry, platform paths, plugins, etc.):
+
+1. Read `index.md` and the relevant section files (usually `features.md`, `constraints.md`).
+2. Add an explicit plan todo / step, early in the sequence (before “write e2e” / “extend e2e”):
+
+   > **Update product changelog** — run the `project-changelog` skill: record the intended behaviour in `features.md` (and `constraints.md` / `patterns.md` / `architecture.md` as needed). Name the e2e suite(s) that will enforce it under **Key files**.
+
+3. Only after that step: implement code, unit tests, then e2e that assert the changelog behaviour.
+4. If the plan already has an e2e todo but no changelog todo, insert the changelog step **before** the e2e todo.
+
+**Entry shape for e2e-backed behaviour** (in `features.md` or `patterns.md`):
+
+```markdown
+### [Short title] — YYYY-MM-DD
+**What**: User-visible / CLI-visible behaviour (the contract).  
+**Why**: Rationale.  
+**Impact**: What callers and tests must assume.  
+**Key files**: `packages/e2e/src/<suite>.test.ts`, implementation paths…
+```
+
+Do not treat an existing e2e `it(...)` list as the product spec when the changelog is silent or stale — update the changelog first, then align e2e.
+
+---
 
 ### 1. Read Before Acting
 
@@ -89,7 +121,7 @@ Use the templates in [references/templates/](./references/templates/) for each f
 | What happened | File to update |
 |---|---|
 | Major structural choice (DB, framework, execution model, auth) | `architecture.md` |
-| New feature completed | `features.md` |
+| New or changed product behaviour (including e2e contracts) | `features.md` |
 | Codebase-wide pattern adopted | `patterns.md` |
 | Known limitation or accepted tradeoff | `constraints.md` |
 | Two subsystems integrated or wired together | `integrations.md` |
@@ -105,6 +137,8 @@ Use the templates in [references/templates/](./references/templates/) for each f
 ```
 
 The short SHA (`git rev-parse --short HEAD`) in the title marks exactly which commit this entry describes. This lets git bridge the gap between entries.
+
+When recording behaviour that e2e will (or already does) enforce, include the e2e suite path in **Key files** and state the behaviour in **What** / **Impact** clearly enough that a new e2e `it(...)` could be written from the entry alone.
 
 After adding, **update `index.md`**:
 - Update `Last SHA` to the current HEAD short SHA
@@ -130,15 +164,16 @@ Prune when any section file exceeds ~150 lines or entries are stale:
 A good entry:
 - [ ] Clear, searchable title
 - [ ] Explains **why**, not just what
-- [ ] Lists key files for direct navigation
-- [ ] Dated with short git SHA in the title
+- [ ] Lists key files for direct navigation (include e2e suite when it is the contract)
+- [ ] Dated with short git SHA in the title (when committed; date-only is OK mid-plan)
 - [ ] Under 10 lines
+- [ ] For behaviour changes: readable as an e2e expectation without opening the test file first
 
 A healthy changelog folder:
 - [ ] `index.md` under 80 lines (always cheap to load)
 - [ ] No file exceeds ~150 lines
 - [ ] No entries contradicting each other across files
-- [ ] Reflects current reality, not aspirational state
+- [ ] Reflects current reality, not aspirational state left after ship without updating
 - [ ] `archived.md` holds superseded content rather than deletion
 
 ---
@@ -151,3 +186,5 @@ A healthy changelog folder:
 - **Too vague**: "Refactored auth" is useless. "Moved auth to server-side JWT (was client-side) for XSS safety — see `auth/middleware.ts`" is useful.
 - **Stale entries**: An outdated changelog misleads the AI. Prune regularly.
 - **Skipping the read**: Always read `index.md` before acting. The value is lost if skipped.
+- **E2e-first contracts**: Do not invent product expectations only inside `packages/e2e` and treat the changelog as optional afterthought. Update the changelog in the plan **before** implementing or extending e2e.
+- **Plans that skip changelog**: Do not generate implementation plans for product behaviour with an e2e step but no preceding `project-changelog` step.

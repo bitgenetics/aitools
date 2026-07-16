@@ -135,8 +135,15 @@
 
 ---
 
-### Plugin install does not use Cursor marketplace dirs — 2026-07-14
-**Constraint**: Explode install writes element paths (e.g. `.cursor/skills/`), never whole packages under `.cursor/plugins/local/`. Opaque `.agents/plugins/` trees are retired. `resolvePluginInstallDir` remains only for legacy helpers/tests.  
-**Reason**: Two distribution channels must not be conflated; IDE loaders pick up elements, not aitools as a Cursor plugin host.  
-**Do not change**: Bridging to Cursor plugin loader without an explicit product decision.  
-**Key files**: `packages/core/src/manifest/plugin-explode.ts`, `docs/design/plugin-marketplaces-comparison.md`
+### Plugin install does not use Cursor marketplace dirs by default — 2026-07-14 (updated 2026-07-16)
+**Constraint**: Default explode install writes element paths (e.g. `.cursor/skills/`), never whole packages under `.cursor/plugins/local/`. Opaque `.agents/plugins/` trees are retired. `resolvePluginInstallDir` remains only for legacy helpers/tests.  
+**Opt-in**: `aitools install <pkg> --cursor-plugin` copies an opaque tree to `~/.cursor/plugins/local/<name>/` and tracks it under `~/.aitools/` (user scope only).  
+**Reason**: Two distribution channels must not be conflated by default; the flag is the explicit bridge to Cursor’s plugin loader.  
+**Do not change**: Dual-writing explode + local without an explicit product decision.  
+**Key files**: `packages/core/src/manifest/plugin-explode.ts`, `packages/cli/src/utils/installer.ts`, `docs/design/plugin-marketplaces-comparison.md`
+
+### User-scope tracking root — 2026-07-16
+**Constraint**: Project-scope installs track in `{cwd}/aitools.json` + `aitools-lock.json`. User-scope (`-g` / `--scope user`) tracks in `~/.aitools/aitools.json` + `~/.aitools/aitools-lock.json`. Payload files still go to platform vendor user dirs (e.g. `~/.cursor/skills/`). Settings remain in `~/aitools.config.json`.  
+**Reason**: User installs must not be coupled to whichever project directory happened to be cwd.  
+**Do not change**: Do not write user-scope deps/lock back into the project.  
+**Key files**: `packages/core/src/paths/tracking-root.ts`, `packages/cli/src/commands/install.ts`, `packages/cli/src/utils/installer.ts`

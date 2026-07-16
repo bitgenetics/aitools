@@ -14,7 +14,11 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import os from 'node:os';
 import path from 'node:path';
-import { resolvePluginInstallDir, sanitizePackageDirName } from './plugin-install.js';
+import {
+  resolvePluginInstallDir,
+  resolveCursorLocalPluginDir,
+  sanitizePackageDirName,
+} from './plugin-install.js';
 
 describe('sanitizePackageDirName', () => {
   it('replaces slashes in scoped package names', () => {
@@ -38,5 +42,25 @@ describe('resolvePluginInstallDir', () => {
   it('honours a plugins base override', () => {
     const dir = resolvePluginInstallDir('project', cwd, 'my-plugin', '/custom/plugins');
     expect(dir).toBe(path.join('/custom/plugins', 'my-plugin'));
+  });
+
+  it('expands ~/ in a plugins base override', () => {
+    const dir = resolvePluginInstallDir('project', cwd, 'my-plugin', '~/custom/plugins');
+    expect(dir).toBe(path.join(os.homedir(), 'custom', 'plugins', 'my-plugin'));
+  });
+});
+
+describe('resolveCursorLocalPluginDir', () => {
+  it('resolves under ~/.cursor/plugins/local/<name>', () => {
+    const home = path.join(path.sep, 'home', 'dev');
+    expect(resolveCursorLocalPluginDir('starter-simple', home)).toBe(
+      path.join(home, '.cursor', 'plugins', 'local', 'starter-simple'),
+    );
+  });
+
+  it('defaults home to os.homedir()', () => {
+    expect(resolveCursorLocalPluginDir('demo')).toBe(
+      path.join(os.homedir(), '.cursor', 'plugins', 'local', 'demo'),
+    );
   });
 });

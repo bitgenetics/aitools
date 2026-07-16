@@ -18,7 +18,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { REGISTRY_URL, makeE2eProjectDir, rmTmpDir, run } from './test-env.js';
+import { E2E_HOME, REGISTRY_URL, makeE2eProjectDir, rmTmpDir, run } from './test-env.js';
 
 const PLUGIN_NAME = 'e2e-test-plugin';
 const PLUGIN_VERSION = '1.1.0';
@@ -106,29 +106,43 @@ describe('plugin explode install', () => {
     expect(fs.existsSync(path.join(tmpDir, '.cursor', 'skills', PLUGIN_NAME))).toBe(false);
   });
 
-  it('installs to user skill roots with --global', () => {
+  it('installs to user skill roots with --global under ~/.aitools tracking', () => {
     run(`install ${PLUGIN_NAME}@${PLUGIN_VERSION} --global`, tmpDir);
 
-    const homeSkills = path.join(
-      process.env['USERPROFILE'] || process.env['HOME'] || '',
-      '.cursor',
-      'skills',
-      'review',
-      'SKILL.md',
-    );
-    // e2e isolates HOME via test-env; assert via lock scope and a relative check
-    const lock = JSON.parse(fs.readFileSync(path.join(tmpDir, 'aitools-lock.json'), 'utf8')) as {
+    const homeSkills = path.join(E2E_HOME, '.cursor', 'skills', 'review', 'SKILL.md');
+    expect(fs.existsSync(homeSkills)).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'aitools-lock.json'))).toBe(false);
+
+    const userLockPath = path.join(E2E_HOME, '.aitools', 'aitools-lock.json');
+    const lock = JSON.parse(fs.readFileSync(userLockPath, 'utf8')) as {
       tools: Record<string, { scope?: string; files: string[] }>;
     };
     expect(lock.tools[PLUGIN_NAME]?.scope).toBe('user');
     expect(lock.tools[PLUGIN_NAME]?.files.some((f) => f.includes('skills'))).toBe(true);
 
-    run(`uninstall ${PLUGIN_NAME}`, tmpDir);
-    expect(lock.tools[PLUGIN_NAME]).toBeDefined(); // pre-uninstall snapshot
-    const lockAfter = JSON.parse(fs.readFileSync(path.join(tmpDir, 'aitools-lock.json'), 'utf8')) as {
+    run(`uninstall ${PLUGIN_NAME} -g`, tmpDir);
+    const lockAfter = JSON.parse(fs.readFileSync(userLockPath, 'utf8')) as {
       tools: Record<string, unknown>;
     };
     expect(lockAfter.tools[PLUGIN_NAME]).toBeUndefined();
-    void homeSkills;
+    expect(fs.existsSync(homeSkills)).toBe(false);
+  });
+
+  it('installs opaque tree with --cursor-plugin under plugins/local', () => {
+    run(`install ${PLUGIN_NAME}@${PLUGIN_VERSION} --cursor-plugin`, tmpDir);
+
+    const localRoot = path.join(E2E_HOME, '.cursor', 'plugins', 'local', PLUGIN_NAME);
+    expect(fs.existsSync(path.join(localRoot, '.cursor-plugin', 'plugin.json'))).toBe(true);
+    expect(fs.existsSync(path.join(localRoot, 'skills', 'review', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.cursor', 'skills', 'review', 'SKILL.md'))).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, 'aitools-lock.json'))).toBe(false);
+
+    const userLock = JSON.parse(
+      fs.readFileSync(path.join(E2E_HOME, '.aitools', 'aitools-lock.json'), 'utf8'),
+    ) as { tools: Record<string, { installMethod?: string }> };
+    expect(userLock.tools[PLUGIN_NAME]?.installMethod).toBe('cursor-plugin-local');
+
+    run(`uninstall ${PLUGIN_NAME} --cursor-plugin`, tmpDir);
+    expect(fs.existsSync(localRoot)).toBe(false);
   });
 });

@@ -14,25 +14,37 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import { Command } from 'commander';
 import chalk from 'chalk';
+import type { InstallScope } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { Installer } from '../utils/installer.js';
 
 /**
  * aitools list
  *
- * Lists all tools recorded in the aitools-lock.json.
+ * Lists all tools recorded in the aitools-lock.json for the chosen scope.
  */
 export function createListCommand(): Command {
   return new Command('list')
     .alias('ls')
     .description('List installed AITools packages')
+    .option('-s, --scope <scope>', 'List scope: project (default) or user')
+    .option('-g, --global', 'List user-scope installs (same as --scope user)')
     .option('--json', 'Output raw JSON')
-    .action((options: { json?: boolean }) => {
+    .action((options: { json?: boolean; scope?: InstallScope; global?: boolean }) => {
       const cwd = process.cwd();
       const configManager = new ConfigManager(cwd);
       const installer = new Installer(configManager, cwd);
-      const lock = installer.getLock();
 
+      if (options.global && options.scope && options.scope !== 'user') {
+        console.error(chalk.red('Use either --global or --scope project, not both.'));
+        process.exit(1);
+      }
+
+      const scope: InstallScope = options.global
+        ? 'user'
+        : (options.scope ?? 'project');
+
+      const lock = installer.getLock(scope);
       const tools = Object.entries(lock.tools);
 
       if (options.json) {
@@ -41,14 +53,21 @@ export function createListCommand(): Command {
       }
 
       if (tools.length === 0) {
-        console.log(chalk.yellow('No tools installed. Run: aitools install <name>'));
+        const hint =
+          scope === 'user'
+            ? 'No user-scope tools installed. Run: aitools install <name> -g'
+            : 'No tools installed. Run: aitools install <name>';
+        console.log(chalk.yellow(hint));
         return;
       }
 
-      console.log(chalk.bold(`\nInstalled tools (${tools.length})\n`));
+      const title = scope === 'user' ? 'User-scope installed tools' : 'Installed tools';
+      console.log(chalk.bold(`\n${title} (${tools.length})\n`));
 
       for (const [name, entry] of tools) {
-        console.log(`  ${chalk.green(name)}  ${chalk.dim(entry.version)}`);
+        const method =
+          entry.installMethod === 'cursor-plugin-local' ? '  [cursor-plugin]' : '';
+        console.log(`  ${chalk.green(name)}  ${chalk.dim(entry.version)}${chalk.dim(method)}`);
         console.log(`    ${chalk.dim(`installed: ${entry.installedAt.split('T')[0]}`)}`);
         console.log(`    ${chalk.dim(`files: ${entry.files.length}`)}`);
       }

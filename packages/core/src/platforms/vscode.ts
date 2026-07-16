@@ -38,7 +38,8 @@ export const vscodeSpec: PlatformSpec = {
     agent:      { project: '.github/agents',       user: '~/.copilot/agents' },
     prompt:     { project: '.github/prompts',      user: '~/.copilot/prompts' },
     subagent:   { project: '.github/agents',       user: '~/.copilot/agents' },
-    mcpConfig:  { project: '.vscode/mcp.json',     user: '~/.vscode/mcp.json' },
+    // User MCP is VS Code profile mcp.json (resolved at runtime by VsCodeAdapter).
+    mcpConfig:  { project: '.vscode/mcp.json',     user: '~/.config/Code/User/mcp.json' },
     hookConfig: { project: '.github/hooks/hooks.json', user: '~/.copilot/hooks/hooks.json' },
   },
 };

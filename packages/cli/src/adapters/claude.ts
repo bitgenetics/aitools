@@ -32,30 +32,35 @@ import type { InstallScope, FileCategory } from '@bitgenetics/aitools-core';
 export class ClaudeAdapter implements PlatformAdapter {
   readonly platform = 'claude' as const;
 
-  private readonly DIRS: Record<InstallScope, Record<FileCategory, string>> = {
-    project: {
-      skill:   path.join('.claude', 'skills'),
-      rule:    path.join('.claude', 'rules'),
-      command: path.join('.claude', 'commands'),
-      agent:   path.join('.claude', 'agents'),
-    },
-    user: {
-      skill:   path.join(os.homedir(), '.claude', 'skills'),
-      rule:    path.join(os.homedir(), '.claude', 'rules'),
-      command: path.join(os.homedir(), '.claude', 'commands'),
-      agent:   path.join(os.homedir(), '.claude', 'agents'),
-    },
+  private projectDirs: Record<FileCategory, string> = {
+    skill:   path.join('.claude', 'skills'),
+    rule:    path.join('.claude', 'rules'),
+    command: path.join('.claude', 'commands'),
+    agent:   path.join('.claude', 'agents'),
   };
+
+  private userDirs(): Record<FileCategory, string> {
+    const home = os.homedir();
+    return {
+      skill:   path.join(home, '.claude', 'skills'),
+      rule:    path.join(home, '.claude', 'rules'),
+      command: path.join(home, '.claude', 'commands'),
+      agent:   path.join(home, '.claude', 'agents'),
+    };
+  }
 
   resolveDir(category: AdapterFileCategory, scope: InstallScope, cwd: string): string {
     const fileCategory = resolveFileCategory(category);
-    const p = this.DIRS[scope][fileCategory];
-    return scope === 'project' ? path.resolve(cwd, p) : p;
+    if (scope === 'project') {
+      return path.resolve(cwd, this.projectDirs[fileCategory]);
+    }
+    return this.userDirs()[fileCategory];
   }
 
   resolveMcpConfig(scope: InstallScope, cwd: string): string {
     if (scope === 'project') return path.resolve(cwd, '.mcp.json');
-    return path.join(os.homedir(), '.claude', 'mcp.json');
+    // Personal MCP servers live in ~/.claude.json (official Claude Code docs).
+    return path.join(os.homedir(), '.claude.json');
   }
 
   resolveHooksConfig(scope: InstallScope, cwd: string): string {

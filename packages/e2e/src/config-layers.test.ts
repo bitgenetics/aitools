@@ -17,13 +17,13 @@
  *
  * - Settings (registries, platform, defaultScope, installPaths) write to user config by default;
  *   --project writes ./aitools.config.json; reads merge with project overriding user.
- * - Installed tools default to project scope; -g / --global installs to user scope.
- *
- * aitools.json and aitools-lock.json are project manifests (like package.json / package-lock.json).
+ * - Installed tools default to project scope; -g / --global installs to user scope tracked
+ *   under ~/.aitools/ (not the project lock/manifest).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  E2E_HOME,
   E2E_USER_CONFIG,
   REGISTRY_URL,
   clearE2eUserConfig,
@@ -169,12 +169,18 @@ describe('config layer model', () => {
       expect(lock.tools[FIXTURE]?.scope).toBe('project');
     });
 
-    it('installs to user scope with --global', () => {
+    it('installs to user scope with --global under ~/.aitools tracking', () => {
       run(`install ${FIXTURE} --global`, projectDir);
-      const lock = JSON.parse(fs.readFileSync(path.join(projectDir, 'aitools-lock.json'), 'utf8')) as {
+      expect(fs.existsSync(path.join(projectDir, 'aitools-lock.json'))).toBe(false);
+      const userLockPath = path.join(E2E_HOME, '.aitools', 'aitools-lock.json');
+      const lock = JSON.parse(fs.readFileSync(userLockPath, 'utf8')) as {
         tools: Record<string, { scope?: string }>;
       };
       expect(lock.tools[FIXTURE]?.scope).toBe('user');
+      const userManifest = JSON.parse(
+        fs.readFileSync(path.join(E2E_HOME, '.aitools', 'aitools.json'), 'utf8'),
+      ) as { dependencies: Record<string, string> };
+      expect(userManifest.dependencies[FIXTURE]).toBeDefined();
     });
 
     it('uses defaultScope from merged config when --scope is omitted', () => {
@@ -186,9 +192,10 @@ describe('config layer model', () => {
         }),
       );
       run(`install ${FIXTURE}`, projectDir);
-      const lock = JSON.parse(fs.readFileSync(path.join(projectDir, 'aitools-lock.json'), 'utf8')) as {
-        tools: Record<string, { scope?: string }>;
-      };
+      expect(fs.existsSync(path.join(projectDir, 'aitools-lock.json'))).toBe(false);
+      const lock = JSON.parse(
+        fs.readFileSync(path.join(E2E_HOME, '.aitools', 'aitools-lock.json'), 'utf8'),
+      ) as { tools: Record<string, { scope?: string }> };
       expect(lock.tools[FIXTURE]?.scope).toBe('user');
     });
 
@@ -209,6 +216,23 @@ describe('config layer model', () => {
         tools: Record<string, { scope?: string }>;
       };
       expect(lock.tools[FIXTURE]?.scope).toBe('project');
+    });
+
+    it('uninstall -g removes from user tracking without touching project lock', () => {
+      run(`install ${FIXTURE} --global`, projectDir);
+      fs.writeFileSync(
+        path.join(projectDir, 'aitools-lock.json'),
+        JSON.stringify({ lockfileVersion: 1, tools: { keep: { version: '1.0.0', resolved: 'x', integrity: 'x', files: [], installedAt: new Date().toISOString() } } }),
+      );
+      run(`uninstall ${FIXTURE} -g`, projectDir);
+      const userLock = JSON.parse(
+        fs.readFileSync(path.join(E2E_HOME, '.aitools', 'aitools-lock.json'), 'utf8'),
+      ) as { tools: Record<string, unknown> };
+      expect(userLock.tools[FIXTURE]).toBeUndefined();
+      const projectLock = JSON.parse(
+        fs.readFileSync(path.join(projectDir, 'aitools-lock.json'), 'utf8'),
+      ) as { tools: Record<string, unknown> };
+      expect(projectLock.tools['keep']).toBeDefined();
     });
   });
 
