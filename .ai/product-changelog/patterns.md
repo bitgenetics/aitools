@@ -68,11 +68,11 @@
 
 ---
 
-### Content file detection for `manifest init` and `manifest files` — `dee6a92` / `b653839`
+### Content file detection for `manifest init` and `manifest files` — `dee6a92` / `b653839` (updated dest nesting)
 **Used for**: `manifest init` and `manifest files` — finding skill/subagent/prompt/mcp-tool/plugin content to include.  
-**How**: `detectDirectContentFiles` finds root-level matches; `detectContentFolders(root, exts)` finds subdirectories that **directly** contain at least one file matching `exts`. Plugin category uses `getPluginBundleScanPlan` / `resolvePluginBundleSources` (skills/rules/agents/commands/hooks/assets/scripts + `.cursor-plugin/`). Interactive init prompts per root group and per folder; when nothing is selected, offers `promptForManifestFiles`. `manifest files` always uses the per-file picker; `--yes` includes all detected files with `dest: src`.  
-**Example**: `packages/cli/src/commands/manifest.ts`, `packages/core/src/manifest/plugin-explode.ts`  
-**Do not**: Use raw `detectFiles` in interactive folder mode — it returns flat file lists rather than logical content units.
+**How**: `detectDirectContentFiles` finds root-level matches; `detectContentFolders(root, exts)` finds subdirectories that **directly** contain at least one file matching `exts`. Plugin category uses `getPluginBundleScanPlan` / `resolvePluginBundleSources` (skills/rules/agents/commands/hooks/assets/scripts + `.cursor-plugin/`). Interactive init prompts per root group and per folder; when nothing is selected, offers `promptForManifestFiles`. `manifest files` / init `--yes` default `dest` via `defaultInstallDest`: skill/subagent/prompt nest under the package install folder (e.g. `my-skill/SKILL.md`); mcp-tool and plugin keep author-relative `dest: src`.  
+**Example**: `packages/cli/src/commands/manifest.ts`, `packages/e2e/src/cli.test.ts` (manifest init/files dest nesting)  
+**Do not**: Use raw `detectFiles` in interactive folder mode — it returns flat file lists rather than logical content units. Do not scaffold skill `dest` as a bare filename at the category root.
 
 ---
 

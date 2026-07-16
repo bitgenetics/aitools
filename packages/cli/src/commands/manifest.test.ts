@@ -303,7 +303,7 @@ describe('manifest command', () => {
       const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
         files: Array<{ src: string; dest: string }>;
       };
-      expect(manifest.files).toEqual([{ src: 'found.md', dest: 'found.md' }]);
+      expect(manifest.files).toEqual([{ src: 'found.md', dest: 'found-skill/found.md' }]);
     });
 
     it('includes optional author and keywords in non-interactive init', () => {
@@ -398,7 +398,8 @@ describe('manifest command', () => {
       const manifest = JSON.parse(
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { files: Array<{ src: string; dest: string }> };
-      expect(manifest.files).toEqual([{ src: 'SKILL.md', dest: 'SKILL.md' }]);
+      const defaultName = path.basename(tmp).toLowerCase().replace(/[^a-z0-9-]/g, '-');
+      expect(manifest.files).toEqual([{ src: 'SKILL.md', dest: `${defaultName}/SKILL.md` }]);
     });
 
     it('prompts for root-level SKILL.md when no subfolders exist', async () => {
@@ -422,7 +423,7 @@ describe('manifest command', () => {
       const manifest = JSON.parse(
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { files: Array<{ src: string; dest: string }> };
-      expect(manifest.files).toEqual([{ src: 'SKILL.md', dest: 'SKILL.md' }]);
+      expect(manifest.files).toEqual([{ src: 'SKILL.md', dest: 'root-skill/SKILL.md' }]);
     });
 
     it('prompts for each detected skill folder and includes only confirmed ones', async () => {
@@ -448,10 +449,13 @@ describe('manifest command', () => {
       jest.spyOn(console, 'log').mockImplementation(() => {});
       await createManifestCommand().parseAsync(['init'], { from: 'user' });
 
+      const defaultName = path.basename(tmp).toLowerCase().replace(/[^a-z0-9-]/g, '-');
       const manifest = JSON.parse(
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { files: Array<{ src: string; dest: string }> };
-      expect(manifest.files).toEqual([{ src: 'other-skill/SKILL.md', dest: 'other-skill/SKILL.md' }]);
+      expect(manifest.files).toEqual([
+        { src: 'other-skill/SKILL.md', dest: `${defaultName}/other-skill/SKILL.md` },
+      ]);
     });
 
     it('falls back to placeholder when all skill folders are declined', async () => {
@@ -477,7 +481,7 @@ describe('manifest command', () => {
       const manifest = JSON.parse(
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { files: Array<{ src: string; dest: string }> };
-      expect(manifest.files).toEqual([{ src: 'my-tool.md', dest: 'my-tool.md' }]);
+      expect(manifest.files).toEqual([{ src: 'my-tool/SKILL.md', dest: 'my-tool/SKILL.md' }]);
     });
 
     it('offers per-file picker when folder selection is declined', async () => {
@@ -504,11 +508,12 @@ describe('manifest command', () => {
       jest.spyOn(console, 'log').mockImplementation(() => {});
       await createManifestCommand().parseAsync(['init'], { from: 'user' });
 
+      const defaultName = path.basename(tmp).toLowerCase().replace(/[^a-z0-9-]/g, '-');
       const manifest = JSON.parse(
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { files: Array<{ src: string; dest: string }> };
       expect(manifest.files).toEqual([
-        { src: 'my-skill/SKILL.md', dest: 'my-skill/SKILL.md' },
+        { src: 'my-skill/SKILL.md', dest: `${defaultName}/my-skill/SKILL.md` },
       ]);
     });
 
@@ -563,7 +568,7 @@ describe('manifest command', () => {
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { category: string; files: Array<{ src: string }> };
       expect(manifest.category).toBe('subagent');
-      expect(manifest.files).toEqual([{ src: 'agent.md', dest: 'agent.md' }]);
+      expect(manifest.files).toEqual([{ src: 'agent.md', dest: 'review-agent/agent.md' }]);
     });
 
     it('uses agent.md placeholder when subagent folders are declined', async () => {
@@ -588,8 +593,10 @@ describe('manifest command', () => {
 
       const manifest = JSON.parse(
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
-      ) as { files: Array<{ src: string }> };
-      expect(manifest.files).toEqual([{ src: 'agent.md', dest: 'agent.md' }]);
+      ) as { files: Array<{ src: string; dest: string }> };
+      expect(manifest.files).toEqual([
+        { src: 'review-agent/agent.md', dest: 'review-agent/agent.md' },
+      ]);
     });
 
     it('auto-detects prompt.md for prompt category in non-interactive init', () => {
@@ -604,7 +611,7 @@ describe('manifest command', () => {
         files: Array<{ src: string }>;
       };
       expect(manifest.category).toBe('prompt');
-      expect(manifest.files).toEqual([{ src: 'prompt.md', dest: 'prompt.md' }]);
+      expect(manifest.files).toEqual([{ src: 'prompt.md', dest: 'commit-msg/prompt.md' }]);
     });
 
     it('auto-detects root and nested server files for mcp-tool and scaffolds mcpServer', () => {
@@ -739,10 +746,14 @@ describe('manifest command', () => {
 
       const manifest = JSON.parse(
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
-      ) as { files: Array<{ src: string }> };
-      const srcs = manifest.files.map((f) => f.src);
-      expect(srcs).toContain('manual-only.md');
-      expect(srcs).toContain('skill.md');
+      ) as { files: Array<{ src: string; dest: string }> };
+      expect(manifest.files).toEqual(
+        expect.arrayContaining([
+          { src: 'manual-only.md', dest: 'manual-only.md' },
+          { src: 'skill.md', dest: 'my-skill/skill.md' },
+        ]),
+      );
+      expect(manifest.files).toHaveLength(2);
     });
 
     it('replaces files entirely with --force', async () => {
@@ -764,8 +775,8 @@ describe('manifest command', () => {
 
       const manifest = JSON.parse(
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
-      ) as { files: Array<{ src: string }> };
-      expect(manifest.files).toEqual([{ src: 'skill.md', dest: 'skill.md' }]);
+      ) as { files: Array<{ src: string; dest: string }> };
+      expect(manifest.files).toEqual([{ src: 'skill.md', dest: 'my-skill/skill.md' }]);
     });
 
     it('uses plugin bundle scan for plugin category', async () => {

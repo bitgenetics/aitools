@@ -72,19 +72,19 @@
 
 ---
 
-### manifest init / validate / bump — 2026-04-26 `d0b6f60` (updated `dee6a92`)
+### manifest init / validate / bump — 2026-04-26 `d0b6f60` (updated dest nesting)
 **What**: `aitools manifest init` scaffolds publish fields in `aitools.json` interactively or with `--yes`. Interactive mode detects root-level content files and content folders (`detectContentFolders`), prompts per group, and falls back to per-file selection (`--pick-files` or when folder selection is declined). Category-aware placeholders and file extensions for skill, subagent, prompt, and mcp-tool; mcp-tool scaffolds `mcpServer`. Plugin init uses `getPluginBundleScanPlan`. `validate` runs Zod schema checks + verifies declared files exist. `bump patch|minor|major` increments the version with semver.  
 **Why**: Authors need category-aware discovery without hand-writing every `files[]` entry.  
-**Impact**: Publish requires unified `aitools.json` (legacy `aitools.manifest.json` rejected — see constraints).  
+**Impact**: For skill/subagent/prompt, default `files[].dest` nests under the package install folder (e.g. `my-skill/SKILL.md`), not a bare filename at the category root. Explicit `src:dest` via `--file` is preserved. MCP tools and plugins keep author-relative dests.  
 **Key flags**: `--pick-files`, `--category`, `--nativeFor` (plugin), `-y/--yes`, `--force`  
-**Key files**: `packages/cli/src/commands/manifest.ts`, `packages/core/src/manifest/plugin-explode.ts`
+**Key files**: `packages/cli/src/commands/manifest.ts`, `packages/core/src/manifest/plugin-explode.ts`, `packages/e2e/src/cli.test.ts`
 
 ---
 
-### manifest files — 2026-07-15 `dee6a92`
-**What**: `aitools manifest files` walks detected publish candidates and lets the user include/exclude each file and set install `dest` paths. Merges with existing `files[]` by default; `--force` replaces the list. `--yes` includes all detected files with `dest: src`. Re-scaffolds `mcpServer` entry path when needed for mcp-tool packages.  
+### manifest files — 2026-07-15 `dee6a92` (updated dest nesting)
+**What**: `aitools manifest files` walks detected publish candidates and lets the user include/exclude each file and set install `dest` paths. Merges with existing `files[]` by default; `--force` replaces the list. `--yes` includes all detected files with default dest (skill/subagent/prompt nest under the package folder; mcp-tool/plugin keep `dest: src`). Re-scaffolds `mcpServer` entry path when needed for mcp-tool packages.  
 **Key flags**: `--category` (when no manifest yet), `-y/--yes`, `--force`  
-**Key files**: `packages/cli/src/commands/manifest.ts`
+**Key files**: `packages/cli/src/commands/manifest.ts`, `packages/e2e/src/cli.test.ts`
 
 ---
 

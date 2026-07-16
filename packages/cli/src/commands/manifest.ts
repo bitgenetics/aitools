@@ -31,20 +31,53 @@ interface ContentInitProfile {
   unitLabel: string;
 }
 
+/**
+ * Folder name used under the platform category install dir (e.g. `.cursor/skills/<folder>/`).
+ * Unscopes npm-style names (`@org/pkg` → `pkg`).
+ */
+function packageInstallFolder(packageName: string): string {
+  const trimmed = packageName.trim();
+  if (!trimmed) return 'tool';
+  const unscoped = trimmed.includes('/')
+    ? trimmed.slice(trimmed.lastIndexOf('/') + 1)
+    : trimmed;
+  return unscoped || 'tool';
+}
+
+/**
+ * Default `files[].dest` for content packages: nest under the package install folder
+ * unless `src` is already under that folder. MCP tools and plugins keep author paths.
+ */
+function defaultInstallDest(src: string, packageName: string): string {
+  const normalized = src.replace(/\\/g, '/').replace(/^\.\//, '');
+  const folder = packageInstallFolder(packageName);
+  if (normalized === folder || normalized.startsWith(`${folder}/`)) {
+    return normalized;
+  }
+  return `${folder}/${normalized}`;
+}
+
+function mapSrcToInstallFiles(
+  srcs: string[],
+  packageName: string,
+): Array<{ src: string; dest: string }> {
+  return srcs.map((src) => ({ src, dest: defaultInstallDest(src, packageName) }));
+}
+
 const CONTENT_INIT_PROFILE: Record<ContentCategory, ContentInitProfile> = {
   skill: {
     exts: ['.md'],
-    placeholder: (name) => `${name}.md`,
+    placeholder: (name) => `${packageInstallFolder(name)}/SKILL.md`,
     unitLabel: 'skill',
   },
   subagent: {
     exts: ['.md'],
-    placeholder: () => 'agent.md',
+    placeholder: (name) => `${packageInstallFolder(name)}/agent.md`,
     unitLabel: 'subagent',
   },
   prompt: {
     exts: ['.md'],
-    placeholder: () => 'prompt.md',
+    placeholder: (name) => `${packageInstallFolder(name)}/prompt.md`,
     unitLabel: 'prompt',
   },
   'mcp-tool': {
@@ -391,6 +424,8 @@ async function promptForContentFiles(
     );
 
     const included: Array<{ src: string; dest: string }> = [];
+    const toDest = (src: string) =>
+      category === 'mcp-tool' ? src : defaultInstallDest(src, name);
 
     if (rootFiles.length > 0) {
       const rootLabel =
@@ -400,7 +435,7 @@ async function promptForContentFiles(
       const ans = (await rl.question(`  Include ${chalk.cyan(rootLabel)}? (Y/n): `)).trim();
       if (ans === '' || ans.toLowerCase().startsWith('y')) {
         for (const f of rootFiles) {
-          included.push({ src: f, dest: f });
+          included.push({ src: f, dest: toDest(f) });
         }
       }
     }
@@ -409,7 +444,7 @@ async function promptForContentFiles(
       const ans = (await rl.question(`  Include ${chalk.cyan(folder)}? (Y/n): `)).trim();
       if (ans === '' || ans.toLowerCase().startsWith('y')) {
         for (const f of folderFiles) {
-          included.push({ src: f, dest: f });
+          included.push({ src: f, dest: toDest(f) });
         }
       }
     }
@@ -431,7 +466,10 @@ async function promptForContentFiles(
   const detected = collectAllContentFiles(cwd, category);
   if (detected.length > 0) {
     console.log(chalk.dim(`\n  Auto-detected ${detected.length} matching file(s).`));
-    return detected.map((f) => ({ src: f, dest: f }));
+    if (category === 'mcp-tool') {
+      return detected.map((f) => ({ src: f, dest: f }));
+    }
+    return mapSrcToInstallFiles(detected, name);
   }
 
   if (category === 'mcp-tool') {
@@ -455,7 +493,10 @@ function resolveContentInitFilesNonInteractive(
 ): Array<{ src: string; dest: string }> {
   const detected = collectAllContentFiles(cwd, category);
   if (detected.length > 0) {
-    return detected.map((f) => ({ src: f, dest: f }));
+    if (category === 'mcp-tool') {
+      return detected.map((f) => ({ src: f, dest: f }));
+    }
+    return mapSrcToInstallFiles(detected, name);
   }
   if (category === 'mcp-tool') {
     return [];
@@ -495,8 +536,13 @@ function mergeFileSelections(
 
 function resolveManifestFilesNonInteractive(
   candidates: string[],
+  category: Category,
+  name: string,
 ): Array<{ src: string; dest: string }> {
-  return candidates.map((src) => ({ src, dest: src }));
+  if (category === 'plugin' || category === 'mcp-tool') {
+    return candidates.map((src) => ({ src, dest: src }));
+  }
+  return mapSrcToInstallFiles(candidates, name);
 }
 
 async function promptForManifestFiles(
@@ -533,7 +579,11 @@ async function promptForManifestFiles(
       continue;
     }
 
-    const defaultDest = existing?.dest ?? src;
+    const defaultDest = existing?.dest ?? (
+      category === 'plugin' || category === 'mcp-tool'
+        ? src
+        : defaultInstallDest(src, name)
+    );
     const destAns = (await rl.question(`    dest (${defaultDest}): `)).trim();
     const dest =
       destAns === '' ? defaultDest : destAns === '-' ? src : destAns;
@@ -555,10 +605,20 @@ function mcpServerNeedsRefresh(
   return currentPath !== expectedPath;
 }
 
-function parseFileEntry(entry: string): { src: string; dest: string } {
+function parseFileEntry(
+  entry: string,
+  category: Category,
+  packageName: string,
+): { src: string; dest: string } {
   const sep = entry.indexOf(':');
-  if (sep === -1) return { src: entry, dest: path.basename(entry) };
-  return { src: entry.slice(0, sep), dest: entry.slice(sep + 1) };
+  if (sep !== -1) {
+    return { src: entry.slice(0, sep), dest: entry.slice(sep + 1) };
+  }
+  const src = entry;
+  if (category === 'plugin' || category === 'mcp-tool') {
+    return { src, dest: path.basename(src) };
+  }
+  return { src, dest: defaultInstallDest(src, packageName) };
 }
 
 // -- Shared manifest write + print ---------------------------------------------
@@ -688,7 +748,7 @@ async function initNonInteractive(
 
   let files: Array<{ src: string; dest: string }>;
   if (options.file && options.file.length > 0) {
-    files = options.file.map(parseFileEntry);
+    files = options.file.map((entry) => parseFileEntry(entry, category, name));
   } else if (category === 'plugin') {
     const { files: pluginFiles, warnings } = collectPluginInitFiles(cwd, name);
     if (pluginFiles.length > 0) {
@@ -704,6 +764,8 @@ async function initNonInteractive(
     if (options.pickFiles) {
       files = resolveManifestFilesNonInteractive(
         collectManifestFileCandidates(cwd, category, name),
+        category,
+        name,
       );
     } else {
       files = resolveContentInitFilesNonInteractive(cwd, category, name);
@@ -711,10 +773,10 @@ async function initNonInteractive(
   } else {
     const detected = detectFiles(cwd, CATEGORY_EXT[category] ?? ['.md']);
     if (detected.length > 0) {
-      files = detected.map((f) => ({ src: f, dest: f }));
+      files = mapSrcToInstallFiles(detected, name);
     } else {
-      files = [{ src: `${name}.md`, dest: `${name}.md` }];
-      console.log(chalk.dim('  Note: no matching files found � using placeholder filename'));
+      files = [{ src: `${name}.md`, dest: defaultInstallDest(`${name}.md`, name) }];
+      console.log(chalk.dim('  Note: no matching files found — using placeholder filename'));
     }
   }
 
@@ -782,7 +844,7 @@ async function initInteractive(
     let files: Array<{ src: string; dest: string }> = [];
 
     if (options.file && options.file.length > 0) {
-      files = options.file.map(parseFileEntry);
+      files = options.file.map((entry) => parseFileEntry(entry, category, name));
     } else if (category === 'plugin') {
       const { files: pluginFiles, warnings } = collectPluginInitFiles(cwd, name);
       if (pluginFiles.length > 0) {
@@ -888,7 +950,7 @@ function createManifestFilesCommand(): Command {
       let selected: Array<{ src: string; dest: string }>;
 
       if (options.yes) {
-        selected = resolveManifestFilesNonInteractive(candidates);
+        selected = resolveManifestFilesNonInteractive(candidates, category, name);
       } else {
         const rl = createInterface({ input, output, terminal: true });
         try {

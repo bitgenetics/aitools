@@ -429,6 +429,100 @@ describe('aitools manifest bump', () => {
 
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+
+describe('aitools manifest init', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = makeE2eProjectDir('aitools-e2e-');
+  });
+
+  afterEach(() => {
+    rmTmpDir(tmpDir);
+  });
+
+  it('nests skill dest under the package name for a root SKILL.md', () => {
+    fs.writeFileSync(path.join(tmpDir, 'SKILL.md'), '# E2E skill\n');
+    run('manifest init --name e2e-init-skill --category skill --yes --force', tmpDir);
+
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(tmpDir, 'aitools.json'), 'utf8'),
+    ) as { files: Array<{ src: string; dest: string }> };
+    expect(manifest.files).toEqual([{ src: 'SKILL.md', dest: 'e2e-init-skill/SKILL.md' }]);
+  });
+
+  it('nests skill dest under the package name when content lives in a subfolder', () => {
+    fs.mkdirSync(path.join(tmpDir, 'my-skill'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'my-skill', 'SKILL.md'), '# Nested\n');
+    run('manifest init --name e2e-nested-skill --category skill --yes --force', tmpDir);
+
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(tmpDir, 'aitools.json'), 'utf8'),
+    ) as { files: Array<{ src: string; dest: string }> };
+    expect(manifest.files).toEqual([
+      { src: 'my-skill/SKILL.md', dest: 'e2e-nested-skill/my-skill/SKILL.md' },
+    ]);
+  });
+
+  it('uses a nested SKILL.md placeholder when no content files exist', () => {
+    run('manifest init --name e2e-placeholder --category skill --yes --force', tmpDir);
+
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(tmpDir, 'aitools.json'), 'utf8'),
+    ) as { files: Array<{ src: string; dest: string }> };
+    expect(manifest.files).toEqual([
+      { src: 'e2e-placeholder/SKILL.md', dest: 'e2e-placeholder/SKILL.md' },
+    ]);
+  });
+
+  it('keeps mcp-tool dest as the author-relative path', () => {
+    fs.writeFileSync(path.join(tmpDir, 'server.js'), 'export {}\n');
+    run('manifest init --name e2e-mcp --category mcp-tool --yes --force', tmpDir);
+
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(tmpDir, 'aitools.json'), 'utf8'),
+    ) as { files: Array<{ src: string; dest: string }> };
+    expect(manifest.files).toEqual([{ src: 'server.js', dest: 'server.js' }]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('aitools manifest files', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = makeE2eProjectDir('aitools-e2e-');
+  });
+
+  afterEach(() => {
+    rmTmpDir(tmpDir);
+  });
+
+  it('--yes --force nests skill dest under the package name', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'aitools.json'),
+      JSON.stringify({
+        name: 'e2e-files-skill',
+        version: '1.0.0',
+        description: 'files dest test',
+        category: 'skill',
+        files: [{ src: 'skill.md', dest: 'skill.md' }],
+      }),
+    );
+    fs.writeFileSync(path.join(tmpDir, 'skill.md'), '# Skill\n');
+    run('manifest files --yes --force', tmpDir);
+
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(tmpDir, 'aitools.json'), 'utf8'),
+    ) as { files: Array<{ src: string; dest: string }> };
+    expect(manifest.files).toEqual([{ src: 'skill.md', dest: 'e2e-files-skill/skill.md' }]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
 describe('aitools manifest validate', () => {
   let tmpDir: string;
 
