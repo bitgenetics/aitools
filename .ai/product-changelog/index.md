@@ -36,5 +36,5 @@
 
 ---
 
-<!-- Last SHA: ad7a20d -->
+<!-- Last SHA: c7b86e6 -->
 <!-- Last updated: 2026-07-16 -->
