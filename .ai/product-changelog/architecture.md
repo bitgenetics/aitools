@@ -52,19 +52,27 @@
 
 ---
 
-### Config layer model — settings write vs install scope — 2026-06-28 `e0a753f`
-**What**: Settings mutations (`config set/unset/edit`, `registry add/remove`) default to `~/.aitools.config.json`; `--project` writes `./aitools.config.json`. Reads (`config get/list`, command runtime) use merged cascade (project wins). `install` defaults to **project** scope; `-g`/`--global` installs to user scope.  
+### Config layer model — settings write vs install scope — 2026-06-28 `e0a753f` (updated `ad7a20d`)
+**What**: Settings mutations (`config set/unset/edit`, `registry add/remove`) default to `~/.aitools.config.json`; `--project` writes `./aitools.config.json`. Reads (`config get/list`, command runtime) use merged cascade (project wins). `install` defaults to **project** scope; `-g`/`--global` installs to user scope and tracks under `~/.aitools/`.  
 **Why**: Personal defaults belong in home config; project files override on read only. Installing tools globally by default was surprising in multi-repo workflows.  
 **Impact**: Mutating commands use `readUserConfig()` / `readProjectConfig()` + layer writes — not `ConfigManager.config` directly. Contract enforced in unit + e2e tests (`AGENTS.md`).  
-**Key files**: `packages/cli/src/utils/config-write-target.ts`, `packages/cli/src/commands/config.ts`, `packages/cli/src/commands/registry.ts`, `packages/cli/src/commands/install.ts`
+**Key files**: `packages/cli/src/utils/config-write-target.ts`, `packages/cli/src/commands/install.ts`, `packages/core/src/paths/tracking-root.ts`
 
 ---
 
-### Three manifest files (deps, lock, settings) — 2026-06-28 `e0a753f`
+### Three manifest files (deps, lock, settings) — 2026-06-28 `e0a753f` (updated `ad7a20d`)
 **What**: `aitools.json` lists tool dependencies (like `package.json`); `aitools-lock.json` records resolved installs (like `package-lock.json`); `aitools.config.json` holds settings and may exist at user and/or project level.  
 **Why**: Mixing settings with dependency manifests caused confusion about which file to edit and where lock entries live.  
-**Impact**: Lock and deps are always project-scoped; settings use the layer model above. E2E header in `config-layers.test.ts` is the canonical spec.  
-**Key files**: `packages/e2e/src/config-layers.test.ts`, `packages/core/src/config/lock.ts`, `readme.md`
+**Impact**: Deps/lock live under the **scope tracking root** — project cwd or `~/.aitools/` for user scope. Settings stay on the config layer model. Lock paths use portable `~/` / relative encoding (`80f6568`). E2E: `config-layers.test.ts`.  
+**Key files**: `packages/e2e/src/config-layers.test.ts`, `packages/core/src/paths/tracking-root.ts`, `packages/core/src/paths/stored-path.ts`, `readme.md`
+
+---
+
+### Shared references core model — 2026-07-15 `a556dd4` (updated `43b5c50`)
+**What**: Core module for declaring and resolving package `references` (shared markdown/resources): parse, vendor paths, install targets, reference-lock provenance. Design doc: registry DRY + vendored copies per consumer; CLI installer wiring still pending. Adapters exclude `reference` from regular file-dir install (`AdapterFileCategory`).  
+**Why**: Avoid a global shared mutable references store across unknown consumers.  
+**Impact**: Types/schema exist in core; do not call `resolveDir` for `reference`; treat installer vendoring as not-yet-product until CLI integration lands.  
+**Key files**: `packages/core/src/references/`, `packages/cli/src/adapters/types.ts`, `docs/design/shared-references.md`
 
 ---
 

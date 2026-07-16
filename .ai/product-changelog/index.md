@@ -5,7 +5,7 @@
 
 ## System Overview
 
-`AITools` is a package manager for AI tools — skills, rules, commands, agents, hooks, and MCP tools. Think `npm` for the AI tooling ecosystem. It is a TypeScript + Node.js ≥20 ESM monorepo with four packages: `@bitgenetics/aitools-core`, `@bitgenetics/aitools-cli` (binary: `aitools`), `@bitgenetics/aitools-server` (Fastify HTTP registry), and `@bitgenetics/aitools-e2e`. Three project files: `aitools.json` (dependencies), `aitools-lock.json` (resolved installs), `aitools.config.json` (settings — user default on write, project overrides on read). Install can **transform** content across IDE platforms when `nativeFor` differs from the active platform. Registries can be **HTTP** or **git-backed**. Project context for AI assistants lives in `.ai/product-changelog/` (load `index.md` first, then section files as needed).
+`AITools` is a package manager for AI tools — skills, rules, commands, agents, hooks, and MCP tools. Think `npm` for the AI tooling ecosystem. It is a TypeScript + Node.js ≥20 ESM monorepo with four packages: `@bitgenetics/aitools-core`, `@bitgenetics/aitools-cli` (binary: `aitools`), `@bitgenetics/aitools-server` (Fastify HTTP registry), and `@bitgenetics/aitools-e2e`. Three file roles: `aitools.json` + `aitools-lock.json` (deps/lock under project cwd or `~/.aitools/` by install scope), `aitools.config.json` (settings — user default on write, project overrides on read). Install can **transform** across IDE platforms; plugins default to **explode**, with opt-in `--cursor-plugin`. Registries can be **HTTP** or **git-backed**. Product context: `.ai/product-changelog/` (load `index.md` first).
 
 ---
 
@@ -24,21 +24,17 @@
 
 ## Recent Changes
 
-- **2026-07-16** — Changelog-first e2e contracts: plans must update product changelog (skill) before e2e; user-scope `~/.aitools` tracking + `--cursor-plugin` — see `patterns.md`, `features.md`, `constraints.md`, `AGENTS.md`
-- **2026-07-14** — Plugin install explodes into platform element paths; structure validate; path rewrite; lock mcpKeys/hooksAdded — see `features.md`, `constraints.md`, `docs/design/plugin-marketplaces-comparison.md`
-- **2026-06-28** — `plugin` category: aitools-managed install paths, `manifest init --category plugin`, comparison doc — see `features.md`, `docs/design/plugin-marketplaces-comparison.md`
-- **2026-06-28** `e0a753f` — Config layer model (settings write to user by default, project override on read; install defaults project scope), `config-layers` e2e, `test:coverage` CI gate, server coverage thresholds — see `architecture.md`, `features.md`, `patterns.md`, `integrations.md`, `constraints.md`
-- **2026-06-27** `f2a0a54` — npm/GitHub org finalized as `@bitgenetics/aitools-*` — see `architecture.md`
-- **2026-06-27** `6eba41d` — Cross-platform install transforms (rule/command/agent/hook), `aitools mcp`, `nativeFor` manifest field — see `architecture.md`, `features.md`, `integrations.md`, `patterns.md`, `constraints.md`
-- **2026-06-27** `8ffd641` — Rebrand to `aitools` CLI and `@bitgenetics/aitools-*` packages (`aitools.config.json`, `AITOOLS_*` env vars) — see `architecture.md`
-- **2026-06-26** `52eaa5a` — README reorganized: table of contents, **Registry types** section, lightweight git registry quick start — see `features.md`
-- **2026-06-26** `d7f8fa0` — Git registry mode + Gitea Docker e2e (`gitea-init` CLI bootstrap, not web install) — see `architecture.md`, `features.md`, `integrations.md`, `constraints.md`
-- **2026-06-15** `907cce7` — CLI shebang moved to line 1 (copyright header follows) — fixes `tsc` TS18026 — see `constraints.md`
-- **2026-06-15** `21e553f` — Design docs (`docs/design/`) rewritten to match implemented API, storage, and auth — see `architecture.md`
-- **2026-06-15** `95123f3` — AGPL-3.0-or-later: `LICENSE` + copyright headers; CI unit/E2E/image; user auth + portal — see `architecture.md`, `features.md`
-- **2026-04-30** `d22c706` — Admin portal login, provider abstractions, async stores — see `architecture.md`, `features.md`, `integrations.md`
+- **2026-07-16** `ad7a20d` — Catch-up `a8239bb..HEAD` + user-scope/`--cursor-plugin`/MCP paths/changelog-first e2e — see `features.md`, `architecture.md`, `constraints.md`, `patterns.md`
+- **2026-07-15** `a556dd4` / `dee6a92` / `43b5c50` — Shared references core; manifest init/files; `reference` not an adapter file category — see `features.md`, `architecture.md`, `patterns.md`
+- **2026-07-14** `8a80e17` — Plugin explode + path rewrite + lock mcpKeys/hooksAdded (landed under mislabeled bump) — see `features.md`, `patterns.md`, `constraints.md`
+- **2026-07-14** `a708c41` / `80f6568` / `4452a4d` / `b653839` / `cb32793` — Legacy manifest removed; portable lock paths; shared `--platform`; plugin scan; dev-init platform — see `constraints.md`, `patterns.md`, `features.md`
+- **2026-06-28** `e0a753f` — Config layer model; `config-layers` e2e; coverage CI gate — see `architecture.md`, `features.md`, `patterns.md`
+- **2026-06-27** `6eba41d` / `8ffd641` / `f2a0a54` — Transforms + `aitools mcp`; rebrand; `@bitgenetics` org — see `architecture.md`, `features.md`
+- **2026-06-26** `d7f8fa0` / `52eaa5a` — Git registry + Gitea e2e; README registry types — see `architecture.md`, `features.md`
+- **2026-06-15** `95123f3` — AGPL + CI unit/E2E/image; user auth portal — see `architecture.md`, `features.md`
+- **2026-04-30** `d22c706` — Admin portal, provider abstractions — see `architecture.md`, `features.md`
 
 ---
 
-<!-- Last SHA: a8239bb -->
-<!-- Last updated: 2026-07-14 -->
+<!-- Last SHA: ad7a20d -->
+<!-- Last updated: 2026-07-16 -->

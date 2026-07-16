@@ -4,10 +4,12 @@
 
 ---
 
-### install / uninstall / update — 2026-04-26 `d0b6f60` (updated 2026-07-16)
+### install / uninstall / update — 2026-04-26 `d0b6f60` (updated `ad7a20d`)
 **What**: Full package lifecycle. `aitools install <name[@version]>` downloads from the highest-priority registry that has the package, extracts to cache, copies files to the platform-specific install path, and records the result in the scope’s lock file. Default install scope is **project** (`./aitools.json` + `./aitools-lock.json`); `-g`/`--global` (or `--scope user`) installs to platform user paths and tracks under `~/.aitools/`. `uninstall` / `list` / `update` accept `-g` / `--scope` to target the matching tracking root.  
+**Why**: User-scope tracking must not be coupled to cwd; project and user installs are independent trees.  
+**Impact**: E2e must assert lock/deps location by scope; no automatic migration of old project-lock `scope: user` entries.  
 **Key APIs**: `Installer.install(client, manifest, scope, options?)`, `Installer.uninstall(name, scope)`, `trackingRoot()`, `CacheManager.get/set`  
-**Key files**: `packages/cli/src/commands/install.ts`, `packages/cli/src/commands/uninstall.ts`, `packages/cli/src/commands/update.ts`, `packages/cli/src/utils/installer.ts`, `packages/core/src/paths/tracking-root.ts`
+**Key files**: `packages/cli/src/commands/install.ts`, `packages/cli/src/utils/installer.ts`, `packages/core/src/paths/tracking-root.ts`, `packages/e2e/src/config-layers.test.ts`
 
 ---
 
@@ -23,10 +25,11 @@
 
 ---
 
-### plugin category — 2026-06-28 (updated explode 2026-07-14; `--cursor-plugin` 2026-07-16)
-**What**: `category: plugin` for multi-file plugin bundles. **Default install explodes** members into normal platform paths (skills/rules/commands/agents + MCP/hooks merge) for project or user scope. **`aitools install <pkg> --cursor-plugin`** copies an opaque tree to `~/.cursor/plugins/local/<name>/` (always user scope; `installMethod: cursor-plugin-local` in `~/.aitools` lock). Plugin-level `scripts/`/`assets/` land under a synthetic skill package on explode. Structure validation requires every `files[]` entry to have an install home.  
-**Key APIs**: `classifyPluginMembers()`, `Installer.installPlugin()`, `Installer.installCursorPluginLocal()`, `resolveCursorLocalPluginDir()`  
-**Key files**: `packages/core/src/manifest/plugin-explode.ts`, `packages/cli/src/utils/installer.ts`  
+### plugin category — 2026-06-28 (updated explode `8a80e17`; `--cursor-plugin` `ad7a20d`)
+**What**: `category: plugin` for multi-file plugin bundles. **Default install explodes** members into normal platform paths (skills/rules/commands/agents + MCP/hooks merge) for project or user scope. Explode rewrites relative paths in hooks/skills/MCP via `rewriteRelativePaths` / path maps; lock records `mcpKeys` / `hooksAdded` for uninstall. **`aitools install <pkg> --cursor-plugin`** copies an opaque tree to `~/.cursor/plugins/local/<name>/` (always user scope; rejects `--scope project`; `installMethod: cursor-plugin-local` in `~/.aitools` lock). Plugin-level `scripts/`/`assets/` land under a synthetic skill package on explode. Structure validation requires every `files[]` entry to have an install home.  
+**Why**: Explode is the portable default; Cursor’s local plugin loader is an explicit opt-in channel.  
+**Impact**: Default explode must not create `plugins/local/`; `--cursor-plugin` must not explode into skill/rule dirs. E2e: `plugin-install.test.ts`.  
+**Key files**: `packages/core/src/manifest/plugin-explode.ts`, `packages/cli/src/transformers/path-rewrite.ts`, `packages/cli/src/utils/installer.ts`, `packages/e2e/src/plugin-install.test.ts`  
 **Design doc**: `docs/design/plugin-marketplaces-comparison.md`
 
 ---
@@ -61,29 +64,41 @@
 
 ---
 
-### dev-init — 2026-04-26 `d0b6f60`
-**What**: `aitools dev-init [--force] [--scope project|user]` installs the bundled `create-ai-tool` skill directly from the CLI package binary — no registry required. Writes to `aitools-lock.json` and `aitools.json` (as a devDependency). Useful for bootstrapping a new project before a registry is configured.  
+### dev-init — 2026-04-26 `d0b6f60` (updated `cb32793`)
+**What**: `aitools dev-init [--force] [--scope project|user] [--platform <p>]` installs the bundled `create-ai-tool` skill from the CLI package — no registry required. Writes lock + `aitools.json` (devDependency). Lock entry records `platform`, `category`, and `scope`.  
+**Why**: Bundled bootstrap must honour the same platform override as install-family commands.  
+**Impact**: Without `--platform` / config, universal tip suggests configuring platform or passing `--platform`.  
 **Key files**: `packages/cli/src/commands/dev-init.ts`, `packages/cli/src/bundled/create-ai-tool.ts`
 
 ---
 
-### manifest init / validate / bump — 2026-04-26 `d0b6f60` (updated 2026-07-15)
-**What**: `aitools manifest init` scaffolds publish fields in `aitools.json` interactively or with `--yes`. Interactive mode detects root-level content files and content folders (`detectContentFolders`), prompts per group, and falls back to per-file selection (`--pick-files` or when folder selection is declined). Category-aware placeholders and file extensions for skill, subagent, prompt, and mcp-tool; mcp-tool scaffolds `mcpServer`. `validate` runs Zod schema checks + verifies declared files exist. `bump patch|minor|major` increments the version with semver.  
+### manifest init / validate / bump — 2026-04-26 `d0b6f60` (updated `dee6a92`)
+**What**: `aitools manifest init` scaffolds publish fields in `aitools.json` interactively or with `--yes`. Interactive mode detects root-level content files and content folders (`detectContentFolders`), prompts per group, and falls back to per-file selection (`--pick-files` or when folder selection is declined). Category-aware placeholders and file extensions for skill, subagent, prompt, and mcp-tool; mcp-tool scaffolds `mcpServer`. Plugin init uses `getPluginBundleScanPlan`. `validate` runs Zod schema checks + verifies declared files exist. `bump patch|minor|major` increments the version with semver.  
+**Why**: Authors need category-aware discovery without hand-writing every `files[]` entry.  
+**Impact**: Publish requires unified `aitools.json` (legacy `aitools.manifest.json` rejected — see constraints).  
 **Key flags**: `--pick-files`, `--category`, `--nativeFor` (plugin), `-y/--yes`, `--force`  
-**Key files**: `packages/cli/src/commands/manifest.ts`
+**Key files**: `packages/cli/src/commands/manifest.ts`, `packages/core/src/manifest/plugin-explode.ts`
 
 ---
 
-### manifest files — 2026-07-15
+### manifest files — 2026-07-15 `dee6a92`
 **What**: `aitools manifest files` walks detected publish candidates and lets the user include/exclude each file and set install `dest` paths. Merges with existing `files[]` by default; `--force` replaces the list. `--yes` includes all detected files with `dest: src`. Re-scaffolds `mcpServer` entry path when needed for mcp-tool packages.  
 **Key flags**: `--category` (when no manifest yet), `-y/--yes`, `--force`  
 **Key files**: `packages/cli/src/commands/manifest.ts`
 
 ---
 
-### list — 2026-04-26 `d0b6f60`
-**What**: `aitools list [--scope project|user]` reads `aitools-lock.json` and prints installed tools with version, category, scope, and install date.  
-**Key files**: `packages/cli/src/commands/list.ts`
+### list — 2026-04-26 `d0b6f60` (updated `ad7a20d`)
+**What**: `aitools list [-g|--scope project|user] [--json]` reads the scope’s lock and prints installed tools (version, install date, optional `[cursor-plugin]` marker).  
+**Key files**: `packages/cli/src/commands/list.ts`, `packages/e2e/src/config-layers.test.ts`
+
+---
+
+### Shared references (core model) — 2026-07-15 `a556dd4` (adapter typing `43b5c50`)
+**What**: Core types and helpers for package `references` — parse ranges, vendor-path layout, install-target resolution, and reference lock provenance. Design: registry DRY + per-consumer vendored copies at install (CLI installer integration still pending per design doc). Platform adapters treat `reference` like `plugin`/`mcp-tool`/`hook`: not a regular file-dir category (`AdapterFileCategory` / `toAdapterFileCategory`).  
+**Why**: Reuse markdown/resources across skills without a global shared mutable store.  
+**Impact**: Schema/types land in core; do not route `reference` through `resolveDir`; do not assume installer already vendors references until CLI wiring ships.  
+**Key files**: `packages/core/src/references/`, `packages/core/src/types/reference.ts`, `packages/cli/src/adapters/types.ts`, `docs/design/shared-references.md`
 
 ---
 
@@ -149,7 +164,7 @@
 
 ---
 
-### E2E config layer contract — 2026-06-28 `e0a753f` (updated 2026-07-16)
+### E2E config layer contract — 2026-06-28 `e0a753f` (updated `ad7a20d`)
 **What**: `packages/e2e/src/config-layers.test.ts` is the executable e2e for settings write targets, cascade read merge, and install scope (including user tracking under `~/.aitools/`). Product expectations for that model live in this changelog; e2e implements them.  
 **Key files**: `packages/e2e/src/config-layers.test.ts`, `packages/e2e/src/test-env.ts`, `AGENTS.md`, `.agents/skills/project-changelog/SKILL.md`
 

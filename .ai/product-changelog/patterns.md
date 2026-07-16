@@ -68,11 +68,43 @@
 
 ---
 
-### Content file detection for `manifest init` and `manifest files`
-**Used for**: `manifest init` and `manifest files` — finding skill/subagent/prompt/mcp-tool content to include.  
-**How**: `detectDirectContentFiles` finds root-level matches; `detectContentFolders(root, exts)` finds subdirectories that **directly** contain at least one file matching `exts` (returns `{ folder, files }[]` with recursive file lists). Interactive init prompts per root group and per folder; when nothing is selected, offers `promptForManifestFiles` (per-file include + dest). `manifest files` always uses the per-file picker; `--yes` includes all detected files with `dest: src`.  
-**Example**: `packages/cli/src/commands/manifest.ts` — `promptForContentFiles`, `promptForManifestFiles`, `collectManifestFileCandidates`  
-**Do not**: Use raw `detectFiles` in interactive folder mode — it returns flat file lists rather than logical content units; use `collectAllContentFiles` when a full candidate list is needed.
+### Content file detection for `manifest init` and `manifest files` — `dee6a92` / `b653839`
+**Used for**: `manifest init` and `manifest files` — finding skill/subagent/prompt/mcp-tool/plugin content to include.  
+**How**: `detectDirectContentFiles` finds root-level matches; `detectContentFolders(root, exts)` finds subdirectories that **directly** contain at least one file matching `exts`. Plugin category uses `getPluginBundleScanPlan` / `resolvePluginBundleSources` (skills/rules/agents/commands/hooks/assets/scripts + `.cursor-plugin/`). Interactive init prompts per root group and per folder; when nothing is selected, offers `promptForManifestFiles`. `manifest files` always uses the per-file picker; `--yes` includes all detected files with `dest: src`.  
+**Example**: `packages/cli/src/commands/manifest.ts`, `packages/core/src/manifest/plugin-explode.ts`  
+**Do not**: Use raw `detectFiles` in interactive folder mode — it returns flat file lists rather than logical content units.
+
+---
+
+### Shared `--platform` CLI option — 2026-07-14 `4452a4d`
+**Used for**: `install`, `uninstall`, `update`, `dev-init` (and any install-family command).  
+**How**: Import `PLATFORM_OPTION_DESCRIPTION` + `resolvePlatformOption` from `platform-option.ts`; pass result into `ConfigManager(cwd, { platform })`. Unknown platforms exit with known-list error.  
+**Example**: `packages/cli/src/utils/platform-option.ts`, `packages/cli/src/commands/install.ts`  
+**Do not**: Duplicate per-command platform parsing after this helper exists.
+
+---
+
+### Portable stored paths in lock/manifest — 2026-07-14 `80f6568`
+**Used for**: Writing/reading install paths in `aitools-lock.json` / related manifests.  
+**How**: `toStoredPath(root, absPath)` → relative-to-root or `~/…`; `resolveStoredPath(root, stored)` → absolute. Never persist absolute paths when they can be re-encoded.  
+**Example**: `packages/core/src/paths/stored-path.ts`, `packages/cli/src/utils/installer.ts`  
+**Do not**: Write machine-specific absolute paths into the lock when a portable form exists.
+
+---
+
+### Plugin explode path rewrite — 2026-07-14 `8a80e17`
+**Used for**: After classifying plugin members, rewrite relative refs in hook/skill/MCP content so they point at final install locations.  
+**How**: Build a bundle-rel → final-rel `PluginPathMap`; run `rewriteRelativePaths(content, pathMap)` (quoted paths + markdown links under scripts/assets/skills/…). Applies even when source and target platforms match (layout relocate).  
+**Example**: `packages/cli/src/transformers/path-rewrite.ts`, `packages/cli/src/utils/installer.ts`  
+**Do not**: Leave `./scripts/…` references pointing at the pre-explode package tree after install.
+
+---
+
+### Adapter file categories exclude reference — 2026-07-16 `43b5c50`
+**Used for**: Mapping manifest categories to `PlatformAdapter.resolveDir`.  
+**How**: `AdapterFileCategory` / `toAdapterFileCategory` exclude `mcp-tool`, `hook`, `plugin`, and `reference`. Those use specialized install paths (MCP/hooks merge, explode, or future reference vendoring).  
+**Example**: `packages/cli/src/adapters/types.ts`  
+**Do not**: Call `resolveDir('reference', …)` — it is not a regular file-based category.
 
 ---
 
@@ -100,7 +132,7 @@
 
 ---
 
-### Changelog-first e2e contracts — 2026-07-16
+### Changelog-first e2e contracts — 2026-07-16 `ad7a20d`
 **Used for**: Any product-behaviour change that will (or should) be covered by `packages/e2e`.  
 **How**: When writing an implementation plan, include a **Update product changelog** step (skill: `project-changelog`) *before* e2e todos. Record the intended CLI/user-visible behaviour in `features.md` (plus `constraints.md` / `patterns.md` as needed) with the e2e suite under **Key files**. Implement e2e against that entry — not the reverse.  
 **Example**: `.agents/skills/project-changelog/SKILL.md` Workflow §0, `AGENTS.md` Testing  

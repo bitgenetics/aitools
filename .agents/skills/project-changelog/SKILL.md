@@ -188,3 +188,4 @@ A healthy changelog folder:
 - **Skipping the read**: Always read `index.md` before acting. The value is lost if skipped.
 - **E2e-first contracts**: Do not invent product expectations only inside `packages/e2e` and treat the changelog as optional afterthought. Update the changelog in the plan **before** implementing or extending e2e.
 - **Plans that skip changelog**: Do not generate implementation plans for product behaviour with an e2e step but no preceding `project-changelog` step.
+- **Judging commits by subject only**: When reconciling git history, classify by **touched file paths** (and diffs), not labels like `chore: bump` / `fix: build`. A bump commit that edits `plugin-explode.ts` or installers is product work.

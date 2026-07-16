@@ -127,7 +127,15 @@
 
 ---
 
-### Plugin explode — no dirty-file detection — 2026-07-14
+### Legacy `aitools.manifest.json` publish source removed — 2026-07-14 `a708c41`
+**Constraint**: `resolvePublishSource` only accepts unified `aitools.json`. Passing or discovering `aitools.manifest.json` throws and directs users to `aitools manifest migrate`.  
+**Reason**: Dual publish-manifest formats increased bugs and test surface; unified doc is the single authoring path.  
+**Do not change**: Do not reintroduce silent fallback to the legacy filename.  
+**Key files**: `packages/core/src/manifest/manifest-file.ts`, `packages/cli/src/commands/publish.ts`
+
+---
+
+### Plugin explode — no dirty-file detection — 2026-07-14 `8a80e17`
 **Constraint**: Plugin uninstall deletes every locked file path and unmerges recorded MCP keys / hook handlers regardless of user edits after install.  
 **Reason**: Tracking dirty state is out of scope; users who edit installed files accept loss on uninstall/reinstall.  
 **Do not change**: Do not add content-hash dirty checks before remove.  
@@ -135,15 +143,23 @@
 
 ---
 
-### Plugin install does not use Cursor marketplace dirs by default — 2026-07-14 (updated 2026-07-16)
+### Plugin install does not use Cursor marketplace dirs by default — 2026-07-14 `8a80e17` (updated `ad7a20d`)
 **Constraint**: Default explode install writes element paths (e.g. `.cursor/skills/`), never whole packages under `.cursor/plugins/local/`. Opaque `.agents/plugins/` trees are retired. `resolvePluginInstallDir` remains only for legacy helpers/tests.  
 **Opt-in**: `aitools install <pkg> --cursor-plugin` copies an opaque tree to `~/.cursor/plugins/local/<name>/` and tracks it under `~/.aitools/` (user scope only).  
 **Reason**: Two distribution channels must not be conflated by default; the flag is the explicit bridge to Cursor’s plugin loader.  
 **Do not change**: Dual-writing explode + local without an explicit product decision.  
-**Key files**: `packages/core/src/manifest/plugin-explode.ts`, `packages/cli/src/utils/installer.ts`, `docs/design/plugin-marketplaces-comparison.md`
+**Key files**: `packages/core/src/manifest/plugin-explode.ts`, `packages/cli/src/utils/installer.ts`, `packages/e2e/src/plugin-install.test.ts`, `docs/design/plugin-marketplaces-comparison.md`
 
-### User-scope tracking root — 2026-07-16
-**Constraint**: Project-scope installs track in `{cwd}/aitools.json` + `aitools-lock.json`. User-scope (`-g` / `--scope user`) tracks in `~/.aitools/aitools.json` + `~/.aitools/aitools-lock.json`. Payload files still go to platform vendor user dirs (e.g. `~/.cursor/skills/`). Settings remain in `~/aitools.config.json`.  
+### User-scope tracking root — 2026-07-16 `ad7a20d`
+**Constraint**: Project-scope installs track in `{cwd}/aitools.json` + `aitools-lock.json`. User-scope (`-g` / `--scope user`) tracks in `~/.aitools/aitools.json` + `~/.aitools/aitools-lock.json`. Payload files still go to platform vendor user dirs (e.g. `~/.cursor/skills/`). Settings remain in `~/aitools.config.json` / `~/.aitools.config.json`.  
 **Reason**: User installs must not be coupled to whichever project directory happened to be cwd.  
-**Do not change**: Do not write user-scope deps/lock back into the project.  
-**Key files**: `packages/core/src/paths/tracking-root.ts`, `packages/cli/src/commands/install.ts`, `packages/cli/src/utils/installer.ts`
+**Do not change**: Do not write user-scope deps/lock back into the project; do not auto-migrate old project-lock `scope: user` entries.  
+**Key files**: `packages/core/src/paths/tracking-root.ts`, `packages/cli/src/commands/install.ts`, `packages/e2e/src/config-layers.test.ts`
+
+---
+
+### Platform user MCP paths — 2026-07-16 `ad7a20d`
+**Constraint**: Claude user MCP merges into `~/.claude.json` (not `~/.claude/mcp.json`). VS Code user MCP uses the profile path via `resolveVsCodeUserMcpConfig()` (e.g. `%APPDATA%/Code/User/mcp.json` on Windows). VS Code user prompts remain `~/.copilot/prompts` (Copilot-aligned convention; not VS Code profile prompts).  
+**Reason**: Align explode/user-scope MCP with official vendor locations.  
+**Do not change**: Do not reintroduce `~/.claude/mcp.json` or `~/.vscode/mcp.json` as the Claude/VS Code *user* MCP target.  
+**Key files**: `packages/core/src/platforms/claude.ts`, `packages/cli/src/adapters/vscode.ts`, `packages/cli/src/commands/mcp.ts`
