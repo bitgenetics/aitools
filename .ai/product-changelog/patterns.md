@@ -116,6 +116,14 @@
 
 ---
 
+### File placementMode resolution — 2026-07-17 `31b7508`
+**Used for**: Deciding whether `files[].dest` is honored 1:1 or remapped at install.  
+**How**: Call `effectivePlacementMode(file)` (`packages/core/src/placement/placement-mode.ts`). Omitted → `strict` (project-relative `dest`). `transform` enables plugin explode remaps and content `destExtension`. Manifest generators always emit `placementMode: 'strict'` via `fileEntry()`.  
+**Example**: `packages/cli/src/utils/installer.ts` (explode + `installFiles`), `packages/cli/src/commands/manifest.ts`  
+**Do not**: Assume legacy asset remapping when `placementMode` is absent.
+
+---
+
 ### `createRegistryClient()` factory dispatch — 2026-06-26 `d7f8fa0`
 **Used for**: All CLI commands that talk to a configured registry (install, search, publish, update).  
 **How**: `createRegistryClient(config)` checks `config.type === 'git'` (via `isGitRegistryConfig`) and returns `GitRegistryClient` or `HttpRegistryClient`. Both implement the shared `RegistryClient` interface. Omitting `type` in config defaults to HTTP.  

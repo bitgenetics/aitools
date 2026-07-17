@@ -24,7 +24,7 @@
 
 ## Recent Changes
 
-- **2026-07-17** — File `placementMode` (`strict` default vs `transform` remap) — see `features.md`
+- **2026-07-17** `31b7508` — File `placementMode` (`strict` default vs `transform` remap) — see `features.md`, `patterns.md`
 - **2026-07-16** `8c15b68` — Plugin-bundle install layout (`--plugin-bundle` → author roots `skills/`/`rules/`/…) — see `features.md`, `constraints.md`, `patterns.md`
 - **2026-07-16** `ad7a20d` — Catch-up `a8239bb..HEAD` + user-scope/`--cursor-plugin`/MCP paths/changelog-first e2e — see `features.md`, `architecture.md`, `constraints.md`, `patterns.md`
 - **2026-07-15** `a556dd4` / `dee6a92` / `43b5c50` — Shared references core; manifest init/files; `reference` not an adapter file category — see `features.md`, `architecture.md`, `patterns.md`
@@ -38,5 +38,5 @@
 
 ---
 
-<!-- Last SHA: 605b8cc -->
+<!-- Last SHA: 31b7508 -->
 <!-- Last updated: 2026-07-17 -->

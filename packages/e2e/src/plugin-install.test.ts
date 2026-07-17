@@ -15,7 +15,7 @@
 /**
  * Plugin category install e2e — explode into platform paths, not opaque plugin roots.
  *
- * Changelog contracts: features → plugin category; constraints → plugin install dirs,
+ * Changelog contracts: features → plugin category, placementMode; constraints → plugin install dirs,
  * user-scope tracking, platform user MCP paths.
  */
 
@@ -27,6 +27,8 @@ const PLUGIN_NAME = 'e2e-test-plugin';
 const PLUGIN_VERSION = '1.2.0';
 const MCP_PATH_PLUGIN = 'e2e-mcp-path-plugin';
 const MCP_PATH_VERSION = '1.0.0';
+const STRICT_PLUGIN = 'e2e-strict-placement-plugin';
+const STRICT_VERSION = '1.0.0';
 const MCP_SERVER_KEY = 'plugin-db';
 
 /** VS Code user MCP under isolated E2E_HOME (matches resolveVsCodeUserMcpConfig + pinned APPDATA). */
@@ -128,6 +130,28 @@ beforeAll(async () => {
       }),
     },
   );
+
+  // Strict placement: omitted placementMode + project-relative dest (no synthetic-skill remap).
+  await publishPlugin(
+    {
+      name: STRICT_PLUGIN,
+      version: STRICT_VERSION,
+      description: 'E2E strict placement fixture',
+      category: 'plugin',
+      nativeFor: 'cursor',
+      author: 'e2e',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md', placementMode: 'transform' },
+        { src: 'assets/someref.md', dest: '.cursor/assets/someref.md' },
+      ],
+    },
+    {
+      '.cursor-plugin/plugin.json': JSON.stringify({ name: STRICT_PLUGIN }),
+      'skills/x/SKILL.md': '# X\n',
+      'assets/someref.md': 'ref\n',
+    },
+  );
 });
 
 describe('plugin explode install', () => {
@@ -159,6 +183,16 @@ describe('plugin explode install', () => {
     expect(hooks.afterFileEdit[0]!.command).toContain(
       `.cursor/skills/${PLUGIN_NAME}/scripts/fmt.sh`,
     );
+  });
+
+  it('honors omitted placementMode as strict project-relative dest for assets', () => {
+    run(`install ${STRICT_PLUGIN}@${STRICT_VERSION} --scope project`, tmpDir);
+
+    expect(fs.existsSync(path.join(tmpDir, '.cursor', 'assets', 'someref.md'))).toBe(true);
+    expect(
+      fs.existsSync(path.join(tmpDir, '.cursor', 'skills', STRICT_PLUGIN, 'assets', 'someref.md')),
+    ).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, '.cursor', 'skills', 'x', 'SKILL.md'))).toBe(true);
   });
 
   it('uninstall removes exploded files and hook handlers', () => {

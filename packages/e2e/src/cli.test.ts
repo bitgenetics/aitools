@@ -76,10 +76,37 @@ describe('aitools search', () => {
 
 describe('aitools install', () => {
   const fixtureName = 'cli-e2e-install-fixture';
+  const rejectPluginName = 'cli-e2e-bundle-reject-plugin';
+  const rejectPluginVersion = '1.0.0';
   let tmpDir: string;
 
   beforeAll(async () => {
     await publishFixture(fixtureName, '1.0.0');
+    const res = await fetch(`${REGISTRY_URL}/api/tools`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        manifest: {
+          name: rejectPluginName,
+          version: rejectPluginVersion,
+          description: 'Plugin for --plugin-bundle reject e2e',
+          category: 'plugin',
+          nativeFor: 'cursor',
+          author: 'e2e',
+          files: [
+            { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+            { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md', placementMode: 'transform' },
+          ],
+        },
+        files: {
+          '.cursor-plugin/plugin.json': JSON.stringify({ name: rejectPluginName }),
+          'skills/x/SKILL.md': '# X\n',
+        },
+      }),
+    });
+    if (!res.ok && res.status !== 409) {
+      throw new Error(`Failed to publish reject plugin: ${res.status} ${await res.text()}`);
+    }
   });
 
   beforeEach(() => {
@@ -128,6 +155,24 @@ describe('aitools install', () => {
 
     run(`uninstall ${fixtureName}`, tmpDir);
     expect(fs.existsSync(path.join(tmpDir, 'skills', `${fixtureName}.md`))).toBe(false);
+  });
+
+  it('rejects --plugin-bundle with --global', () => {
+    expect(() => {
+      run(`install ${fixtureName} --plugin-bundle --global`, tmpDir);
+    }).toThrow();
+  });
+
+  it('rejects combining --plugin-bundle and --cursor-plugin', () => {
+    expect(() => {
+      run(`install ${fixtureName} --plugin-bundle --cursor-plugin`, tmpDir);
+    }).toThrow();
+  });
+
+  it('rejects --plugin-bundle for category plugin', () => {
+    expect(() => {
+      run(`install ${rejectPluginName}@${rejectPluginVersion} --plugin-bundle`, tmpDir);
+    }).toThrow();
   });
 
   it('default install still uses platform skill dirs (not skills/)', () => {
@@ -484,8 +529,10 @@ describe('aitools manifest init', () => {
 
     const manifest = JSON.parse(
       fs.readFileSync(path.join(tmpDir, 'aitools.json'), 'utf8'),
-    ) as { files: Array<{ src: string; dest: string }> };
-    expect(manifest.files).toEqual([{ src: 'SKILL.md', dest: 'e2e-init-skill/SKILL.md' }]);
+    ) as { files: Array<{ src: string; dest: string; placementMode?: string }> };
+    expect(manifest.files).toEqual([
+      { src: 'SKILL.md', dest: 'e2e-init-skill/SKILL.md', placementMode: 'strict' },
+    ]);
   });
 
   it('nests skill dest under the package name when content lives in a subfolder', () => {
@@ -495,9 +542,9 @@ describe('aitools manifest init', () => {
 
     const manifest = JSON.parse(
       fs.readFileSync(path.join(tmpDir, 'aitools.json'), 'utf8'),
-    ) as { files: Array<{ src: string; dest: string }> };
+    ) as { files: Array<{ src: string; dest: string; placementMode?: string }> };
     expect(manifest.files).toEqual([
-      { src: 'my-skill/SKILL.md', dest: 'e2e-nested-skill/my-skill/SKILL.md' },
+      { src: 'my-skill/SKILL.md', dest: 'e2e-nested-skill/my-skill/SKILL.md', placementMode: 'strict' },
     ]);
   });
 
@@ -506,9 +553,9 @@ describe('aitools manifest init', () => {
 
     const manifest = JSON.parse(
       fs.readFileSync(path.join(tmpDir, 'aitools.json'), 'utf8'),
-    ) as { files: Array<{ src: string; dest: string }> };
+    ) as { files: Array<{ src: string; dest: string; placementMode?: string }> };
     expect(manifest.files).toEqual([
-      { src: 'e2e-placeholder/SKILL.md', dest: 'e2e-placeholder/SKILL.md' },
+      { src: 'e2e-placeholder/SKILL.md', dest: 'e2e-placeholder/SKILL.md', placementMode: 'strict' },
     ]);
   });
 
@@ -518,8 +565,10 @@ describe('aitools manifest init', () => {
 
     const manifest = JSON.parse(
       fs.readFileSync(path.join(tmpDir, 'aitools.json'), 'utf8'),
-    ) as { files: Array<{ src: string; dest: string }> };
-    expect(manifest.files).toEqual([{ src: 'server.js', dest: 'server.js' }]);
+    ) as { files: Array<{ src: string; dest: string; placementMode?: string }> };
+    expect(manifest.files).toEqual([
+      { src: 'server.js', dest: 'server.js', placementMode: 'strict' },
+    ]);
   });
 });
 
@@ -552,8 +601,10 @@ describe('aitools manifest files', () => {
 
     const manifest = JSON.parse(
       fs.readFileSync(path.join(tmpDir, 'aitools.json'), 'utf8'),
-    ) as { files: Array<{ src: string; dest: string }> };
-    expect(manifest.files).toEqual([{ src: 'skill.md', dest: 'e2e-files-skill/skill.md' }]);
+    ) as { files: Array<{ src: string; dest: string; placementMode?: string }> };
+    expect(manifest.files).toEqual([
+      { src: 'skill.md', dest: 'e2e-files-skill/skill.md', placementMode: 'strict' },
+    ]);
   });
 });
 

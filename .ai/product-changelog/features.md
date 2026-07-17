@@ -16,16 +16,16 @@
 ### Plugin-bundle install layout — 2026-07-16 `8c15b68`
 **What**: `aitools install <pkg> --plugin-bundle` installs skill/rule/command/agent/mcp-tool/hook packages into the plugin **author layout** under cwd (`skills/`, `rules/`, `agents/`, `commands/`, `mcp.json`, `hooks/hooks.json` — respecting `.cursor-plugin/plugin.json` path overrides via `getPluginBundleScanPlan`). Lock records `installMethod: plugin-bundle`. Project scope only; rejects `-g` / `--scope user` / `--cursor-plugin`. Reinstall (`aitools install` / `update`) honors the lock method. `list` shows `[plugin-bundle]`. Uninstall deletes locked paths / unmerges MCP/hooks as usual. Default install (no flag) still uses platform dirs (e.g. `.cursor/skills/`). Rejects `category: plugin` and `category: reference` with a clear error. Does not auto-edit the consuming plugin’s publish `files[]` — authors run `manifest files` / validate.  
 **Why**: Plugin authors need registry packages as distribute-with-plugin members under author roots; platform install remains the local/dev dependency path (`-D`).  
-**Impact**: E2e must assert author-root destinations + lock method for `--plugin-bundle`, and platform destinations without the flag.  
+**Impact**: E2e must assert author-root destinations + lock method for `--plugin-bundle`, platform destinations without the flag, and rejects for `-g` / `--cursor-plugin` / `category: plugin`.  
 **Key files**: `packages/core/src/manifest/plugin-bundle-install.ts`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/commands/install.ts`, `packages/e2e/src/cli.test.ts`
 
 ---
 
-### File placementMode (strict vs transform) — 2026-07-17
+### File placementMode (strict vs transform) — 2026-07-17 `31b7508`
 **What**: Each `files[]` entry may set `placementMode`: `strict` (default when omitted) or `transform`. **strict** installs using `dest` as a project-relative path (1:1 with the manifest). **transform** keeps legacy placement remapping (e.g. plugin `assets/`/`scripts/` → synthetic skill package under the platform skills dir; content `destExtension` adjustments). Manifest init/files generate `placementMode: "strict"` on new entries. MCP/hooks merge behaviour is unchanged.  
 **Why**: Authors need predictable dest→disk mapping; opt into transform only when remapping is desired.  
-**Impact**: Packages that omit `placementMode` now use strict (breaking vs prior always-remap for plugin assets). E2e/unit must cover strict asset dest and explicit `transform` remapping.  
-**Key files**: `packages/core/src/types/tool.ts`, `packages/core/src/schema/tool-schema.ts`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/commands/manifest.ts`, `packages/cli/src/utils/installer.test.ts`
+**Impact**: Packages that omit `placementMode` now use strict (breaking vs prior always-remap for plugin assets). E2e asserts strict asset dest (`.cursor/assets/…`) and transform remapping fixtures; manifest init emits `placementMode: "strict"`.  
+**Key files**: `packages/core/src/placement/placement-mode.ts`, `packages/core/src/types/tool.ts`, `packages/core/src/schema/tool-schema.ts`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/commands/manifest.ts`, `packages/cli/src/utils/installer.test.ts`, `packages/e2e/src/plugin-install.test.ts`, `packages/e2e/src/cli.test.ts`
 
 ---
 
@@ -41,10 +41,10 @@
 
 ---
 
-### plugin category — 2026-06-28 (updated explode `8a80e17`; `--cursor-plugin` `ad7a20d`)
-**What**: `category: plugin` for multi-file plugin bundles. **Default install explodes** members into normal platform paths (skills/rules/commands/agents + MCP/hooks merge) for project or user scope. Explode rewrites relative paths in hooks/skills/MCP via `rewriteRelativePaths` / path maps; lock records `mcpKeys` / `hooksAdded` for uninstall. **`aitools install <pkg> --cursor-plugin`** copies an opaque tree to `~/.cursor/plugins/local/<name>/` (always user scope; rejects `--scope project`; `installMethod: cursor-plugin-local` in `~/.aitools` lock). Plugin-level `scripts/`/`assets/` land under a synthetic skill package on explode. Structure validation requires every `files[]` entry to have an install home.  
+### plugin category — 2026-06-28 (updated explode `8a80e17`; `--cursor-plugin` `ad7a20d`; `placementMode` `31b7508`)
+**What**: `category: plugin` for multi-file plugin bundles. **Default install explodes** members into normal platform paths (skills/rules/commands/agents + MCP/hooks merge) for project or user scope. Explode rewrites relative paths in hooks/skills/MCP via `rewriteRelativePaths` / path maps; lock records `mcpKeys` / `hooksAdded` for uninstall. **`aitools install <pkg> --cursor-plugin`** copies an opaque tree to `~/.cursor/plugins/local/<name>/` (always user scope; rejects `--scope project`; `installMethod: cursor-plugin-local` in `~/.aitools` lock). Per-file `placementMode` controls dest: **transform** remaps `scripts/`/`assets/` under a synthetic skill package; **strict** (default) honors project-relative `dest`. Structure validation requires every `files[]` entry to have an install home.  
 **Why**: Explode is the portable default; Cursor’s local plugin loader is an explicit opt-in channel.  
-**Impact**: Default explode must not create `plugins/local/`; `--cursor-plugin` must not explode into skill/rule dirs. E2e: `plugin-install.test.ts`.  
+**Impact**: Default explode must not create `plugins/local/`; `--cursor-plugin` must not explode into skill/rule dirs. Remap fixtures need `placementMode: "transform"`. E2e: `plugin-install.test.ts`.  
 **Key files**: `packages/core/src/manifest/plugin-explode.ts`, `packages/cli/src/transformers/path-rewrite.ts`, `packages/cli/src/utils/installer.ts`, `packages/e2e/src/plugin-install.test.ts`  
 **Design doc**: `docs/design/plugin-marketplaces-comparison.md`
 
