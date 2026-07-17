@@ -153,7 +153,7 @@
 
 ---
 
-### Plugin-bundle install is project-scope author layout only — 2026-07-16
+### Plugin-bundle install is project-scope author layout only — 2026-07-16 `8c15b68`
 **Constraint**: `--plugin-bundle` writes under cwd author roots only (project scope). It rejects user scope (`-g` / `--scope user`), `--cursor-plugin`, and packages with `category: plugin` or `category: reference`. Install method is persisted on the lock (`plugin-bundle`), not as rich dependency objects in `aitools.json` (v1). Does not auto-mutate the plugin package’s publish `files[]`.  
 **Reason**: Author layout is always repo-relative; nesting whole plugins or reference vendoring are separate workflows; surprising publish-set edits are out of scope for the installer.  
 **Do not change**: Do not allow user-scope plugin-bundle installs or dual-write platform + author layout for one lock entry.  

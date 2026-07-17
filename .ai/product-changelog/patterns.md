@@ -108,7 +108,7 @@
 
 ---
 
-### Plugin-bundle author-root path resolution — 2026-07-16
+### Plugin-bundle author-root path resolution — 2026-07-16 `8c15b68`
 **Used for**: `--plugin-bundle` installs that place packages into plugin author layout instead of platform vendor dirs.  
 **How**: When `InstallOptions.pluginBundle` is set, resolve category bases via `resolvePluginBundleInstallBase` / MCP / hooks helpers (from `getPluginBundleScanPlan` + optional `.cursor-plugin/plugin.json`), not `adapter.resolveDir`. Record `installMethod: 'plugin-bundle'` on the lock. Reinstall/update read that method like `cursor-plugin-local`. Keep platform adapters platform-only.  
 **Example**: `packages/core/src/manifest/plugin-bundle-install.ts`, `packages/cli/src/utils/installer.ts`  
