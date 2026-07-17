@@ -80,6 +80,29 @@ describe('ToolManifestSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('accepts placementMode strict and transform on file entries', () => {
+    for (const placementMode of ['strict', 'transform'] as const) {
+      const result = ToolManifestSchema.safeParse({
+        ...VALID_MANIFEST,
+        files: [{ src: 'skill.md', dest: 'skill.md', placementMode }],
+      });
+      expect(result.success).toBe(true);
+    }
+  });
+
+  it('accepts a file entry that omits placementMode', () => {
+    const result = ToolManifestSchema.safeParse(VALID_MANIFEST);
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an invalid placementMode value', () => {
+    const result = ToolManifestSchema.safeParse({
+      ...VALID_MANIFEST,
+      files: [{ src: 'skill.md', dest: 'skill.md', placementMode: 'loose' }],
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('accepts a valid mcp-tool manifest with an mcpServer descriptor', () => {
     const result = ToolManifestSchema.safeParse({
       name: 'my-mcp-server',

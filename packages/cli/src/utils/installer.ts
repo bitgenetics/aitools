@@ -37,6 +37,7 @@ import {
   resolvePluginBundleInstallBase,
   resolvePluginBundleMcpConfig,
   resolvePluginBundleHooksConfig,
+  effectivePlacementMode,
 } from '@bitgenetics/aitools-core';
 import type { ConfigManager } from './config-manager.js';
 import type { RegistryClient } from './registry-client.js';
@@ -357,7 +358,7 @@ export class Installer {
         }
 
         writeContent = transformResult.content;
-        if (transformResult.destExtension) {
+        if (effectivePlacementMode(file) === 'transform' && transformResult.destExtension) {
           destPath = path.resolve(installBase, applyDestExtension(relDest, transformResult));
         }
       }
@@ -469,6 +470,9 @@ export class Installer {
     }
 
     const members = classified.members.filter((m: PluginMember) => m.kind !== 'skip');
+    const fileBySrc = new Map(
+      manifest.files.map((f) => [f.src.replace(/\\/g, '/').replace(/^\.\//, ''), f]),
+    );
 
     // First pass: resolve final destinations for file members (needed for path map)
     type FilePlan = {
@@ -476,6 +480,7 @@ export class Installer {
       absDest: string;
       relDest: string;
       srcPath: string;
+      placementMode: 'strict' | 'transform';
     };
     const filePlans: FilePlan[] = [];
 
@@ -483,14 +488,27 @@ export class Installer {
       if (member.kind === 'mcp' || member.kind === 'hook') continue;
       if (!member.fileCategory) continue;
 
-      const installBase = this.configManager.resolveInstallPath(member.fileCategory, scope);
-      const absDest = path.resolve(installBase, member.destWithinCategory);
-      const relDest = path.relative(this.cwd, absDest).replace(/\\/g, '/');
+      const toolFile = fileBySrc.get(member.src.replace(/\\/g, '/'));
+      const placementMode = effectivePlacementMode(toolFile);
+      let absDest: string;
+      let relDest: string;
+
+      if (placementMode === 'transform') {
+        const installBase = this.configManager.resolveInstallPath(member.fileCategory, scope);
+        absDest = path.resolve(installBase, member.destWithinCategory);
+        relDest = path.relative(this.cwd, absDest).replace(/\\/g, '/');
+      } else {
+        const dest = (toolFile?.dest ?? member.src).replace(/\\/g, '/').replace(/^\.\//, '');
+        absDest = path.resolve(this.cwd, dest);
+        relDest = path.relative(this.cwd, absDest).replace(/\\/g, '/');
+      }
+
       filePlans.push({
         member,
         absDest,
         relDest,
         srcPath: path.join(agentsDir, member.src),
+        placementMode,
       });
     }
 
@@ -541,7 +559,7 @@ export class Installer {
             continue;
           }
           writeContent = transformResult.content;
-          if (transformResult.destExtension) {
+          if (plan.placementMode === 'transform' && transformResult.destExtension) {
             const baseRel = plan.member.destWithinCategory;
             const installBase = this.configManager.resolveInstallPath(plan.member.fileCategory!, scope);
             destPath = path.resolve(installBase, applyDestExtension(baseRel, transformResult));

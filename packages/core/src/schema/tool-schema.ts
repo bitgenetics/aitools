@@ -47,6 +47,7 @@ export const McpServerConfigSchema = z
 export const ToolFileSchema = z.object({
   src: z.string().min(1),
   dest: z.string().min(1),
+  placementMode: z.enum(['strict', 'transform']).optional(),
   template: z.boolean().optional(),
   platform: z.enum(['vscode', 'claude', 'cursor', 'windsurf', 'universal']).optional(),
 });

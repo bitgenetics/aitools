@@ -130,7 +130,7 @@ describe('manifest command', () => {
         category: 'plugin',
         nativeFor: 'cursor',
         files: [
-          { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+          { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json', placementMode: 'strict' },
           { src: 'skills/a/SKILL.md', dest: 'skills/a/SKILL.md' },
           { src: 'scripts/x.sh', dest: 'scripts/x.sh' },
         ],
@@ -157,8 +157,8 @@ describe('manifest command', () => {
         category: 'plugin',
         nativeFor: 'cursor',
         files: [
-          { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
-          { src: 'orphan.bin', dest: 'orphan.bin' },
+          { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json', placementMode: 'strict' },
+          { src: 'orphan.bin', dest: 'orphan.bin', placementMode: 'strict' },
         ],
       };
       fs.mkdirSync(path.join(tmp, '.cursor-plugin'), { recursive: true });
@@ -282,9 +282,11 @@ describe('manifest command', () => {
         { from: 'user' },
       );
       const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
-        files: Array<{ src: string; dest: string }>;
+        files: Array<{ src: string; dest: string; placementMode?: string }>;
       };
-      expect(manifest.files).toEqual([{ src: 'custom.md', dest: 'custom.md' }]);
+      expect(manifest.files).toEqual([
+        { src: 'custom.md', dest: 'custom.md', placementMode: 'strict' },
+      ]);
     });
 
     it('refuses to overwrite an existing manifest without --force', () => {
@@ -301,9 +303,11 @@ describe('manifest command', () => {
       jest.spyOn(console, 'log').mockImplementation(() => {});
       createManifestCommand().parse(['init', '--name', 'found-skill', '--yes'], { from: 'user' });
       const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
-        files: Array<{ src: string; dest: string }>;
+        files: Array<{ src: string; dest: string; placementMode?: string }>;
       };
-      expect(manifest.files).toEqual([{ src: 'found.md', dest: 'found-skill/found.md' }]);
+      expect(manifest.files).toEqual([
+        { src: 'found.md', dest: 'found-skill/found.md', placementMode: 'strict' },
+      ]);
     });
 
     it('includes optional author and keywords in non-interactive init', () => {
@@ -399,7 +403,7 @@ describe('manifest command', () => {
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { files: Array<{ src: string; dest: string }> };
       const defaultName = path.basename(tmp).toLowerCase().replace(/[^a-z0-9-]/g, '-');
-      expect(manifest.files).toEqual([{ src: 'SKILL.md', dest: `${defaultName}/SKILL.md` }]);
+      expect(manifest.files).toEqual([{ src: 'SKILL.md', dest: `${defaultName}/SKILL.md`, placementMode: 'strict' }]);
     });
 
     it('prompts for root-level SKILL.md when no subfolders exist', async () => {
@@ -423,7 +427,7 @@ describe('manifest command', () => {
       const manifest = JSON.parse(
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { files: Array<{ src: string; dest: string }> };
-      expect(manifest.files).toEqual([{ src: 'SKILL.md', dest: 'root-skill/SKILL.md' }]);
+      expect(manifest.files).toEqual([{ src: 'SKILL.md', dest: 'root-skill/SKILL.md', placementMode: 'strict' }]);
     });
 
     it('prompts for each detected skill folder and includes only confirmed ones', async () => {
@@ -454,7 +458,7 @@ describe('manifest command', () => {
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { files: Array<{ src: string; dest: string }> };
       expect(manifest.files).toEqual([
-        { src: 'other-skill/SKILL.md', dest: `${defaultName}/other-skill/SKILL.md` },
+        { src: 'other-skill/SKILL.md', dest: `${defaultName}/other-skill/SKILL.md`, placementMode: 'strict' },
       ]);
     });
 
@@ -481,7 +485,7 @@ describe('manifest command', () => {
       const manifest = JSON.parse(
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { files: Array<{ src: string; dest: string }> };
-      expect(manifest.files).toEqual([{ src: 'my-tool/SKILL.md', dest: 'my-tool/SKILL.md' }]);
+      expect(manifest.files).toEqual([{ src: 'my-tool/SKILL.md', dest: 'my-tool/SKILL.md', placementMode: 'strict' }]);
     });
 
     it('offers per-file picker when folder selection is declined', async () => {
@@ -513,7 +517,7 @@ describe('manifest command', () => {
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { files: Array<{ src: string; dest: string }> };
       expect(manifest.files).toEqual([
-        { src: 'my-skill/SKILL.md', dest: `${defaultName}/my-skill/SKILL.md` },
+        { src: 'my-skill/SKILL.md', dest: `${defaultName}/my-skill/SKILL.md`, placementMode: 'strict' },
       ]);
     });
 
@@ -540,7 +544,7 @@ describe('manifest command', () => {
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { category: string; files: Array<{ src: string; dest: string }> };
       expect(manifest.category).toBe('subagent');
-      expect(manifest.files).toEqual([{ src: 'agent.md', dest: 'review.md' }]);
+      expect(manifest.files).toEqual([{ src: 'agent.md', dest: 'review.md', placementMode: 'strict' }]);
     });
 
     it('prompts for root-level agent.md for subagent category', async () => {
@@ -568,7 +572,7 @@ describe('manifest command', () => {
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { category: string; files: Array<{ src: string }> };
       expect(manifest.category).toBe('subagent');
-      expect(manifest.files).toEqual([{ src: 'agent.md', dest: 'review-agent/agent.md' }]);
+      expect(manifest.files).toEqual([{ src: 'agent.md', dest: 'review-agent/agent.md', placementMode: 'strict' }]);
     });
 
     it('uses agent.md placeholder when subagent folders are declined', async () => {
@@ -595,7 +599,7 @@ describe('manifest command', () => {
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { files: Array<{ src: string; dest: string }> };
       expect(manifest.files).toEqual([
-        { src: 'review-agent/agent.md', dest: 'review-agent/agent.md' },
+        { src: 'review-agent/agent.md', dest: 'review-agent/agent.md', placementMode: 'strict' },
       ]);
     });
 
@@ -611,7 +615,7 @@ describe('manifest command', () => {
         files: Array<{ src: string }>;
       };
       expect(manifest.category).toBe('prompt');
-      expect(manifest.files).toEqual([{ src: 'prompt.md', dest: 'commit-msg/prompt.md' }]);
+      expect(manifest.files).toEqual([{ src: 'prompt.md', dest: 'commit-msg/prompt.md', placementMode: 'strict' }]);
     });
 
     it('auto-detects root and nested server files for mcp-tool and scaffolds mcpServer', () => {
@@ -654,7 +658,7 @@ describe('manifest command', () => {
         files: Array<{ src: string }>;
         mcpServer: { command: string; args: string[]; type: string };
       };
-      expect(manifest.files).toEqual([{ src: 'server.ts', dest: 'server.ts' }]);
+      expect(manifest.files).toEqual([{ src: 'server.ts', dest: 'server.ts', placementMode: 'strict' }]);
       expect(manifest.mcpServer).toEqual({
         command: 'npx',
         args: ['tsx', '${installDir}/server.ts'],
@@ -691,7 +695,7 @@ describe('manifest command', () => {
         mcpServer: { command: string; args: string[] };
       };
       expect(manifest.category).toBe('mcp-tool');
-      expect(manifest.files).toEqual([{ src: 'server.js', dest: 'server.js' }]);
+      expect(manifest.files).toEqual([{ src: 'server.js', dest: 'server.js', placementMode: 'strict' }]);
       expect(manifest.mcpServer.command).toBe('node');
       expect(manifest.mcpServer.args).toEqual(['${installDir}/server.js']);
     });
@@ -703,7 +707,7 @@ describe('manifest command', () => {
         path.join(tmp, 'aitools.json'),
         JSON.stringify({
           ...VALID_MANIFEST,
-          files: [{ src: 'skill.md', dest: 'skill.md' }],
+          files: [{ src: 'skill.md', dest: 'skill.md', placementMode: 'strict' }],
         }),
         'utf8',
       );
@@ -723,7 +727,7 @@ describe('manifest command', () => {
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { files: Array<{ src: string; dest: string }> };
       expect(manifest.files).toEqual([
-        { src: 'skill.md', dest: 'renamed.md' },
+        { src: 'skill.md', dest: 'renamed.md', placementMode: 'strict' },
       ]);
     });
 
@@ -733,8 +737,8 @@ describe('manifest command', () => {
         JSON.stringify({
           ...VALID_MANIFEST,
           files: [
-            { src: 'skill.md', dest: 'skill.md' },
-            { src: 'manual-only.md', dest: 'manual-only.md' },
+            { src: 'skill.md', dest: 'skill.md', placementMode: 'strict' },
+            { src: 'manual-only.md', dest: 'manual-only.md', placementMode: 'strict' },
           ],
         }),
         'utf8',
@@ -749,8 +753,8 @@ describe('manifest command', () => {
       ) as { files: Array<{ src: string; dest: string }> };
       expect(manifest.files).toEqual(
         expect.arrayContaining([
-          { src: 'manual-only.md', dest: 'manual-only.md' },
-          { src: 'skill.md', dest: 'my-skill/skill.md' },
+          { src: 'manual-only.md', dest: 'manual-only.md', placementMode: 'strict' },
+          { src: 'skill.md', dest: 'my-skill/skill.md', placementMode: 'strict' },
         ]),
       );
       expect(manifest.files).toHaveLength(2);
@@ -762,8 +766,8 @@ describe('manifest command', () => {
         JSON.stringify({
           ...VALID_MANIFEST,
           files: [
-            { src: 'skill.md', dest: 'skill.md' },
-            { src: 'manual-only.md', dest: 'manual-only.md' },
+            { src: 'skill.md', dest: 'skill.md', placementMode: 'strict' },
+            { src: 'manual-only.md', dest: 'manual-only.md', placementMode: 'strict' },
           ],
         }),
         'utf8',
@@ -776,7 +780,7 @@ describe('manifest command', () => {
       const manifest = JSON.parse(
         fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8'),
       ) as { files: Array<{ src: string; dest: string }> };
-      expect(manifest.files).toEqual([{ src: 'skill.md', dest: 'my-skill/skill.md' }]);
+      expect(manifest.files).toEqual([{ src: 'skill.md', dest: 'my-skill/skill.md', placementMode: 'strict' }]);
     });
 
     it('uses plugin bundle scan for plugin category', async () => {
@@ -788,7 +792,7 @@ describe('manifest command', () => {
           description: 'plugin',
           category: 'plugin',
           nativeFor: 'cursor',
-          files: [{ src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' }],
+          files: [{ src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json', placementMode: 'strict' }],
         }),
         'utf8',
       );

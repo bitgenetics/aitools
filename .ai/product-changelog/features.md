@@ -21,6 +21,14 @@
 
 ---
 
+### File placementMode (strict vs transform) — 2026-07-17
+**What**: Each `files[]` entry may set `placementMode`: `strict` (default when omitted) or `transform`. **strict** installs using `dest` as a project-relative path (1:1 with the manifest). **transform** keeps legacy placement remapping (e.g. plugin `assets/`/`scripts/` → synthetic skill package under the platform skills dir; content `destExtension` adjustments). Manifest init/files generate `placementMode: "strict"` on new entries. MCP/hooks merge behaviour is unchanged.  
+**Why**: Authors need predictable dest→disk mapping; opt into transform only when remapping is desired.  
+**Impact**: Packages that omit `placementMode` now use strict (breaking vs prior always-remap for plugin assets). E2e/unit must cover strict asset dest and explicit `transform` remapping.  
+**Key files**: `packages/core/src/types/tool.ts`, `packages/core/src/schema/tool-schema.ts`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/commands/manifest.ts`, `packages/cli/src/utils/installer.test.ts`
+
+---
+
 ### search / find — 2026-04-26 `d0b6f60`
 **What**: `aitools search <query>` queries all configured registries and merges results. `aitools find <description>` is a natural-language smart search — the description is forwarded to the registry's AI-assisted search endpoint.  
 **Key files**: `packages/cli/src/commands/search.ts`, `packages/server/src/routes/tools.ts` (`GET /search?q=`)

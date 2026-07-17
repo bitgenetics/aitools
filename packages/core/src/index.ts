@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 // Types
-export type { ToolCategory, InstallScope, TargetPlatform, ToolFile, ToolManifest, McpServerConfig, InstalledTool } from './types/tool.js';
+export type { ToolCategory, InstallScope, TargetPlatform, ToolFile, ToolManifest, McpServerConfig, InstalledTool, PlacementMode } from './types/tool.js';
 export type {
   ReferenceLayout,
   ReferenceBinding,
@@ -113,6 +113,10 @@ export {
   resolvePluginBundleHooksConfig,
   PluginBundleInstallError,
 } from './manifest/plugin-bundle-install.js';
+export {
+  DEFAULT_PLACEMENT_MODE,
+  effectivePlacementMode,
+} from './placement/placement-mode.js';
 export {
   REGISTRY_MANIFEST_CANDIDATES,
   pickRegistryManifestBasename,

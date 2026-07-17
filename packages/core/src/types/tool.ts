@@ -55,15 +55,22 @@ import type { ReferenceBindingInput } from './reference.js';
 /**
  * A single file entry inside a tool package.
  * `src` is the path inside the published package archive.
- * `dest` is the file path relative to the category install directory.
- * The adapter resolves the category directory per platform (e.g. `.github/prompts/skills/`
- * for VS Code skills). `dest` should be just the filename or a subdirectory path
- * within that category dir - do NOT repeat the category name.
- * Example: for a skill, use `my-skill.md`, not `skills/my-skill.md`.
+ * `dest` is the install destination path.
+ * - For skill/rule/command/agent (non-plugin): relative to the platform category install dir.
+ * - For plugins with `placementMode: "strict"` (default): project-relative path honored 1:1.
+ * - For plugins with `placementMode: "transform"`: remapped via plugin explode (e.g. assets → synthetic skill).
  */
+export type PlacementMode = 'strict' | 'transform';
+
 export interface ToolFile {
   src: string;
   dest: string;
+  /**
+   * How `dest` is applied at install time.
+   * - strict (default when omitted): honor `dest` as written
+   * - transform: allow placement remapping (plugin assets/scripts → synthetic skill package, destExtension, …)
+   */
+  placementMode?: PlacementMode;
   /** When true the file is processed as a Handlebars template before writing. */
   template?: boolean;
   /** When set, this file is only installed for the specified platform. Omit to install on all platforms. */

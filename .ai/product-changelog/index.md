@@ -5,7 +5,7 @@
 
 ## System Overview
 
-`AITools` is a package manager for AI tools — skills, rules, commands, agents, hooks, and MCP tools. Think `npm` for the AI tooling ecosystem. It is a TypeScript + Node.js ≥20 ESM monorepo with four packages: `@bitgenetics/aitools-core`, `@bitgenetics/aitools-cli` (binary: `aitools`), `@bitgenetics/aitools-server` (Fastify HTTP registry), and `@bitgenetics/aitools-e2e`. Three file roles: `aitools.json` + `aitools-lock.json` (deps/lock under project cwd or `~/.aitools/` by install scope), `aitools.config.json` (settings — user default on write, project overrides on read). Install can **transform** across IDE platforms; plugins default to **explode**, with opt-in `--cursor-plugin` (opaque local plugin) and `--plugin-bundle` (author-layout roots for shipping members). Registries can be **HTTP** or **git-backed**. Product context: `.ai/product-changelog/` (load `index.md` first).
+`AITools` is a package manager for AI tools — skills, rules, commands, agents, hooks, and MCP tools. Think `npm` for the AI tooling ecosystem. It is a TypeScript + Node.js ≥20 ESM monorepo with four packages: `@bitgenetics/aitools-core`, `@bitgenetics/aitools-cli` (binary: `aitools`), `@bitgenetics/aitools-server` (Fastify HTTP registry), and `@bitgenetics/aitools-e2e`. Three file roles: `aitools.json` + `aitools-lock.json` (deps/lock under project cwd or `~/.aitools/` by install scope), `aitools.config.json` (settings — user default on write, project overrides on read). Install can **transform** across IDE platforms; plugins default to **explode**, with opt-in `--cursor-plugin` (opaque local plugin) and `--plugin-bundle` (author-layout roots for shipping members). Per-file `placementMode` defaults to **strict** (honor `dest`); **transform** remaps placement (e.g. plugin assets). Registries can be **HTTP** or **git-backed**. Product context: `.ai/product-changelog/` (load `index.md` first).
 
 ---
 
@@ -24,6 +24,7 @@
 
 ## Recent Changes
 
+- **2026-07-17** — File `placementMode` (`strict` default vs `transform` remap) — see `features.md`
 - **2026-07-16** `8c15b68` — Plugin-bundle install layout (`--plugin-bundle` → author roots `skills/`/`rules/`/…) — see `features.md`, `constraints.md`, `patterns.md`
 - **2026-07-16** `ad7a20d` — Catch-up `a8239bb..HEAD` + user-scope/`--cursor-plugin`/MCP paths/changelog-first e2e — see `features.md`, `architecture.md`, `constraints.md`, `patterns.md`
 - **2026-07-15** `a556dd4` / `dee6a92` / `43b5c50` — Shared references core; manifest init/files; `reference` not an adapter file category — see `features.md`, `architecture.md`, `patterns.md`
@@ -37,5 +38,5 @@
 
 ---
 
-<!-- Last SHA: 8c15b68 -->
-<!-- Last updated: 2026-07-16 -->
+<!-- Last SHA: 605b8cc -->
+<!-- Last updated: 2026-07-17 -->

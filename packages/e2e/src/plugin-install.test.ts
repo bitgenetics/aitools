@@ -84,9 +84,9 @@ beforeAll(async () => {
       author: 'e2e',
       files: [
         { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
-        { src: 'skills/review/SKILL.md', dest: 'skills/review/SKILL.md' },
-        { src: 'rules/style.mdc', dest: 'rules/style.mdc' },
-        { src: 'scripts/fmt.sh', dest: 'scripts/fmt.sh' },
+        { src: 'skills/review/SKILL.md', dest: 'skills/review/SKILL.md', placementMode: 'transform' },
+        { src: 'rules/style.mdc', dest: 'rules/style.mdc', placementMode: 'transform' },
+        { src: 'scripts/fmt.sh', dest: 'scripts/fmt.sh', placementMode: 'transform' },
         { src: 'hooks/hooks.json', dest: 'hooks/hooks.json' },
         { src: 'mcp.json', dest: 'mcp.json' },
       ],
@@ -116,7 +116,7 @@ beforeAll(async () => {
       author: 'e2e',
       files: [
         { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
-        { src: 'skills/mcp-skill/SKILL.md', dest: 'skills/mcp-skill/SKILL.md' },
+        { src: 'skills/mcp-skill/SKILL.md', dest: 'skills/mcp-skill/SKILL.md', placementMode: 'transform' },
         { src: 'mcp.json', dest: 'mcp.json' },
       ],
     },

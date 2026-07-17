@@ -57,11 +57,16 @@ function defaultInstallDest(src: string, packageName: string): string {
   return `${folder}/${normalized}`;
 }
 
+/** Build a files[] entry with default strict placement. */
+function fileEntry(src: string, dest: string): ToolFile {
+  return { src, dest, placementMode: 'strict' };
+}
+
 function mapSrcToInstallFiles(
   srcs: string[],
   packageName: string,
-): Array<{ src: string; dest: string }> {
-  return srcs.map((src) => ({ src, dest: defaultInstallDest(src, packageName) }));
+): ToolFile[] {
+  return srcs.map((src) => fileEntry(src, defaultInstallDest(src, packageName)));
 }
 
 const CONTENT_INIT_PROFILE: Record<ContentCategory, ContentInitProfile> = {
@@ -193,7 +198,7 @@ function readCursorPluginJson(cwd: string) {
 function collectPluginInitFiles(
   cwd: string,
   packageName: string,
-): { files: Array<{ src: string; dest: string }>; warnings: string[] } {
+): { files: ToolFile[]; warnings: string[] } {
   const pluginJson = readCursorPluginJson(cwd);
   const plan = getPluginBundleScanPlan(pluginJson);
   const exts = CATEGORY_EXT.plugin;
@@ -227,7 +232,7 @@ function collectPluginInitFiles(
     pluginJson,
   });
 
-  const files = sources.map((src: string) => ({ src, dest: src }));
+  const files = sources.map((src: string) => fileEntry(src, src));
   return { files, warnings: errors };
 }
 
@@ -399,7 +404,7 @@ async function promptForContentFiles(
   category: ContentCategory,
   cwd: string,
   name: string,
-): Promise<Array<{ src: string; dest: string }>> {
+): Promise<ToolFile[]> {
   const { unitLabel } = CONTENT_INIT_PROFILE[category];
   const { rootFiles, contentFolders } = collectDetectedContent(cwd, category);
 
@@ -423,7 +428,7 @@ async function promptForContentFiles(
       chalk.bold(`\n  Detected ${parts.join(' and ')}. Select which to include:\n`),
     );
 
-    const included: Array<{ src: string; dest: string }> = [];
+    const included: ToolFile[] = [];
     const toDest = (src: string) =>
       category === 'mcp-tool' ? src : defaultInstallDest(src, name);
 
@@ -435,7 +440,7 @@ async function promptForContentFiles(
       const ans = (await rl.question(`  Include ${chalk.cyan(rootLabel)}? (Y/n): `)).trim();
       if (ans === '' || ans.toLowerCase().startsWith('y')) {
         for (const f of rootFiles) {
-          included.push({ src: f, dest: toDest(f) });
+          included.push(fileEntry(f, toDest(f)));
         }
       }
     }
@@ -444,7 +449,7 @@ async function promptForContentFiles(
       const ans = (await rl.question(`  Include ${chalk.cyan(folder)}? (Y/n): `)).trim();
       if (ans === '' || ans.toLowerCase().startsWith('y')) {
         for (const f of folderFiles) {
-          included.push({ src: f, dest: toDest(f) });
+          included.push(fileEntry(f, toDest(f)));
         }
       }
     }
@@ -467,7 +472,7 @@ async function promptForContentFiles(
   if (detected.length > 0) {
     console.log(chalk.dim(`\n  Auto-detected ${detected.length} matching file(s).`));
     if (category === 'mcp-tool') {
-      return detected.map((f) => ({ src: f, dest: f }));
+      return detected.map((f) => fileEntry(f, f));
     }
     return mapSrcToInstallFiles(detected, name);
   }
@@ -483,18 +488,18 @@ async function promptForContentFiles(
   console.log(
     chalk.dim(`\n  No matching ${unitLabel} files found. Using placeholder: ${placeholder}`),
   );
-  return [{ src: placeholder, dest: placeholder }];
+  return [fileEntry(placeholder, placeholder)];
 }
 
 function resolveContentInitFilesNonInteractive(
   cwd: string,
   category: ContentCategory,
   name: string,
-): Array<{ src: string; dest: string }> {
+): ToolFile[] {
   const detected = collectAllContentFiles(cwd, category);
   if (detected.length > 0) {
     if (category === 'mcp-tool') {
-      return detected.map((f) => ({ src: f, dest: f }));
+      return detected.map((f) => fileEntry(f, f));
     }
     return mapSrcToInstallFiles(detected, name);
   }
@@ -503,7 +508,7 @@ function resolveContentInitFilesNonInteractive(
   }
   const placeholder = contentPlaceholder(category, name);
   console.log(chalk.dim('  Note: no matching files found — using placeholder filename'));
-  return [{ src: placeholder, dest: placeholder }];
+  return [fileEntry(placeholder, placeholder)];
 }
 
 function collectManifestFileCandidates(
@@ -521,11 +526,11 @@ function collectManifestFileCandidates(
 }
 
 function mergeFileSelections(
-  existing: Array<{ src: string; dest: string }>,
+  existing: ToolFile[],
   candidates: string[],
-  selected: Array<{ src: string; dest: string }>,
+  selected: ToolFile[],
   force: boolean,
-): Array<{ src: string; dest: string }> {
+): ToolFile[] {
   if (force) {
     return selected;
   }
@@ -538,9 +543,9 @@ function resolveManifestFilesNonInteractive(
   candidates: string[],
   category: Category,
   name: string,
-): Array<{ src: string; dest: string }> {
+): ToolFile[] {
   if (category === 'plugin' || category === 'mcp-tool') {
-    return candidates.map((src) => ({ src, dest: src }));
+    return candidates.map((src) => fileEntry(src, src));
   }
   return mapSrcToInstallFiles(candidates, name);
 }
@@ -550,8 +555,8 @@ async function promptForManifestFiles(
   cwd: string,
   category: Category,
   name: string,
-  existingFiles: Array<{ src: string; dest: string }> = [],
-): Promise<Array<{ src: string; dest: string }>> {
+  existingFiles: ToolFile[] = [],
+): Promise<ToolFile[]> {
   const candidates = collectManifestFileCandidates(cwd, category, name);
   if (candidates.length === 0) {
     console.log(chalk.dim('\n  No matching files found on disk.'));
@@ -563,7 +568,7 @@ async function promptForManifestFiles(
     chalk.bold(`\n  Found ${candidates.length} file(s). Mark include and dest for each:\n`),
   );
 
-  const selected: Array<{ src: string; dest: string }> = [];
+  const selected: ToolFile[] = [];
   for (const src of candidates) {
     const existing = existingBySrc.get(src);
     const defaultInclude = existing !== undefined ? 'Y' : 'Y';
@@ -587,7 +592,11 @@ async function promptForManifestFiles(
     const destAns = (await rl.question(`    dest (${defaultDest}): `)).trim();
     const dest =
       destAns === '' ? defaultDest : destAns === '-' ? src : destAns;
-    selected.push({ src, dest });
+    selected.push({
+      src,
+      dest,
+      placementMode: existing?.placementMode ?? 'strict',
+    });
   }
   return selected;
 }
@@ -609,16 +618,16 @@ function parseFileEntry(
   entry: string,
   category: Category,
   packageName: string,
-): { src: string; dest: string } {
+): ToolFile {
   const sep = entry.indexOf(':');
   if (sep !== -1) {
-    return { src: entry.slice(0, sep), dest: entry.slice(sep + 1) };
+    return fileEntry(entry.slice(0, sep), entry.slice(sep + 1));
   }
   const src = entry;
   if (category === 'plugin' || category === 'mcp-tool') {
-    return { src, dest: path.basename(src) };
+    return fileEntry(src, path.basename(src));
   }
-  return { src, dest: defaultInstallDest(src, packageName) };
+  return fileEntry(src, defaultInstallDest(src, packageName));
 }
 
 // -- Shared manifest write + print ---------------------------------------------
@@ -629,7 +638,7 @@ type ManifestInput = {
   description: string;
   category: string;
   nativeFor?: string;
-  files: Array<{ src: string; dest: string }>;
+  files: ToolFile[];
   mcpServer?: { command: string; args: string[]; type: 'stdio' };
   author?: string;
   repository?: string;
@@ -746,7 +755,7 @@ async function initNonInteractive(
   const category = (options.category ?? 'skill') as Category;
   const name = options.name ?? defaultName;
 
-  let files: Array<{ src: string; dest: string }>;
+  let files: ToolFile[];
   if (options.file && options.file.length > 0) {
     files = options.file.map((entry) => parseFileEntry(entry, category, name));
   } else if (category === 'plugin') {
@@ -754,7 +763,7 @@ async function initNonInteractive(
     if (pluginFiles.length > 0) {
       files = pluginFiles;
     } else {
-      files = [{ src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' }];
+      files = [fileEntry('.cursor-plugin/plugin.json', '.cursor-plugin/plugin.json')];
       console.log(chalk.dim('  Note: no matching files found — using placeholder plugin.json'));
     }
     for (const warning of warnings) {
@@ -775,7 +784,7 @@ async function initNonInteractive(
     if (detected.length > 0) {
       files = mapSrcToInstallFiles(detected, name);
     } else {
-      files = [{ src: `${name}.md`, dest: defaultInstallDest(`${name}.md`, name) }];
+      files = [fileEntry(`${name}.md`, defaultInstallDest(`${name}.md`, name))];
       console.log(chalk.dim('  Note: no matching files found — using placeholder filename'));
     }
   }
@@ -841,7 +850,7 @@ async function initInteractive(
     const tagsRaw = await ask('tags, comma-separated', options.tags ?? '');
 
     // -- File resolution ----------------------------------------------------
-    let files: Array<{ src: string; dest: string }> = [];
+    let files: ToolFile[] = [];
 
     if (options.file && options.file.length > 0) {
       files = options.file.map((entry) => parseFileEntry(entry, category, name));
@@ -851,7 +860,7 @@ async function initInteractive(
         files = pluginFiles;
       } else {
         files = [
-          { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+          fileEntry('.cursor-plugin/plugin.json', '.cursor-plugin/plugin.json'),
         ];
         console.log(chalk.dim('  Note: no matching files found — using placeholder plugin.json'));
       }
@@ -876,7 +885,7 @@ async function initInteractive(
           if (files.length === 0 && category !== 'mcp-tool') {
             const placeholder = contentPlaceholder(category, name);
             console.log(chalk.dim(`  Using placeholder: ${placeholder}`));
-            files = [{ src: placeholder, dest: placeholder }];
+            files = [fileEntry(placeholder, placeholder)];
           }
         }
       }
@@ -928,14 +937,14 @@ function createManifestFilesCommand(): Command {
 
       let category: Category;
       let name: string;
-      let existingFiles: Array<{ src: string; dest: string }> = [];
+      let existingFiles: ToolFile[] = [];
 
       if (existing && isPublishable(existing)) {
         category = existing.category as Category;
         name = existing.name ?? defaultName;
         existingFiles = (existing.files ?? []).map((f: ToolFile) => ({
-          src: f.src,
-          dest: f.dest,
+          ...f,
+          placementMode: f.placementMode ?? 'strict',
         }));
       } else if (options.category) {
         category = options.category as Category;
@@ -947,7 +956,7 @@ function createManifestFilesCommand(): Command {
       }
 
       const candidates = collectManifestFileCandidates(cwd, category, name);
-      let selected: Array<{ src: string; dest: string }>;
+      let selected: ToolFile[];
 
       if (options.yes) {
         selected = resolveManifestFilesNonInteractive(candidates, category, name);

@@ -39,7 +39,7 @@ const SKILL_MANIFEST: ToolManifest = {
   version: '1.0.0',
   description: 'A skill',
   category: 'skill',
-  files: [{ src: 'skill.md', dest: 'skill.md' }],
+  files: [{ src: 'skill.md', dest: 'skill.md', placementMode: 'transform' }],
 };
 
 describe('Installer.uninstall', () => {
@@ -165,7 +165,7 @@ describe('Installer.install', () => {
       ...SKILL_MANIFEST,
       name: 'my-agent',
       category: 'subagent',
-      files: [{ src: 'agent.md', dest: 'agent.md' }],
+      files: [{ src: 'agent.md', dest: 'agent.md', placementMode: 'transform' }],
     };
 
     await installer.install(mockClient as never, manifest, 'project');
@@ -182,12 +182,12 @@ describe('Installer.install', () => {
       version: '1.0.0',
       description: 'Skill v1',
       category: 'skill',
-      files: [{ src: 'old.md', dest: 'old.md' }],
+      files: [{ src: 'old.md', dest: 'old.md', placementMode: 'transform' }],
     };
     const MANIFEST_V2: ToolManifest = {
       ...MANIFEST_V1,
       version: '2.0.0',
-      files: [{ src: 'new.md', dest: 'new.md' }],
+      files: [{ src: 'new.md', dest: 'new.md', placementMode: 'transform' }],
     };
     const tarballV1 = Buffer.from(
       JSON.stringify([{ path: 'old.md', content: '# Old' }]),
@@ -222,7 +222,7 @@ describe('Installer.install', () => {
       JSON.stringify({ platform: 'cursor' }),
       'utf8',
     );
-    installer = new Installer(new ConfigManager(tmp), tmp);
+    installer = new Installer(new ConfigManager(tmp), tmp, new CacheManager(cacheTmp));
 
     const PLUGIN_MANIFEST: ToolManifest = {
       name: '@team/my-plugin',
@@ -232,9 +232,10 @@ describe('Installer.install', () => {
       nativeFor: 'cursor',
       files: [
         { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
-        { src: 'skills/review/SKILL.md', dest: 'skills/review/SKILL.md' },
-        { src: 'rules/style.mdc', dest: 'rules/style.mdc' },
-        { src: 'scripts/format.sh', dest: 'scripts/format.sh' },
+        { src: 'skills/review/SKILL.md', dest: 'skills/review/SKILL.md', placementMode: 'transform' },
+        { src: 'rules/style.mdc', dest: 'rules/style.mdc', placementMode: 'transform' },
+        { src: 'scripts/format.sh', dest: 'scripts/format.sh', placementMode: 'transform' },
+        { src: 'assets/logo.svg', dest: 'assets/logo.svg', placementMode: 'transform' },
       ],
     };
     const tarball = Buffer.from(
@@ -243,6 +244,7 @@ describe('Installer.install', () => {
         { path: 'skills/review/SKILL.md', content: '# Review' },
         { path: 'rules/style.mdc', content: '---\ndescription: style\nalwaysApply: true\n---\nBe tidy.' },
         { path: 'scripts/format.sh', content: '#!/bin/sh\necho ok\n' },
+        { path: 'assets/logo.svg', content: '<svg xmlns="http://www.w3.org/2000/svg"/>' },
       ]),
       'utf8',
     );
@@ -260,9 +262,62 @@ describe('Installer.install', () => {
     expect(
       fs.existsSync(path.join(tmp, '.cursor', 'skills', '@team__my-plugin', 'scripts', 'format.sh')),
     ).toBe(true);
+    expect(
+      fs.existsSync(path.join(tmp, '.cursor', 'skills', '@team__my-plugin', 'assets', 'logo.svg')),
+    ).toBe(true);
+    expect(fs.existsSync(path.join(tmp, 'assets', 'logo.svg'))).toBe(false);
     expect(fs.existsSync(path.join(tmp, '.agents', 'plugins', '@team__my-plugin'))).toBe(false);
     expect(fs.existsSync(path.join(tmp, '.cursor', 'plugins', 'local', '@team__my-plugin'))).toBe(false);
     expect(installed.files.some((f) => f.includes('.cursor/skills/review/SKILL.md'))).toBe(true);
+    expect(
+      installed.files.some((f) => f.replace(/\\/g, '/').includes('.cursor/skills/@team__my-plugin/assets/logo.svg')),
+    ).toBe(true);
+  });
+
+  it('honors strict placementMode for plugin assets as project-relative dest', async () => {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'cursor' }),
+      'utf8',
+    );
+    installer = new Installer(new ConfigManager(tmp), tmp, new CacheManager(cacheTmp));
+
+    const PLUGIN_MANIFEST: ToolManifest = {
+      name: 'strict-assets-plugin',
+      version: '1.0.0',
+      description: 'A plugin',
+      category: 'plugin',
+      nativeFor: 'cursor',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md', placementMode: 'transform' },
+        { src: 'assets/someref.md', dest: '.cursor/assets/someref.md' },
+      ],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([
+        { path: '.cursor-plugin/plugin.json', content: '{}' },
+        { path: 'skills/x/SKILL.md', content: '# X' },
+        { path: 'assets/someref.md', content: 'ref' },
+      ]),
+      'utf8',
+    );
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+
+    const installed = await installer.install(mockClient as never, PLUGIN_MANIFEST, 'project');
+
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'assets', 'someref.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'skills', 'strict-assets-plugin', 'assets', 'someref.md'))).toBe(
+      false,
+    );
+    expect(
+      installed.files.some((f) => f.replace(/\\/g, '/').includes('.cursor/assets/someref.md')),
+    ).toBe(true);
   });
 
   it('rejects a plugin with orphan paths before writing', async () => {
@@ -281,7 +336,7 @@ describe('Installer.install', () => {
       nativeFor: 'cursor',
       files: [
         { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
-        { src: 'orphan.bin', dest: 'orphan.bin' },
+        { src: 'orphan.bin', dest: 'orphan.bin', placementMode: 'transform' },
       ],
     };
     const tarball = Buffer.from(
@@ -334,7 +389,7 @@ describe('Installer.install (plugin explode mcp+hooks)', () => {
       nativeFor: 'cursor',
       files: [
         { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
-        { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md' },
+        { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md', placementMode: 'transform' },
         { src: 'mcp.json', dest: 'mcp.json' },
       ],
     };
@@ -394,7 +449,7 @@ describe('Installer.install (plugin explode mcp+hooks)', () => {
       nativeFor: 'cursor',
       files: [
         { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
-        { src: 'scripts/fmt.sh', dest: 'scripts/fmt.sh' },
+        { src: 'scripts/fmt.sh', dest: 'scripts/fmt.sh', placementMode: 'transform' },
         { src: 'hooks/hooks.json', dest: 'hooks/hooks.json' },
       ],
     };
@@ -536,7 +591,7 @@ describe('Installer.install (plugin explode mcp+hooks)', () => {
       nativeFor: 'cursor',
       files: [
         { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
-        { src: 'skills/old/SKILL.md', dest: 'skills/old/SKILL.md' },
+        { src: 'skills/old/SKILL.md', dest: 'skills/old/SKILL.md', placementMode: 'transform' },
       ],
     };
     const PLUGIN_V2: ToolManifest = {
@@ -544,7 +599,7 @@ describe('Installer.install (plugin explode mcp+hooks)', () => {
       version: '2.0.0',
       files: [
         { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
-        { src: 'skills/new/SKILL.md', dest: 'skills/new/SKILL.md' },
+        { src: 'skills/new/SKILL.md', dest: 'skills/new/SKILL.md', placementMode: 'transform' },
       ],
     };
     const tarballV1 = Buffer.from(
@@ -642,7 +697,7 @@ describe('Installer.install (plugin explode mcp+hooks)', () => {
       nativeFor: 'cursor',
       files: [
         { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
-        { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md' },
+        { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md', placementMode: 'transform' },
       ],
     };
     const tarball = Buffer.from(
@@ -801,7 +856,7 @@ describe('Installer.install (plugin explode mcp+hooks)', () => {
       nativeFor: 'cursor',
       files: [
         { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
-        { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md' },
+        { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md', placementMode: 'transform' },
       ],
     };
     const tarball = Buffer.from(
@@ -829,7 +884,7 @@ describe('Installer.install (plugin explode mcp+hooks)', () => {
       nativeFor: 'claude',
       files: [
         { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
-        { src: 'rules/style.mdc', dest: 'rules/style.mdc' },
+        { src: 'rules/style.mdc', dest: 'rules/style.mdc', placementMode: 'transform' },
       ],
     };
     const tarball = Buffer.from(
@@ -1197,7 +1252,7 @@ describe('Installer.install (platform-aware file selection)', () => {
       description: 'A skill',
       category: 'skill',
       files: [
-        { src: 'skill.md', dest: 'skill.md' },
+        { src: 'skill.md', dest: 'skill.md', placementMode: 'transform' },
         { src: 'skill.claude.md', dest: 'skill.md', platform: 'claude' },
       ],
     };
@@ -1220,7 +1275,7 @@ describe('Installer.install (platform-aware file selection)', () => {
       description: 'A skill',
       category: 'skill',
       files: [
-        { src: '.agents/skills/my-skill/SKILL.md', dest: '.agents/skills/my-skill/SKILL.md' },
+        { src: '.agents/skills/my-skill/SKILL.md', dest: '.agents/skills/my-skill/SKILL.md', placementMode: 'transform' },
       ],
     };
     const tarball = Buffer.from(
@@ -1277,7 +1332,7 @@ describe('Installer.install (manifest platforms guard)', () => {
       version: '1.0.0',
       description: 'VS Code skill',
       category: 'skill',
-      files: [{ src: 'skill.md', dest: 'skill.md' }],
+      files: [{ src: 'skill.md', dest: 'skill.md', placementMode: 'transform' }],
       platforms: ['vscode'],
     };
     await expect(installer.install(makeClient(makeTarball()) as never, manifest, 'project')).resolves.toBeDefined();
@@ -1295,7 +1350,7 @@ describe('Installer.install (manifest platforms guard)', () => {
       version: '1.0.0',
       description: 'Universal skill',
       category: 'skill',
-      files: [{ src: 'skill.md', dest: 'skill.md' }],
+      files: [{ src: 'skill.md', dest: 'skill.md', placementMode: 'transform' }],
       platforms: ['universal'],
     };
     await expect(installer.install(makeClient(makeTarball()) as never, manifest, 'project')).resolves.toBeDefined();
@@ -1313,7 +1368,7 @@ describe('Installer.install (manifest platforms guard)', () => {
       version: '1.0.0',
       description: 'VS Code only',
       category: 'skill',
-      files: [{ src: 'skill.md', dest: 'skill.md' }],
+      files: [{ src: 'skill.md', dest: 'skill.md', placementMode: 'transform' }],
       platforms: ['vscode'],
     };
     await expect(installer.install(makeClient(makeTarball()) as never, manifest, 'project')).rejects.toThrow(
@@ -1333,7 +1388,7 @@ describe('Installer.install (manifest platforms guard)', () => {
       version: '1.0.0',
       description: 'Any platform',
       category: 'skill',
-      files: [{ src: 'skill.md', dest: 'skill.md' }],
+      files: [{ src: 'skill.md', dest: 'skill.md', placementMode: 'transform' }],
     };
     await expect(installer.install(makeClient(makeTarball()) as never, manifest, 'project')).resolves.toBeDefined();
   });
@@ -1377,7 +1432,7 @@ describe('Installer.install (cross-platform transformation)', () => {
       description: 'A cursor rule',
       category: 'rule',
       nativeFor: 'cursor',
-      files: [{ src: 'rule.mdc', dest: 'my-rule.mdc' }],
+      files: [{ src: 'rule.mdc', dest: 'my-rule.mdc', placementMode: 'transform' }],
     };
     const tarball = Buffer.from(
       JSON.stringify([{ path: 'rule.mdc', content: ruleContent }]),
@@ -1403,7 +1458,7 @@ describe('Installer.install (cross-platform transformation)', () => {
       nativeFor: 'cursor',
       files: [
         { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
-        { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md' },
+        { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md', placementMode: 'transform' },
         { src: 'hooks/hooks.json', dest: 'hooks/hooks.json' },
       ],
     };
@@ -1450,7 +1505,7 @@ describe('Installer.install (cross-platform transformation)', () => {
       description: 'Malformed hooks',
       category: 'hook',
       nativeFor: 'cursor',
-      files: [{ src: 'hooks.json', dest: 'hooks.json' }],
+      files: [{ src: 'hooks.json', dest: 'hooks.json', placementMode: 'transform' }],
     };
     const tarball = Buffer.from(
       JSON.stringify([{ path: 'hooks.json', content: '{ not valid json' }]),
@@ -1476,7 +1531,7 @@ describe('Installer.install (cross-platform transformation)', () => {
       description: 'A cursor agent',
       category: 'agent',
       nativeFor: 'cursor',
-      files: [{ src: 'agent.md', dest: 'my-agent.md' }],
+      files: [{ src: 'agent.md', dest: 'my-agent.md', placementMode: 'transform' }],
     };
     const tarball = Buffer.from(
       JSON.stringify([{ path: 'agent.md', content: '---\nname: my-agent\n---\nBody' }]),
@@ -1530,7 +1585,7 @@ describe('Installer.install (hook category)', () => {
       description: 'Cursor hooks',
       category: 'hook',
       nativeFor: 'cursor',
-      files: [{ src: 'hooks.json', dest: 'hooks.json' }],
+      files: [{ src: 'hooks.json', dest: 'hooks.json', placementMode: 'transform' }],
     };
     const tarball = Buffer.from(
       JSON.stringify([{ path: 'hooks.json', content: hooksJson }]),
@@ -1564,7 +1619,7 @@ describe('Installer.install (hook category)', () => {
       description: 'More hooks',
       category: 'hook',
       nativeFor: 'cursor',
-      files: [{ src: 'hooks.json', dest: 'hooks.json' }],
+      files: [{ src: 'hooks.json', dest: 'hooks.json', placementMode: 'transform' }],
     };
     const tarball = Buffer.from(
       JSON.stringify([{ path: 'hooks.json', content: incoming }]),
@@ -1589,7 +1644,7 @@ describe('Installer.install (hook category)', () => {
       description: 'Claude hooks',
       category: 'hook',
       nativeFor: 'claude',
-      files: [{ src: 'settings.json', dest: 'settings.json' }],
+      files: [{ src: 'settings.json', dest: 'settings.json', placementMode: 'transform' }],
     };
     const tarball = Buffer.from(
       JSON.stringify([{ path: 'settings.json', content: claudeHooks }]),
@@ -1611,7 +1666,7 @@ describe('Installer.install (hook category)', () => {
       description: 'Hooks',
       category: 'hook',
       nativeFor: 'cursor',
-      files: [{ src: 'hooks.json', dest: 'hooks.json' }],
+      files: [{ src: 'hooks.json', dest: 'hooks.json', placementMode: 'transform' }],
     };
     const tarball = Buffer.from(
       JSON.stringify([{ path: 'hooks.json', content: '{}' }]),
@@ -1631,7 +1686,7 @@ describe('Installer.install (hook category)', () => {
       description: 'Hooks',
       category: 'hook',
       nativeFor: 'cursor',
-      files: [{ src: 'hooks.json', dest: 'hooks.json' }],
+      files: [{ src: 'hooks.json', dest: 'hooks.json', placementMode: 'transform' }],
     };
     const tarball = Buffer.from(
       JSON.stringify([
@@ -1715,7 +1770,7 @@ describe('Installer user-scope tracking + cursor-plugin', () => {
       nativeFor: 'cursor',
       files: [
         { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
-        { src: 'skills/review/SKILL.md', dest: 'skills/review/SKILL.md' },
+        { src: 'skills/review/SKILL.md', dest: 'skills/review/SKILL.md', placementMode: 'transform' },
       ],
     };
     const tarball = Buffer.from(
@@ -1794,7 +1849,7 @@ describe('Installer.install (--plugin-bundle)', () => {
       version: '1.0.0',
       description: 'A skill',
       category: 'skill',
-      files: [{ src: 'SKILL.md', dest: 'bundle-skill/SKILL.md' }],
+      files: [{ src: 'SKILL.md', dest: 'bundle-skill/SKILL.md', placementMode: 'transform' }],
     };
     const tarball = Buffer.from(
       JSON.stringify([{ path: 'SKILL.md', content: '# Bundle Skill' }]),
@@ -1823,7 +1878,7 @@ describe('Installer.install (--plugin-bundle)', () => {
       version: '1.0.0',
       description: 'A skill',
       category: 'skill',
-      files: [{ src: 'SKILL.md', dest: 'bundle-skill/SKILL.md' }],
+      files: [{ src: 'SKILL.md', dest: 'bundle-skill/SKILL.md', placementMode: 'transform' }],
     };
     const tarball = Buffer.from(
       JSON.stringify([{ path: 'SKILL.md', content: '# Bundle Skill' }]),
@@ -1898,7 +1953,7 @@ describe('Installer.install (--plugin-bundle)', () => {
       version: '1.0.0',
       description: 'Reference',
       category: 'reference',
-      files: [{ src: 'notes.md', dest: 'notes.md' }],
+      files: [{ src: 'notes.md', dest: 'notes.md', placementMode: 'transform' }],
     };
     const mockClient = {
       config: { name: 'test-registry', url: 'https://test.example.com' },

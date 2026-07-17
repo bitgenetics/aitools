@@ -220,7 +220,7 @@ describe('aitools list', () => {
           author: 'e2e',
           files: [
             { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
-            { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md' },
+            { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md', placementMode: 'transform' },
           ],
         },
         files: {
