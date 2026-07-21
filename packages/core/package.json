@@ -1,6 +1,6 @@
 {
   "name": "@bitgenetics/aitools-core",
-  "version": "2.6.0",
+  "version": "3.0.0",
   "description": "Shared types, schemas, and utilities for AITools",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
