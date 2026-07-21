@@ -29,6 +29,7 @@
 **Constraint**: The `Installer.installFiles` method now strips the install-base prefix from `file.dest` before resolving the destination path. This was a bug where manifests using project-relative paths (e.g. `.agents/skills/create-ai-tool/SKILL.md` as `dest`) would install to `.agents/skills/.agents/skills/create-ai-tool/SKILL.md`.  
 **Reason**: Fix applied 2026-04-26. Manifests with `dest` already relative to the install base work correctly. Manifests with absolute or project-relative `dest` paths are normalised by stripping the install base prefix.  
 **Do not change**: The stripping logic in `installFiles`. Tool authors should use install-base-relative paths in `dest` (e.g. `create-ai-tool/SKILL.md`, not `.agents/skills/create-ai-tool/SKILL.md`).  
+**Scope note (2026-07-21)**: The strip prefix is derived from the **project-relative** category dir (scope-independent), so a project-relative `dest` re-homes onto the user install base at user scope (`~/.cursor/skills/x`) instead of double-nesting under it (`~/.cursor/skills/.cursor/skills/x`).  
 **Key files**: `packages/cli/src/utils/installer.ts`
 
 ---
@@ -164,6 +165,22 @@
 **Reason**: User installs must not be coupled to whichever project directory happened to be cwd.  
 **Do not change**: Do not write user-scope deps/lock back into the project; do not auto-migrate old project-lock `scope: user` entries.  
 **Key files**: `packages/core/src/paths/tracking-root.ts`, `packages/cli/src/commands/install.ts`, `packages/e2e/src/config-layers.test.ts`
+
+---
+
+### Placement is platform-area-relative by default; `verbatim` is the cwd/home escape hatch — 2026-07-21
+**Constraint**: The default `placementMode` (`strict`, when omitted) places every member relative to the platform's install **area** for its category + scope: `resolveInstallPath(category, scope)` + path-within-category → project `{cwd}/.<platform>/…`, user (`-g`/`--scope user`) `~/.<platform>/…`. This is the only mode that is portable across scope *and* across platforms (category dirs diverge, e.g. VS Code `.github/agents` vs `~/.copilot/prompts`, so a single `.<platform>/` prefix does not generalize — always route per category). `placementMode: verbatim` is the escape hatch that honors `dest` 1:1 relative to the scope root (cwd/home). `transform` = strict placement + remap/content rewriting.  
+**Reason**: A prior default (`strict` = 1:1 relative to cwd) made `aitools install <plugin> -g` write the plugin's author layout into whatever directory the command ran in instead of the platform user dirs, and `~/agents/…` is not a real platform location. `manifest init` emits members with `strict`, so this was the common case.  
+**Do not change**: Do not resolve default/`strict` (or `transform`) member destinations against `this.cwd`; route them through `ConfigManager.resolveInstallPath(category, scope)`. Only `verbatim` anchors at `Installer.scopeRoot(scope)` (cwd/home) — never unconditionally `this.cwd`. `stopDir` reuses `scopeRoot`.  
+**Key files**: `packages/cli/src/utils/installer.ts`, `packages/core/src/placement/placement-mode.ts`, `packages/core/src/manifest/plugin-explode.ts`, `packages/cli/src/utils/installer.test.ts`, `packages/e2e/src/plugin-install.test.ts`
+
+---
+
+### Anchor-skill portability grade — advisory in validate/compat, gated at publish — 2026-07-21 (updated same day)
+**Constraint**: `analyzePluginPortability` is **advisory** in `manifest validate` / `compat` (a `rewrite-required` grade or missing anchor prints warnings but does not fail those commands). It is **enforced at `aitools publish`**: orphan files (`unsupported`) always block (exit 1); `rewrite-required` / `missing-anchor` warnings prompt `Publish anyway? (y/N)` on an interactive TTY (decline = cancel, no upload), are blocked by `--strict`, are auto-continued by `-y`/`--yes`, and — when stdin is not a TTY (CI) — proceed with a printed notice rather than hanging. Orphans also remain fatal in `manifest validate` via `validatePluginStructure`. The anchor folder name is fixed to `sanitizePackageDirName(manifest.name)` — not user-configurable. A plugin may keep loose native members alongside the anchor (purity is not enforced).  
+**Reason**: Publish is the natural quality gate, mirroring the existing skill-frontmatter `--strict` behaviour; but non-interactive publishes must not block on advisory warnings or hang waiting for input.  
+**Do not change**: Do not make `rewrite-required` / missing-anchor a *hard* failure outside `--strict`; do not prompt when `!process.stdin.isTTY` (it would hang CI); do not couple the anchor name to anything other than the sanitized package name. `compat --fix` / `manifest init` scaffolding of the anchor `SKILL.md` must never overwrite author prose outside the managed skill-map section.  
+**Key files**: `packages/core/src/manifest/plugin-anchor.ts`, `packages/cli/src/commands/manifest.ts`, `packages/cli/src/commands/compat.ts`, `packages/cli/src/commands/publish.ts`, `packages/e2e/src/plugin-anchor.test.ts`
 
 ---
 

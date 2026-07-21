@@ -21,8 +21,15 @@
 
 ---
 
-### File placementMode (strict vs transform) — 2026-07-17 `31b7508`
-**What**: Each `files[]` entry may set `placementMode`: `strict` (default when omitted) or `transform`. **strict** installs using `dest` as a project-relative path (1:1 with the manifest). **transform** keeps legacy placement remapping (e.g. plugin `assets/`/`scripts/` → synthetic skill package under the platform skills dir; content `destExtension` adjustments). Manifest init/files generate `placementMode: "strict"` on new entries. MCP/hooks merge behaviour is unchanged.  
+### File placementMode (strict / verbatim / transform) — 2026-07-17 `31b7508` (redefined `2026-07-21`)
+**What**: Each `files[]` entry may set `placementMode`: `strict` (default when omitted), `verbatim`, or `transform`.
+- **strict** (default): place relative to the platform's install **area** for the file's category + scope — `resolveInstallPath(category, scope)` + path-within-category. Portable across project/user **and** across platforms (routes per category via the adapter, so it works even where category dirs diverge, e.g. VS Code `.github/agents` vs `~/.copilot/prompts`). No content/extension rewriting.
+- **verbatim**: honor `dest` 1:1, relative to the **scope root** (project cwd or user home). Escape hatch for an exact custom path (e.g. an asset placed as a sibling of the platform category dirs, `.cursor/assets/x`).
+- **transform**: same category-area placement as strict, **plus** remap (plugin `assets/`/`scripts/` → synthetic skill package) and cross-platform content/`destExtension` rewriting.
+
+`manifest init`/`files` still emit `placementMode: "strict"` on new entries (now the portable default). MCP/hooks merge behaviour is unchanged.  
+**Why (redefinition 2026-07-21)**: The prior default (`strict` = 1:1 relative to cwd/home) meant `-g`/user installs of author-layout members wrote into whatever directory the command ran in, and `~/agents/…` was never a real platform location. Making the default place relative to the platform area fixes user-scope installs and removes the need for per-kind special-casing in the installer. The old cwd-literal behaviour moved to the opt-in `verbatim`.  
+**Impact**: Manifests that explicitly set `strict` now route by category area instead of cwd-literal; authors who need an exact path must set `verbatim`. Assets with omitted `placementMode` now land under the synthetic skills package (category area), not their literal `dest`. See constraints → *Plugin native members explode by scope, not cwd*.  
 **Why**: Authors need predictable dest→disk mapping; opt into transform only when remapping is desired.  
 **Impact**: Packages that omit `placementMode` now use strict (breaking vs prior always-remap for plugin assets). E2e asserts strict asset dest (`.cursor/assets/…`) and transform remapping fixtures; manifest init emits `placementMode: "strict"`.  
 **Key files**: `packages/core/src/placement/placement-mode.ts`, `packages/core/src/types/tool.ts`, `packages/core/src/schema/tool-schema.ts`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/commands/manifest.ts`, `packages/cli/src/utils/installer.test.ts`, `packages/e2e/src/plugin-install.test.ts`, `packages/e2e/src/cli.test.ts`
@@ -35,9 +42,10 @@
 
 ---
 
-### publish — 2026-04-26 `d0b6f60` (updated unified `aitools.json`)
-**What**: `aitools publish` reads `aitools.json`, extracts the publish subset via `toPublishManifest()`, bundles declared files into a tarball, and POSTs to the configured registry. Requires `Bearer` token auth when the registry has `publishToken` set.  
-**Key files**: `packages/cli/src/commands/publish.ts`, `packages/cli/src/utils/registry-client.ts`, `packages/core/src/manifest/publish-manifest.ts`
+### publish — 2026-04-26 `d0b6f60` (updated unified `aitools.json`; plugin portability gate `2026-07-21`)
+**What**: `aitools publish` reads `aitools.json`, extracts the publish subset via `toPublishManifest()`, bundles declared files into a tarball, and POSTs to the configured registry. Requires `Bearer` token auth when the registry has `publishToken` set. For `category: skill` it warns on frontmatter compat issues (blocks under `--strict`). For `category: plugin` it runs `analyzePluginPortability` and prints the grade: orphan files (`unsupported`) always block; `rewrite-required` / `missing-anchor` warnings prompt `Publish anyway? (y/N)` on a TTY, block under `--strict`, continue with `-y`/`--yes`, and auto-continue (with a notice) when stdin is not a TTY. Declining the prompt cancels publish (no upload, exit 0).  
+**Key flags**: `--dry-run` (runs the portability check too), `--strict`, `-y/--yes`, `--registry`, `--manifest`  
+**Key files**: `packages/cli/src/commands/publish.ts`, `packages/cli/src/utils/registry-client.ts`, `packages/core/src/manifest/publish-manifest.ts`, `packages/core/src/manifest/plugin-anchor.ts`
 
 ---
 
@@ -47,6 +55,15 @@
 **Impact**: Default explode must not create `plugins/local/`; `--cursor-plugin` must not explode into skill/rule dirs. Remap fixtures need `placementMode: "transform"`. E2e: `plugin-install.test.ts`.  
 **Key files**: `packages/core/src/manifest/plugin-explode.ts`, `packages/cli/src/transformers/path-rewrite.ts`, `packages/cli/src/utils/installer.ts`, `packages/e2e/src/plugin-install.test.ts`  
 **Design doc**: `docs/design/plugin-marketplaces-comparison.md`
+
+---
+
+### Anchor-skill plugin convention + portability grade — 2026-07-21
+**What**: A uniform authoring convention for `category: plugin` bundles. One skill folder named after the package — the **anchor** (`anchorSkillName(name)` = `sanitizePackageDirName(name)`) — is the plugin's hub: it owns shared content (`references/`, `assets/`, `scripts/`) and a **skill-map** documenting how member skills work together. Sibling skills reference the hub via `../<anchor>/…`, which resolves 1:1 after explode (no dynamic path rewrite). `analyzePluginPortability()` grades a plugin `transform-free` (all shared content lives under `skills/<name>/…`, refs resolve as-is), `rewrite-required` (shared content kept at plugin root `assets/`/`scripts/` so `rewriteRelativePaths` must relocate links at install), or `unsupported` (orphan files with no install home). The grade + findings are surfaced by `aitools manifest validate` and `aitools compat` (which now has a plugin section). `aitools compat --fix` and `aitools manifest init --category plugin` scaffold/refresh the anchor `SKILL.md` skill-map.  
+**Why**: Shared plugin content authored under the anchor skill installs transform-free and portably; the grade tells authors when they've drifted into rewrite territory before publish.  
+**Impact**: `manifest validate` / `compat` are advisory (warn, non-fatal). **`aitools publish` gates on the grade** for plugins: `unsupported` (orphan files) always fails; `rewrite-required` / `missing-anchor` warnings prompt `Publish anyway? (y/N)` on an interactive TTY, are blocked by `--strict`, auto-continue with `--yes`, and proceed with a printed notice when non-interactive. Orphans remain fatal in `validate` via `validatePluginStructure`. Single-skill plugins use the same shape (`skills/<name>/SKILL.md`). E2e: `packages/e2e/src/plugin-anchor.test.ts` asserts a transform-free anchored plugin explodes with resolving `../<anchor>/…` refs and that a root-`assets` variant grades `rewrite-required`.  
+**Key APIs**: `anchorSkillName(name)`, `analyzePluginPortability({ packageName, sources, pluginJson })` → `{ grade, findings }`  
+**Key files**: `packages/core/src/manifest/plugin-anchor.ts`, `packages/core/src/manifest/plugin-explode.ts`, `packages/cli/src/commands/manifest.ts`, `packages/cli/src/commands/compat.ts`, `packages/cli/src/commands/publish.ts`, `packages/e2e/src/plugin-anchor.test.ts`
 
 ---
 

@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { ToolManifest, InstalledTool, InstallScope, AiToolsLock, ToolFile, TargetPlatform, ToolCategory, PluginMember } from '@bitgenetics/aitools-core';
+import type { ToolManifest, InstalledTool, InstallScope, AiToolsLock, ToolFile, TargetPlatform, ToolCategory, PluginMember, PlacementMode } from '@bitgenetics/aitools-core';
 import {
   readLockFile,
   writeLockFile,
@@ -90,8 +90,13 @@ export class Installer {
     return trackingRoot(scope, this.cwd);
   }
 
-  private stopDir(scope: InstallScope): string {
+  /** Filesystem root that scope-relative dests resolve against (project cwd or user home). */
+  private scopeRoot(scope: InstallScope): string {
     return scope === 'user' ? os.homedir() : this.cwd;
+  }
+
+  private stopDir(scope: InstallScope): string {
+    return this.scopeRoot(scope);
   }
 
   /** Convert absolute install paths to portable stored form for return values / lock entries. */
@@ -315,20 +320,32 @@ export class Installer {
     const activePlatform = this.configManager.getPlatform();
     const sourcePlatform = manifest.nativeFor ?? 'universal';
     const filesToInstall = selectFilesForPlatform(manifest.files, activePlatform);
-    const relInstallBase = path.relative(this.cwd, installBase).replace(/\\/g, '/');
+    // Strip prefix is the project-relative category dir (scope-independent) so a project-relative
+    // manifest dest (e.g. `.cursor/skills/x/SKILL.md`) is re-anchored onto the user install base
+    // rather than double-nested under it (~/.cursor/skills/.cursor/skills/…).
+    const stripBase = pluginBundle
+      ? installBase
+      : this.configManager.resolveInstallPath(toAdapterFileCategory(manifest.category), 'project');
+    const relInstallBase = path.relative(this.cwd, stripBase).replace(/\\/g, '/');
 
     const writtenFiles: string[] = [];
     const fileResults: InstallFileResult[] = [];
 
     for (const file of filesToInstall) {
       const srcPath = path.join(agentsDir, file.src);
-      let normalizedDest = file.dest.replace(/\\/g, '/');
+      const placement = effectivePlacementMode(file);
+      const normalizedDest = file.dest.replace(/\\/g, '/');
       const relDest =
         relInstallBase && normalizedDest.startsWith(relInstallBase + '/')
           ? normalizedDest.slice(relInstallBase.length + 1)
           : normalizedDest;
 
-      let destPath = path.resolve(installBase, relDest);
+      // verbatim: honor `dest` literally from the scope root (cwd/home). Otherwise (strict/default,
+      // transform) place under the platform category install base.
+      let destPath =
+        placement === 'verbatim' && !pluginBundle
+          ? path.resolve(this.scopeRoot(scope), normalizedDest.replace(/^\.\//, ''))
+          : path.resolve(installBase, relDest);
       const relDestPath = path.relative(this.cwd, destPath).replace(/\\/g, '/');
 
       let writeContent = fs.readFileSync(srcPath, 'utf8');
@@ -480,7 +497,7 @@ export class Installer {
       absDest: string;
       relDest: string;
       srcPath: string;
-      placementMode: 'strict' | 'transform';
+      placementMode: PlacementMode;
     };
     const filePlans: FilePlan[] = [];
 
@@ -493,13 +510,19 @@ export class Installer {
       let absDest: string;
       let relDest: string;
 
-      if (placementMode === 'transform') {
-        const installBase = this.configManager.resolveInstallPath(member.fileCategory, scope);
-        absDest = path.resolve(installBase, member.destWithinCategory);
+      if (placementMode === 'verbatim') {
+        // Escape hatch: honor `dest` as written, anchored at the scope root (project cwd or
+        // user home). Used for exact custom paths (e.g. an asset placed as a sibling of the
+        // platform category dirs) — never unconditionally the cwd.
+        const dest = (toolFile?.dest ?? member.src).replace(/\\/g, '/').replace(/^\.\//, '');
+        absDest = path.resolve(this.scopeRoot(scope), dest);
         relDest = path.relative(this.cwd, absDest).replace(/\\/g, '/');
       } else {
-        const dest = (toolFile?.dest ?? member.src).replace(/\\/g, '/').replace(/^\.\//, '');
-        absDest = path.resolve(this.cwd, dest);
+        // strict (default) and transform both place relative to the platform's install area for
+        // the member's category + scope, so user installs land under ~/.<platform>/… not the cwd.
+        // `transform` additionally remaps content/extension (handled in the write pass below).
+        const installBase = this.configManager.resolveInstallPath(member.fileCategory, scope);
+        absDest = path.resolve(installBase, member.destWithinCategory);
         relDest = path.relative(this.cwd, absDest).replace(/\\/g, '/');
       }
 

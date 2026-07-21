@@ -14,7 +14,11 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import type { PlacementMode, ToolFile } from '../types/tool.js';
 
-/** Default when `placementMode` is omitted from a files[] entry. */
+/**
+ * Default when `placementMode` is omitted from a files[] entry.
+ * `strict` places files relative to the platform's install area for the file's category + scope
+ * (portable across project/user and across platforms). Use `verbatim` for an exact scope-root path.
+ */
 export const DEFAULT_PLACEMENT_MODE: PlacementMode = 'strict';
 
 /** Resolve effective placement mode for a file entry. */

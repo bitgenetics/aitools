@@ -300,7 +300,9 @@ export function classifyPluginMembers(opts: ClassifyPluginOptions): ClassifyPlug
       continue;
     }
 
-    errors.push(`plugin file has no install home: ${src}`);
+    errors.push(
+      `plugin file has no install home: ${src} (move shared content under a skill, e.g. skills/${pkgDir}/references/ or skills/${pkgDir}/assets/)`,
+    );
   }
 
   return { members, errors };

@@ -29,6 +29,8 @@ const MCP_PATH_PLUGIN = 'e2e-mcp-path-plugin';
 const MCP_PATH_VERSION = '1.0.0';
 const STRICT_PLUGIN = 'e2e-strict-placement-plugin';
 const STRICT_VERSION = '1.0.0';
+const NATIVE_PLUGIN = 'e2e-native-members-plugin';
+const NATIVE_VERSION = '1.0.0';
 const MCP_SERVER_KEY = 'plugin-db';
 
 /** VS Code user MCP under isolated E2E_HOME (matches resolveVsCodeUserMcpConfig + pinned APPDATA). */
@@ -143,13 +145,38 @@ beforeAll(async () => {
       files: [
         { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
         { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md', placementMode: 'transform' },
-        { src: 'assets/someref.md', dest: '.cursor/assets/someref.md' },
+        { src: 'assets/someref.md', dest: '.cursor/assets/someref.md', placementMode: 'verbatim' },
       ],
     },
     {
       '.cursor-plugin/plugin.json': JSON.stringify({ name: STRICT_PLUGIN }),
       'skills/x/SKILL.md': '# X\n',
       'assets/someref.md': 'ref\n',
+    },
+  );
+
+  // Native members (skills/rules/agents) with omitted placementMode — the shape `manifest init`
+  // emits for plugins. Must explode into platform dirs for both scopes, never the cwd.
+  await publishPlugin(
+    {
+      name: NATIVE_PLUGIN,
+      version: NATIVE_VERSION,
+      description: 'E2E native-members fixture',
+      category: 'plugin',
+      nativeFor: 'cursor',
+      author: 'e2e',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'agents/researcher.md', dest: 'agents/researcher.md' },
+        { src: 'skills/native-x/SKILL.md', dest: 'skills/native-x/SKILL.md' },
+        { src: 'rules/native-style.mdc', dest: 'rules/native-style.mdc' },
+      ],
+    },
+    {
+      '.cursor-plugin/plugin.json': JSON.stringify({ name: NATIVE_PLUGIN }),
+      'agents/researcher.md': '# Researcher\n',
+      'skills/native-x/SKILL.md': '# Native X\n',
+      'rules/native-style.mdc': '---\ndescription: style\nalwaysApply: true\n---\nBe tidy.\n',
     },
   );
 });
@@ -185,7 +212,7 @@ describe('plugin explode install', () => {
     );
   });
 
-  it('honors omitted placementMode as strict project-relative dest for assets', () => {
+  it('honors verbatim placementMode as scope-relative dest for assets', () => {
     run(`install ${STRICT_PLUGIN}@${STRICT_VERSION} --scope project`, tmpDir);
 
     expect(fs.existsSync(path.join(tmpDir, '.cursor', 'assets', 'someref.md'))).toBe(true);
@@ -193,6 +220,31 @@ describe('plugin explode install', () => {
       fs.existsSync(path.join(tmpDir, '.cursor', 'skills', STRICT_PLUGIN, 'assets', 'someref.md')),
     ).toBe(false);
     expect(fs.existsSync(path.join(tmpDir, '.cursor', 'skills', 'x', 'SKILL.md'))).toBe(true);
+  });
+
+  it('explodes native members (omitted placementMode) into project platform dirs, not the cwd', () => {
+    run(`install ${NATIVE_PLUGIN}@${NATIVE_VERSION} --scope project`, tmpDir);
+
+    expect(fs.existsSync(path.join(tmpDir, '.cursor', 'agents', 'researcher.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.cursor', 'skills', 'native-x', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, '.cursor', 'rules', 'native-style.mdc'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'agents', 'researcher.md'))).toBe(false);
+  });
+
+  it('explodes native members into user platform dirs with --global, never the cwd', () => {
+    run(`install ${NATIVE_PLUGIN}@${NATIVE_VERSION} --global`, tmpDir);
+
+    expect(fs.existsSync(path.join(E2E_HOME, '.cursor', 'agents', 'researcher.md'))).toBe(true);
+    expect(fs.existsSync(path.join(E2E_HOME, '.cursor', 'skills', 'native-x', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(E2E_HOME, '.cursor', 'rules', 'native-style.mdc'))).toBe(true);
+
+    // The reported bug: files landing in the directory the command was run from.
+    expect(fs.existsSync(path.join(tmpDir, 'agents', 'researcher.md'))).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, '.cursor', 'agents', 'researcher.md'))).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, 'aitools-lock.json'))).toBe(false);
+
+    run(`uninstall ${NATIVE_PLUGIN} -g`, tmpDir);
+    expect(fs.existsSync(path.join(E2E_HOME, '.cursor', 'agents', 'researcher.md'))).toBe(false);
   });
 
   it('uninstall removes exploded files and hook handlers', () => {

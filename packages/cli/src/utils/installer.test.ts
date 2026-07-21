@@ -274,7 +274,7 @@ describe('Installer.install', () => {
     ).toBe(true);
   });
 
-  it('honors strict placementMode for plugin assets as project-relative dest', async () => {
+  it('honors verbatim placementMode for plugin assets as scope-relative dest', async () => {
     fs.writeFileSync(
       path.join(tmp, 'aitools.config.json'),
       JSON.stringify({ platform: 'cursor' }),
@@ -291,7 +291,7 @@ describe('Installer.install', () => {
       files: [
         { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
         { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md', placementMode: 'transform' },
-        { src: 'assets/someref.md', dest: '.cursor/assets/someref.md' },
+        { src: 'assets/someref.md', dest: '.cursor/assets/someref.md', placementMode: 'verbatim' },
       ],
     };
     const tarball = Buffer.from(
@@ -318,6 +318,48 @@ describe('Installer.install', () => {
     expect(
       installed.files.some((f) => f.replace(/\\/g, '/').includes('.cursor/assets/someref.md')),
     ).toBe(true);
+  });
+
+  it('defaults omitted placementMode to platform-area-relative for plugin assets', async () => {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'cursor' }),
+      'utf8',
+    );
+    installer = new Installer(new ConfigManager(tmp), tmp, new CacheManager(cacheTmp));
+
+    const PLUGIN_MANIFEST: ToolManifest = {
+      name: 'default-assets-plugin',
+      version: '1.0.0',
+      description: 'A plugin',
+      category: 'plugin',
+      nativeFor: 'cursor',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'assets/someref.md', dest: '.cursor/assets/someref.md' },
+      ],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([
+        { path: '.cursor-plugin/plugin.json', content: '{}' },
+        { path: 'assets/someref.md', content: 'ref' },
+      ]),
+      'utf8',
+    );
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+
+    await installer.install(mockClient as never, PLUGIN_MANIFEST, 'project');
+
+    // Default (strict) ignores the literal `.cursor/assets/...` dest and routes under the platform area.
+    expect(
+      fs.existsSync(path.join(tmp, '.cursor', 'skills', 'default-assets-plugin', 'assets', 'someref.md')),
+    ).toBe(true);
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'assets', 'someref.md'))).toBe(false);
   });
 
   it('rejects a plugin with orphan paths before writing', async () => {
@@ -1761,6 +1803,36 @@ describe('Installer user-scope tracking + cursor-plugin', () => {
     expect(fs.existsSync(path.join(home, '.cursor', 'skills', 'skill.md'))).toBe(true);
   });
 
+  it('re-homes a project-relative skill dest under the user platform dir without double-nesting', async () => {
+    const manifest: ToolManifest = {
+      name: 'prefixed-skill',
+      version: '1.0.0',
+      description: 'A skill',
+      category: 'skill',
+      nativeFor: 'cursor',
+      files: [{ src: 'SKILL.md', dest: '.cursor/skills/prefixed-skill/SKILL.md' }],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([{ path: 'SKILL.md', content: '# Prefixed' }]),
+      'utf8',
+    );
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+
+    await installer.install(mockClient as never, manifest, 'user');
+
+    expect(fs.existsSync(path.join(home, '.cursor', 'skills', 'prefixed-skill', 'SKILL.md'))).toBe(true);
+    // No double-nesting: ~/.cursor/skills/.cursor/skills/...
+    expect(
+      fs.existsSync(path.join(home, '.cursor', 'skills', '.cursor', 'skills', 'prefixed-skill', 'SKILL.md')),
+    ).toBe(false);
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'skills', 'prefixed-skill', 'SKILL.md'))).toBe(false);
+  });
+
   it('installs --cursor-plugin as opaque tree under plugins/local', async () => {
     const PLUGIN_MANIFEST: ToolManifest = {
       name: '@team/my-plugin',
@@ -1817,6 +1889,94 @@ describe('Installer user-scope tracking + cursor-plugin', () => {
     await expect(
       installer.install(mockClient as never, SKILL_MANIFEST, 'user', { cursorPlugin: true }),
     ).rejects.toThrow(/requires category "plugin"/);
+  });
+});
+
+describe('Installer plugin placement by scope (native members)', () => {
+  let tmp: string;
+  let home: string;
+  let homedirSpy: jest.SpyInstance;
+
+  // Mirrors a real plugin authored by `manifest init` (e.g. plugin-researcher):
+  // native members under skills/ rules/ agents/ with omitted placementMode (defaults to strict).
+  const NATIVE_PLUGIN: ToolManifest = {
+    name: 'native-plugin',
+    version: '1.0.0',
+    description: 'A plugin with native members',
+    category: 'plugin',
+    nativeFor: 'cursor',
+    files: [
+      { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+      { src: 'agents/researcher.md', dest: 'agents/researcher.md' },
+      { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md' },
+      { src: 'rules/style.mdc', dest: 'rules/style.mdc' },
+    ],
+  };
+
+  function nativePluginClient() {
+    const tarball = Buffer.from(
+      JSON.stringify([
+        { path: '.cursor-plugin/plugin.json', content: '{"name":"native-plugin"}' },
+        { path: 'agents/researcher.md', content: '# Researcher' },
+        { path: 'skills/x/SKILL.md', content: '# X' },
+        { path: 'rules/style.mdc', content: '---\ndescription: style\nalwaysApply: true\n---\nBe tidy.' },
+      ]),
+      'utf8',
+    );
+    return {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+  }
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-plugin-scope-'));
+    home = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-plugin-home-'));
+    process.env.AITOOLS_CONFIG_ROOT = home;
+    homedirSpy = jest.spyOn(os, 'homedir').mockReturnValue(home);
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'cursor' }),
+      'utf8',
+    );
+  });
+
+  afterEach(() => {
+    homedirSpy.mockRestore();
+    delete process.env.AITOOLS_CONFIG_ROOT;
+    fs.rmSync(tmp, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
+  });
+
+  it('installs native members into platform user dirs for user scope, not the cwd', async () => {
+    const installer = new Installer(new ConfigManager(tmp), tmp);
+
+    await installer.install(nativePluginClient() as never, NATIVE_PLUGIN, 'user');
+
+    expect(fs.existsSync(path.join(home, '.cursor', 'agents', 'researcher.md'))).toBe(true);
+    expect(fs.existsSync(path.join(home, '.cursor', 'skills', 'x', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(home, '.cursor', 'rules', 'style.mdc'))).toBe(true);
+
+    // Must NOT land in the directory the install command was run from.
+    expect(fs.existsSync(path.join(tmp, 'agents', 'researcher.md'))).toBe(false);
+    expect(fs.existsSync(path.join(tmp, 'skills', 'x', 'SKILL.md'))).toBe(false);
+    expect(fs.existsSync(path.join(tmp, 'rules', 'style.mdc'))).toBe(false);
+    expect(fs.existsSync(path.join(tmp, '.cursor'))).toBe(false);
+  });
+
+  it('installs native members into platform project dirs for project scope', async () => {
+    const installer = new Installer(new ConfigManager(tmp), tmp);
+
+    await installer.install(nativePluginClient() as never, NATIVE_PLUGIN, 'project');
+
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'agents', 'researcher.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'skills', 'x', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'rules', 'style.mdc'))).toBe(true);
+
+    // Author-layout copies under the project root are not a valid platform location.
+    expect(fs.existsSync(path.join(tmp, 'agents', 'researcher.md'))).toBe(false);
   });
 });
 

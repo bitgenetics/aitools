@@ -59,10 +59,9 @@ describe('resolvePluginBundleSources', () => {
       { packageName: 'my-plugin', sources: [] },
     );
     expect(result.sources).toEqual(['skills/a/SKILL.md']);
-    expect(result.errors).toEqual([
-      'plugin file has no install home: docs/RESEARCH-METHODOLOGY.md',
-      'plugin file has no install home: .cursor/skills/dev/SKILL.md',
-    ]);
+    expect(result.errors).toHaveLength(2);
+    expect(result.errors[0]).toContain('plugin file has no install home: docs/RESEARCH-METHODOLOGY.md');
+    expect(result.errors[1]).toContain('plugin file has no install home: .cursor/skills/dev/SKILL.md');
   });
 });
 
@@ -150,7 +149,8 @@ describe('classifyPluginMembers', () => {
       packageName: 'my-plugin',
       sources: ['random/orphan.bin'],
     });
-    expect(errors).toEqual(['plugin file has no install home: random/orphan.bin']);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('plugin file has no install home: random/orphan.bin');
   });
 
   it('classifies root SKILL.md as a single-skill plugin', () => {

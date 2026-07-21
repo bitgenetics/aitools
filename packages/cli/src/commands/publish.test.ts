@@ -17,8 +17,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { createPublishCommand } from './publish.js';
 import { createRegistryClient } from '../utils/registry-client.js';
+import { createInterface } from 'node:readline/promises';
 
 jest.mock('../utils/registry-client.js');
+jest.mock('node:readline/promises', () => ({ createInterface: jest.fn() }));
 
 const mockPublish = jest.fn<Promise<{ name: string; version: string; integrity: string }>, [unknown, unknown]>();
 const mockClient = { publish: mockPublish };
@@ -264,6 +266,155 @@ describe('publish command', () => {
       await expect(createPublishCommand().parseAsync([], { from: 'user' })).rejects.toThrow('process.exit(1)');
     } finally {
       mockExit.mockRestore();
+    }
+  });
+
+  // -- Plugin portability gate ------------------------------------------------
+
+  function writePlugin(
+    files: Array<{ src: string; dest: string }>,
+    name = 'my-plugin',
+  ): void {
+    const all = [
+      { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+      ...files,
+    ];
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.json'),
+      JSON.stringify({
+        name,
+        version: '1.0.0',
+        description: 'A test plugin',
+        category: 'plugin',
+        nativeFor: 'cursor',
+        files: all,
+      }),
+      'utf8',
+    );
+    for (const f of all) {
+      const abs = path.join(tmp, f.src);
+      fs.mkdirSync(path.dirname(abs), { recursive: true });
+      fs.writeFileSync(abs, f.src.endsWith('plugin.json') ? '{"name":"my-plugin"}' : '# x', 'utf8');
+    }
+  }
+
+  function setTty(value: boolean): boolean | undefined {
+    const original = process.stdin.isTTY;
+    Object.defineProperty(process.stdin, 'isTTY', { value, configurable: true });
+    return original;
+  }
+
+  it('publishes a transform-free plugin without prompting', async () => {
+    writePlugin([{ src: 'skills/my-plugin/SKILL.md', dest: 'skills/my-plugin/SKILL.md' }]);
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createPublishCommand().parseAsync([], { from: 'user' });
+    expect(mockPublish).toHaveBeenCalledTimes(1);
+    expect(createInterface as jest.Mock).not.toHaveBeenCalled();
+  });
+
+  it('fails publish for a plugin with orphan files', async () => {
+    writePlugin([
+      { src: 'skills/my-plugin/SKILL.md', dest: 'skills/my-plugin/SKILL.md' },
+      { src: 'random/orphan.bin', dest: 'random/orphan.bin' },
+    ]);
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      await expect(createPublishCommand().parseAsync([], { from: 'user' })).rejects.toThrow('process.exit(1)');
+      expect(mockPublish).not.toHaveBeenCalled();
+    } finally {
+      mockExit.mockRestore();
+    }
+  });
+
+  it('proceeds past a rewrite-required warning when non-interactive', async () => {
+    writePlugin([
+      { src: 'skills/my-plugin/SKILL.md', dest: 'skills/my-plugin/SKILL.md' },
+      { src: 'assets/logo.svg', dest: 'assets/logo.svg' },
+    ]);
+    const original = setTty(false);
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await createPublishCommand().parseAsync([], { from: 'user' });
+      expect(mockPublish).toHaveBeenCalledTimes(1);
+      const output = warnSpy.mock.calls.flat().map(String).join('\n');
+      expect(output).toContain('non-interactive');
+    } finally {
+      setTty(original as boolean);
+    }
+  });
+
+  it('blocks a rewrite-required warning under --strict', async () => {
+    writePlugin([
+      { src: 'skills/my-plugin/SKILL.md', dest: 'skills/my-plugin/SKILL.md' },
+      { src: 'assets/logo.svg', dest: 'assets/logo.svg' },
+    ]);
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      await expect(createPublishCommand().parseAsync(['--strict'], { from: 'user' })).rejects.toThrow(
+        'process.exit(1)',
+      );
+      expect(mockPublish).not.toHaveBeenCalled();
+    } finally {
+      mockExit.mockRestore();
+    }
+  });
+
+  it('continues past a rewrite-required warning with --yes', async () => {
+    writePlugin([
+      { src: 'skills/my-plugin/SKILL.md', dest: 'skills/my-plugin/SKILL.md' },
+      { src: 'assets/logo.svg', dest: 'assets/logo.svg' },
+    ]);
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createPublishCommand().parseAsync(['--yes'], { from: 'user' });
+    expect(mockPublish).toHaveBeenCalledTimes(1);
+    expect(createInterface as jest.Mock).not.toHaveBeenCalled();
+  });
+
+  it('cancels publish when the user declines the warning prompt', async () => {
+    writePlugin([
+      { src: 'skills/my-plugin/SKILL.md', dest: 'skills/my-plugin/SKILL.md' },
+      { src: 'assets/logo.svg', dest: 'assets/logo.svg' },
+    ]);
+    (createInterface as jest.Mock).mockReturnValue({
+      question: jest.fn().mockResolvedValue('n'),
+      close: jest.fn(),
+    });
+    const original = setTty(true);
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await createPublishCommand().parseAsync([], { from: 'user' });
+      expect(mockPublish).not.toHaveBeenCalled();
+    } finally {
+      setTty(original as boolean);
+    }
+  });
+
+  it('publishes when the user accepts the warning prompt', async () => {
+    writePlugin([
+      { src: 'skills/my-plugin/SKILL.md', dest: 'skills/my-plugin/SKILL.md' },
+      { src: 'assets/logo.svg', dest: 'assets/logo.svg' },
+    ]);
+    (createInterface as jest.Mock).mockReturnValue({
+      question: jest.fn().mockResolvedValue('y'),
+      close: jest.fn(),
+    });
+    const original = setTty(true);
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await createPublishCommand().parseAsync([], { from: 'user' });
+      expect(mockPublish).toHaveBeenCalledTimes(1);
+    } finally {
+      setTty(original as boolean);
     }
   });
 

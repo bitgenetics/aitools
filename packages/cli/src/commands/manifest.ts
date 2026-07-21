@@ -19,8 +19,8 @@ import { stdin as input, stdout as output } from 'node:process';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import semver from 'semver';
-import { ToolManifestSchema, MANIFEST_FILENAME, LEGACY_PUBLISH_MANIFEST_FILENAME, readManifest, writeManifest, isPublishable, AitoolsJsonSchema, validatePluginStructure, parseCursorPluginJson, getPluginBundleScanPlan, resolvePluginBundleSources } from '@bitgenetics/aitools-core';
-import type { AiToolsManifest, ToolFile } from '@bitgenetics/aitools-core';
+import { ToolManifestSchema, MANIFEST_FILENAME, LEGACY_PUBLISH_MANIFEST_FILENAME, readManifest, writeManifest, isPublishable, AitoolsJsonSchema, validatePluginStructure, parseCursorPluginJson, getPluginBundleScanPlan, resolvePluginBundleSources, analyzePluginPortability, scaffoldAnchorSkill, resolvePluginBundleInstallBase } from '@bitgenetics/aitools-core';
+import type { AiToolsManifest, ToolFile, PluginPortabilityResult } from '@bitgenetics/aitools-core';
 
 type Category = 'skill' | 'subagent' | 'prompt' | 'mcp-tool' | 'plugin';
 type ContentCategory = Exclude<Category, 'plugin'>;
@@ -234,6 +234,42 @@ function collectPluginInitFiles(
 
   const files = sources.map((src: string) => fileEntry(src, src));
   return { files, warnings: errors };
+}
+
+/**
+ * Ensure a plugin bundle has an anchor (hub) skill named after the package.
+ * When absent, scaffolds `skills/<anchor>/SKILL.md` (respecting plugin.json skill root
+ * overrides), seeds the managed skill-map from the other member skills, and adds the
+ * file to `files[]`. No-op when an anchor skill already exists.
+ */
+function ensureAnchorSkillScaffold(
+  cwd: string,
+  packageName: string,
+  files: ToolFile[],
+): ToolFile[] {
+  const pluginJson = readCursorPluginJson(cwd);
+  const portability = analyzePluginPortability({
+    packageName,
+    sources: files.map((f) => f.src),
+    pluginJson,
+  });
+  if (portability.hasAnchor) return files;
+
+  const anchor = portability.anchor;
+  const skillsBase = resolvePluginBundleInstallBase('skill', cwd, pluginJson);
+  const abs = path.join(skillsBase, anchor, 'SKILL.md');
+  const rel = path.relative(cwd, abs).split(path.sep).join('/');
+
+  if (!fs.existsSync(abs)) {
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, scaffoldAnchorSkill(anchor, portability.memberSkills), 'utf8');
+    console.log(chalk.dim(`  Scaffolded anchor skill: ${rel}`));
+  }
+
+  if (!files.some((f) => f.src.replace(/\\/g, '/') === rel)) {
+    return [...files, fileEntry(rel, rel)].sort((a, b) => a.src.localeCompare(b.src));
+  }
+  return files;
 }
 
 /**
@@ -769,6 +805,7 @@ async function initNonInteractive(
     for (const warning of warnings) {
       console.log(chalk.yellow(`  Skipped: ${warning}`));
     }
+    files = ensureAnchorSkillScaffold(cwd, name, files);
   } else if (isContentCategory(category)) {
     if (options.pickFiles) {
       files = resolveManifestFilesNonInteractive(
@@ -870,6 +907,7 @@ async function initInteractive(
           console.log(chalk.yellow(`    ${warning}`));
         }
       }
+      files = ensureAnchorSkillScaffold(cwd, name, files);
     } else if (isContentCategory(category)) {
       if (options.pickFiles) {
         files = await promptForManifestFiles(rl, cwd, category, name);
@@ -1040,6 +1078,25 @@ function loadPublishDoc(cwd: string): AiToolsManifest {
   process.exit(1);
 }
 
+/**
+ * Print an advisory plugin portability grade + findings.
+ * Never exits the process — the grade guides authors but does not gate publish.
+ */
+export function printPortabilityGrade(result: PluginPortabilityResult): void {
+  const gradeColor =
+    result.grade === 'transform-free'
+      ? chalk.green
+      : result.grade === 'rewrite-required'
+        ? chalk.yellow
+        : chalk.red;
+  console.log(`  ${gradeColor('?')} Portability: ${gradeColor(result.grade)}`);
+  for (const finding of result.findings) {
+    if (finding.kind === 'ok') continue;
+    const icon = finding.kind === 'orphan' ? chalk.red('?') : chalk.yellow('?');
+    console.log(`      ${icon} ${chalk.dim(finding.message)}`);
+  }
+}
+
 function createManifestValidateCommand(): Command {
   return new Command('validate')
     .description(`Validate publish fields in ${MANIFEST_FILENAME}`)
@@ -1105,6 +1162,13 @@ function createManifestValidateCommand(): Command {
           process.exit(1);
         }
         console.log(`  ${chalk.green('?')} Plugin structure: every file has an install home`);
+
+        const portability = analyzePluginPortability({
+          packageName: parsed.data.name,
+          sources: parsed.data.files.map((f) => f.src),
+          pluginJson,
+        });
+        printPortabilityGrade(portability);
       }
 
       console.log(chalk.dim('\n  All checks passed. Ready to publish.'));

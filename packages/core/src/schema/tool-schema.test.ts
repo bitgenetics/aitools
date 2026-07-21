@@ -80,8 +80,8 @@ describe('ToolManifestSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('accepts placementMode strict and transform on file entries', () => {
-    for (const placementMode of ['strict', 'transform'] as const) {
+  it('accepts placementMode strict, verbatim and transform on file entries', () => {
+    for (const placementMode of ['strict', 'verbatim', 'transform'] as const) {
       const result = ToolManifestSchema.safeParse({
         ...VALID_MANIFEST,
         files: [{ src: 'skill.md', dest: 'skill.md', placementMode }],

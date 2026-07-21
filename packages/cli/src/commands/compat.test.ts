@@ -291,6 +291,72 @@ describe('compat command action', () => {
     expect(output).toContain('no fields to remove');
   });
 
+  function writePluginManifest(dir: string, files: Array<{ src: string; dest: string }>) {
+    fs.mkdirSync(dir, { recursive: true });
+    const allFiles = [
+      { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+      ...files,
+    ];
+    fs.writeFileSync(
+      path.join(dir, 'aitools.json'),
+      JSON.stringify({
+        name: 'local-plugin',
+        version: '1.0.0',
+        description: 'Test plugin',
+        category: 'plugin',
+        nativeFor: 'cursor',
+        files: allFiles,
+      }),
+      'utf8',
+    );
+    for (const f of allFiles) {
+      const abs = path.join(dir, f.src);
+      fs.mkdirSync(path.dirname(abs), { recursive: true });
+      const content = f.src.endsWith('plugin.json') ? '{"name":"local-plugin"}\n' : '# stub\n';
+      fs.writeFileSync(abs, content, 'utf8');
+    }
+  }
+
+  it('prints a transform-free portability grade for an anchored plugin', async () => {
+    writePluginManifest(tmp, [
+      { src: 'skills/local-plugin/SKILL.md', dest: 'skills/local-plugin/SKILL.md' },
+      { src: 'skills/researcher/SKILL.md', dest: 'skills/researcher/SKILL.md' },
+    ]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createCompatCommand().parseAsync(['--platform', 'cursor'], { from: 'user' });
+    const output = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(output).toContain('Portability:');
+    expect(output).toContain('transform-free');
+  });
+
+  it('prints a rewrite-required grade for root-level shared content', async () => {
+    writePluginManifest(tmp, [
+      { src: 'skills/local-plugin/SKILL.md', dest: 'skills/local-plugin/SKILL.md' },
+      { src: 'assets/logo.svg', dest: 'assets/logo.svg' },
+    ]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createCompatCommand().parseAsync(['--platform', 'cursor'], { from: 'user' });
+    const output = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(output).toContain('rewrite-required');
+  });
+
+  it('scaffolds the anchor skill-map with --fix when absent', async () => {
+    writePluginManifest(tmp, [
+      { src: 'skills/researcher/SKILL.md', dest: 'skills/researcher/SKILL.md' },
+    ]);
+
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createCompatCommand().parseAsync(['--fix', '--platform', 'cursor'], { from: 'user' });
+
+    const anchorPath = path.join(tmp, 'skills', 'local-plugin', 'SKILL.md');
+    expect(fs.existsSync(anchorPath)).toBe(true);
+    const content = fs.readFileSync(anchorPath, 'utf8');
+    expect(content).toContain('aitools:skill-map:begin');
+    expect(content).toContain('`researcher`');
+  });
+
   it('exits when manifest file is missing', async () => {
     const exitSpy = mockExit();
     jest.spyOn(console, 'error').mockImplementation(() => {});

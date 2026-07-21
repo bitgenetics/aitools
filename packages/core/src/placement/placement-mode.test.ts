@@ -27,6 +27,10 @@ describe('effectivePlacementMode', () => {
     expect(effectivePlacementMode({ placementMode: 'transform' })).toBe('transform');
   });
 
+  it('returns verbatim when set', () => {
+    expect(effectivePlacementMode({ placementMode: 'verbatim' })).toBe('verbatim');
+  });
+
   it('exports strict as DEFAULT_PLACEMENT_MODE', () => {
     expect(DEFAULT_PLACEMENT_MODE).toBe('strict');
   });

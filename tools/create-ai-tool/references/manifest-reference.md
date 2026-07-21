@@ -19,6 +19,18 @@ Publish fields live in the unified `aitools.json` at the package root (same file
 | `nativeFor` | enum | **Required** when `category` is `plugin`. Source layout family: `cursor` \| `vscode` \| `claude` \| `windsurf` \| `universal` |
 | `files` | array | When `nativeFor` is `cursor`, must include `.cursor-plugin/plugin.json`. Every path must have an install home (skills/rules/…/scripts/assets); orphans fail `manifest validate`. |
 
+## Plugin authoring convention (anchor skill)
+
+A plugin should have one **anchor** (hub) skill named after the package — `skills/<name>/` where `<name>` is the sanitized package name (`@scope/pkg` → `@scope__pkg`). The anchor owns shared content and documents how the member skills work together via a managed **skill-map** section in its `SKILL.md`.
+
+- **Keep shared content under the anchor**: put shared references, assets, and scripts under `skills/<name>/references/`, `skills/<name>/assets/`, `skills/<name>/scripts/`. Member skills link back with `../<name>/references/…`. Because sibling skills explode to `.cursor/skills/<folder>/`, those relative links resolve 1:1 with **no path rewrite** — the plugin is graded **transform-free**.
+- **Avoid plugin-root `assets/` / `scripts/`**: these install under a synthetic `<name>/…` package and require link rewriting at install time — graded **rewrite-required**. Prefer the anchor layout above.
+- **Orphans are fatal**: any file with no install home fails `manifest validate` — graded **unsupported**.
+
+`aitools manifest init --category plugin` scaffolds `skills/<name>/SKILL.md` (with a skill-map) when no anchor exists. `aitools compat` prints the portability grade; `aitools compat --fix` scaffolds/refreshes the anchor skill-map. The grade is **advisory** (warnings only) — it does not block publish; only true orphans do.
+
+Single-skill plugins use the same shape: one `skills/<name>/SKILL.md` that is both the anchor and the only skill.
+
 ## Optional fields
 
 | Field | Type | Notes |

@@ -57,17 +57,22 @@ import type { ReferenceBindingInput } from './reference.js';
  * `src` is the path inside the published package archive.
  * `dest` is the install destination path.
  * - For skill/rule/command/agent (non-plugin): relative to the platform category install dir.
- * - For plugins with `placementMode: "strict"` (default): project-relative path honored 1:1.
+ * - For plugins with `placementMode: "strict"` (default): placed relative to the platform's
+ *   install area for the file's category + scope (portable across project/user and platforms).
+ * - For plugins with `placementMode: "verbatim"`: `dest` honored 1:1, relative to the scope root
+ *   (project cwd or user home) — escape hatch for an exact custom path.
  * - For plugins with `placementMode: "transform"`: remapped via plugin explode (e.g. assets → synthetic skill).
  */
-export type PlacementMode = 'strict' | 'transform';
+export type PlacementMode = 'strict' | 'verbatim' | 'transform';
 
 export interface ToolFile {
   src: string;
   dest: string;
   /**
    * How `dest` is applied at install time.
-   * - strict (default when omitted): honor `dest` as written
+   * - strict (default when omitted): place relative to the platform's install area for the
+   *   file's category + scope (portable across project/user and across platforms)
+   * - verbatim: honor `dest` as written, relative to the scope root (cwd/home) — exact-path escape hatch
    * - transform: allow placement remapping (plugin assets/scripts → synthetic skill package, destExtension, …)
    */
   placementMode?: PlacementMode;

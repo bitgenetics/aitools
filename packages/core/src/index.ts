@@ -114,6 +114,22 @@ export {
   PluginBundleInstallError,
 } from './manifest/plugin-bundle-install.js';
 export {
+  anchorSkillName,
+  analyzePluginPortability,
+  renderSkillMap,
+  extractSkillMapSkills,
+  upsertSkillMapSection,
+  scaffoldAnchorSkill,
+  SKILL_MAP_BEGIN,
+  SKILL_MAP_END,
+} from './manifest/plugin-anchor.js';
+export type {
+  PluginPortabilityGrade,
+  PluginPortabilityFindingKind,
+  PluginPortabilityFinding,
+  PluginPortabilityResult,
+} from './manifest/plugin-anchor.js';
+export {
   DEFAULT_PLACEMENT_MODE,
   effectivePlacementMode,
 } from './placement/placement-mode.js';

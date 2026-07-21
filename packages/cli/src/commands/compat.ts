@@ -24,8 +24,13 @@ import {
   MANIFEST_FILENAME,
   resolvePublishSource,
   toPublishManifest,
+  analyzePluginPortability,
+  scaffoldAnchorSkill,
+  renderSkillMap,
+  upsertSkillMapSection,
+  parseCursorPluginJson,
 } from '@bitgenetics/aitools-core';
-import type { PlatformSpec, FieldSupport, ToolManifest } from '@bitgenetics/aitools-core';
+import type { PlatformSpec, FieldSupport, ToolManifest, PluginPortabilityResult, CursorPluginJsonPaths } from '@bitgenetics/aitools-core';
 import type { TargetPlatform } from '@bitgenetics/aitools-core';
 import { estimateCategoryConfidence } from '../transformers/index.js';
 import type { TransformConfidence } from '../transformers/index.js';
@@ -186,6 +191,55 @@ function overallLabel(result: PlatformResult): string {
   return parts.join('; ');
 }
 
+// -- Plugin portability -----------------------------------------------------
+
+/**
+ * Print an advisory plugin portability grade + findings. Never exits the process.
+ */
+export function printPortabilityGrade(result: PluginPortabilityResult): void {
+  const gradeColor =
+    result.grade === 'transform-free'
+      ? chalk.green
+      : result.grade === 'rewrite-required'
+        ? chalk.yellow
+        : chalk.red;
+  console.log(`\n  ${gradeColor('?')} ${chalk.bold('Portability:')} ${gradeColor(result.grade)}`);
+  for (const finding of result.findings) {
+    if (finding.kind === 'ok') continue;
+    const icon = finding.kind === 'orphan' ? chalk.red('?') : chalk.yellow('?');
+    console.log(`      ${icon} ${chalk.dim(finding.message)}`);
+  }
+}
+
+/**
+ * Scaffold or refresh the managed skill-map section in the anchor SKILL.md.
+ * Never overwrites author prose outside the managed markers.
+ */
+export function fixAnchorSkillMap(manifestDir: string, portability: PluginPortabilityResult): void {
+  const anchor = portability.anchor;
+  const anchorRel = ['skills', anchor, 'SKILL.md'].join('/');
+  const anchorPath = path.join(manifestDir, 'skills', anchor, 'SKILL.md');
+  const rendered = renderSkillMap(anchor, portability.memberSkills);
+  if (fs.existsSync(anchorPath)) {
+    const original = fs.readFileSync(anchorPath, 'utf8');
+    const updated = upsertSkillMapSection(original, rendered);
+    if (updated !== original) {
+      fs.writeFileSync(anchorPath, updated, 'utf8');
+      console.log(chalk.green(`  Fixed: refreshed skill-map in ${anchorRel}\n`));
+    } else {
+      console.log(chalk.dim('  --fix: skill-map already up to date.\n'));
+    }
+    return;
+  }
+  const scaffold = scaffoldAnchorSkill(anchor, portability.memberSkills);
+  fs.mkdirSync(path.dirname(anchorPath), { recursive: true });
+  fs.writeFileSync(anchorPath, scaffold, 'utf8');
+  console.log(
+    chalk.green(`  Fixed: scaffolded anchor skill ${anchorRel}`) +
+      chalk.dim(' (add it to files[] with: aitools manifest files)\n'),
+  );
+}
+
 // -- Command ----------------------------------------------------------------
 
 export function createCompatCommand(): Command {
@@ -302,29 +356,21 @@ export function createCompatCommand(): Command {
         );
       }
 
-      // -- fix: rewrite SKILL.md
-      if (options.fix && manifest.category === 'skill') {
-        const fixSkillFile = manifest.files.find((f) => f.src.endsWith('SKILL.md'));
-        if (fixSkillFile) {
-          const fixSkillPath = path.resolve(manifestDir, fixSkillFile.src);
-          if (fs.existsSync(fixSkillPath)) {
-            const fieldBadOnAllPlatforms = new Set<string>();
-            for (const field of Object.keys(skillFields)) {
-              const badOnAll = results.every((r) =>
-                r.categorySupported &&
-                r.fieldIssues.some((i) => i.field === field && (i.support === 'unsupported' || i.support === 'ignored')),
-              );
-              if (badOnAll) fieldBadOnAllPlatforms.add(field);
-            }
-            if (fieldBadOnAllPlatforms.size > 0) {
-              const original = fs.readFileSync(fixSkillPath, 'utf8');
-              const rewritten = rewriteSkillFrontmatter(original, fieldBadOnAllPlatforms);
-              fs.writeFileSync(fixSkillPath, rewritten, 'utf8');
-              console.log(chalk.green(`  Fixed: removed fields: ${[...fieldBadOnAllPlatforms].join(', ')}\n`));
-            } else {
-              console.log(chalk.dim('  --fix: no fields to remove.\n'));
-            }
-          }
+      // -- Plugin portability grade -----------------------------------------
+      if (manifest.category === 'plugin') {
+        let pluginJson: CursorPluginJsonPaths | null = null;
+        const descriptorPath = path.join(manifestDir, '.cursor-plugin', 'plugin.json');
+        if (fs.existsSync(descriptorPath)) {
+          pluginJson = parseCursorPluginJson(fs.readFileSync(descriptorPath, 'utf8'));
+        }
+        const portability = analyzePluginPortability({
+          packageName: manifest.name,
+          sources: manifest.files.map((f) => f.src),
+          pluginJson,
+        });
+        printPortabilityGrade(portability);
+        if (options.fix) {
+          fixAnchorSkillMap(manifestDir, portability);
         }
       }
 

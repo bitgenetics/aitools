@@ -14,6 +14,8 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import fs from 'node:fs';
 import path from 'node:path';
+import { createInterface } from 'node:readline/promises';
+import { stdin as input, stdout as output } from 'node:process';
 import { Command } from 'commander';
 import ora from 'ora';
 import chalk from 'chalk';
@@ -22,11 +24,13 @@ import {
   resolvePublishSource,
   toPublishManifest,
   resolveStoredPath,
+  analyzePluginPortability,
+  parseCursorPluginJson,
 } from '@bitgenetics/aitools-core';
-import type { ToolManifest } from '@bitgenetics/aitools-core';
+import type { ToolManifest, CursorPluginJsonPaths } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { createRegistryClient } from '../utils/registry-client.js';
-import { parseSkillFrontmatter, analyzeCompat } from './compat.js';
+import { parseSkillFrontmatter, analyzeCompat, printPortabilityGrade } from './compat.js';
 import { PLATFORM_SPECS } from '@bitgenetics/aitools-core';
 import type { TargetPlatform } from '@bitgenetics/aitools-core';
 
@@ -35,6 +39,76 @@ interface PublishOptions {
   registry?: string;
   dryRun?: boolean;
   strict?: boolean;
+  yes?: boolean;
+}
+
+/**
+ * Run the plugin portability check at publish time.
+ * - 'ok': proceed with publish.
+ * - 'error': hard failure (files with no install home, or warnings under --strict) — exit 1.
+ * - 'cancel': the user declined the warning prompt — stop without publishing.
+ * Advisory warnings (rewrite-required / missing-anchor) block only under --strict, prompt on
+ * an interactive TTY, and otherwise proceed with a printed notice.
+ */
+async function checkPluginPortability(
+  manifest: ToolManifest,
+  manifestDir: string,
+  options: PublishOptions,
+): Promise<'ok' | 'error' | 'cancel'> {
+  if (manifest.category !== 'plugin') return 'ok';
+
+  let pluginJson: CursorPluginJsonPaths | null = null;
+  const descriptorPath = path.join(manifestDir, '.cursor-plugin', 'plugin.json');
+  if (fs.existsSync(descriptorPath)) {
+    pluginJson = parseCursorPluginJson(fs.readFileSync(descriptorPath, 'utf8'));
+  }
+
+  const portability = analyzePluginPortability({
+    packageName: manifest.name,
+    sources: manifest.files.map((f) => f.src),
+    pluginJson,
+  });
+  printPortabilityGrade(portability);
+
+  const errors = portability.findings.filter((f) => f.kind === 'orphan');
+  if (errors.length > 0) {
+    console.error(
+      chalk.red('\n  Publish blocked: plugin has files with no install home. Fix these before publishing.'),
+    );
+    return 'error';
+  }
+
+  const warnings = portability.findings.filter((f) => f.kind !== 'ok' && f.kind !== 'orphan');
+  if (warnings.length === 0) return 'ok';
+
+  if (options.strict) {
+    console.error(chalk.red('\n  Publish blocked by --strict. Fix the warnings above or remove --strict.'));
+    return 'error';
+  }
+
+  if (options.yes) {
+    console.warn(chalk.yellow('\n  Proceeding despite portability warnings (--yes).'));
+    return 'ok';
+  }
+
+  if (!input.isTTY) {
+    console.warn(
+      chalk.yellow('\n  Proceeding despite portability warnings (non-interactive). Use --strict to block.'),
+    );
+    return 'ok';
+  }
+
+  const rl = createInterface({ input, output });
+  try {
+    const answer = (await rl.question(chalk.yellow('\n  Publish anyway despite warnings? (y/N): '))).trim();
+    if (!answer.toLowerCase().startsWith('y')) {
+      console.log(chalk.dim('  Publish cancelled.'));
+      return 'cancel';
+    }
+    return 'ok';
+  } finally {
+    rl.close();
+  }
 }
 
 function resolveToolManifest(
@@ -76,7 +150,8 @@ export function createPublishCommand(): Command {
       'Registry URL to publish to (overrides config)',
     )
     .option('--dry-run', 'Validate and show what would be published without uploading')
-    .option('--strict', 'Block publish if skill has frontmatter fields unsupported on any platform')
+    .option('--strict', 'Block publish on skill compat issues or plugin portability warnings')
+    .option('-y, --yes', 'Skip the plugin portability warning prompt and continue publishing')
     .action(async (options: PublishOptions, cmd: Command) => {
       if (cmd.args[0] === 'help') {
         cmd.help();
@@ -135,6 +210,14 @@ export function createPublishCommand(): Command {
             }
           }
         }
+      }
+
+      const portabilityResult = await checkPluginPortability(manifest, manifestDir, options);
+      if (portabilityResult === 'error') {
+        process.exit(1);
+      }
+      if (portabilityResult === 'cancel') {
+        return;
       }
 
       if (options.dryRun) {
