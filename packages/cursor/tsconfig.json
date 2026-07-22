@@ -3,8 +3,8 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
+    "composite": true,
     "isolatedModules": true
   },
-  "include": ["src"],
-  "references": [{ "path": "../core" }, { "path": "../cursor" }]
+  "include": ["src"]
 }

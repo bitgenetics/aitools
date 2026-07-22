@@ -69,7 +69,7 @@ function main() {
   const version = readCoreVersion();
   const tag = `v${version}`;
 
-  for (const pkgName of ['cli', 'core']) {
+  for (const pkgName of ['cli', 'core', 'cursor']) {
     const pkgPath = path.join(REPO_ROOT, 'packages', pkgName, 'package.json');
     const pkgVersion = JSON.parse(fs.readFileSync(pkgPath, 'utf8')).version;
     if (pkgVersion !== version) {

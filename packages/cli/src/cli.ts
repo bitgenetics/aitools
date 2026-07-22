@@ -27,6 +27,7 @@ import { createConfigCommand } from './commands/config.js';
 import { createCompatCommand } from './commands/compat.js';
 import { createDevInitCommand } from './commands/dev-init.js';
 import { createMcpCommand } from './commands/mcp.js';
+import { createCursorCommand } from './commands/cursor.js';
 import { CLI_VERSION } from './version.js';
 
 const program = new Command();
@@ -50,6 +51,7 @@ program.addCommand(createManifestCommand());
 program.addCommand(createConfigCommand());
 program.addCommand(createCompatCommand());
 program.addCommand(createMcpCommand());
+program.addCommand(createCursorCommand());
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   console.error((err as Error).message);

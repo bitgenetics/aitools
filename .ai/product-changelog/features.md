@@ -4,6 +4,15 @@
 
 ---
 
+### cursor load (multi-root agent from .code-workspace) — 2026-07-22
+**What**: Modular package `@bitgenetics/aitools-cursor` (bin: `aitools-cursor`) parses a VS Code/Cursor multi-root `.code-workspace` file, resolves each `folders[].path` against the workspace file directory, and launches the Cursor Agent CLI (`agent`) with the first folder as `--workspace` and each additional folder as `--add-dir` (Cursor's real multi-root flag; not `--add-path`). Exposed as `aitools cursor load <workspace-file> [--dry-run] [--agent-bin <bin>] [-- <agentArgs...>]` via a thin CLI wrapper; the standalone binary supports the same `load` subcommand so the package can be split out later.  
+**Why**: `.code-workspace` multi-root layouts (e.g. `chip_agent-hub.code-workspace`) are not accepted as `--workspace` by the agent CLI; authors need a one-shot way to map workspace folders into agent roots.  
+**Impact**: Unit tests cover JSONC parse, path resolution, argv building, and dry-run; spawn is injectable. Does not auto-publish `@bitgenetics/aitools-cursor` to npm yet (monorepo-local; published with CLI as a dependency when CLI publishes).  
+**Key APIs**: `parseCodeWorkspaceFile`, `resolveWorkspaceFolders`, `buildAgentArgv`, `loadWorkspaceFromFile`, `createCursorProgram`  
+**Key files**: `packages/cursor/src/`, `packages/cli/src/commands/cursor.ts`
+
+---
+
 ### install / uninstall / update — 2026-04-26 `d0b6f60` (updated `ad7a20d`)
 **What**: Full package lifecycle. `aitools install <name[@version]>` downloads from the highest-priority registry that has the package, extracts to cache, copies files to the platform-specific install path, and records the result in the scope’s lock file. Default install scope is **project** (`./aitools.json` + `./aitools-lock.json`); `-g`/`--global` (or `--scope user`) installs to platform user paths and tracks under `~/.aitools/`. `uninstall` / `list` / `update` accept `-g` / `--scope` to target the matching tracking root.  
 **Why**: User-scope tracking must not be coupled to cwd; project and user installs are independent trees.  
