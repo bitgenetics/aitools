@@ -4,6 +4,14 @@
 
 ---
 
+### AI-mech context coordinator (not vendor loader) — 2026-07-22 `304ed2d`
+**What**: Context swap lives in `@bitgenetics/aitools-core` (`packages/core/src/context/`) with a thin `aitools context` CLI. AITools only mutates on-disk AI-mech trees; Cursor/Claude/etc. remain the prompt loaders. New package category `context-profile` installs as a project-relative tree overlay (not plugin explode). Local quarantine under `.aitools/context-quarantine/` is the authoritative undo buffer; registry supplies profiles and optional baseline fallback.  
+**Why**: Role-based stacks need reproducible filesystem coordination without owning vendor injection surfaces; quarantine keeps undo exact even when profiles are registry-backed.  
+**Impact**: Additive `context` on `aitools.json` / lock (`lockfileVersion` stays 1). Overlay stay is authored-only; assist skill writes proposals only.  
+**Key files**: `packages/core/src/context/`, `packages/cli/src/commands/context.ts`, `packages/cli/src/utils/installer.ts`
+
+---
+
 ### ESM-only monorepo with Node16 module resolution — 2026-04-26 `d0b6f60`
 **What**: All four packages are pure ESM (`"type": "module"`), TypeScript compiled with `"moduleResolution": "node16"`.  
 **Why**: Ensures compatibility with modern Node.js and avoids dual CJS/ESM packaging complexity. Node16 resolution requires explicit `.js` extensions on all local imports.  

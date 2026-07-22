@@ -4,6 +4,13 @@
 
 ---
 
+### `aitools context` (cli) ↔ core context module ↔ registry `context-profile` — 2026-07-22 `304ed2d`
+**How they connect**: CLI `packages/cli/src/commands/context.ts` resolves profile/baseline packages via `RegistryClient` + `CacheManager`, then calls core `swapContextProfile` / `restoreContext` / `discoverAiMech`. Core quarantines AI-mech paths and installs overlays via `installContextProfileTree`. Direct `aitools install` of `category: context-profile` uses `Installer.installContextProfile` (same tree-overlay semantics). Lock state lives in `aitools-lock.json` → `context` (active profile, quarantine id/moves, optional baseline).  
+**Key files**: `packages/cli/src/commands/context.ts`, `packages/core/src/context/swap.ts`, `packages/cli/src/utils/installer.ts`  
+**Gotchas**: Overlay mode requires authored `context.stay` before swap. Restore prefers quarantine; baseline package is only used when quarantine is missing. Stay proposals (`.aitools/context-stay-proposal.json`) never apply until `context accept-stay`.
+
+---
+
 ### `ConfigCascade` (core) ↔ `ConfigManager` (cli)
 **How they connect**: `ConfigManager` calls `ConfigCascade.load(cwd)` in its constructor. The resulting `AiToolsConfig` drives all downstream decisions (platform adapter, default scope, registry list, install path overrides). `ConfigManager.resolveInstallPath(category, scope)` checks `config.installPaths` for overrides before delegating to the platform adapter.  
 **Key files**: `packages/core/src/config/cascade.ts` (source), `packages/cli/src/utils/config-manager.ts` (consumer)  

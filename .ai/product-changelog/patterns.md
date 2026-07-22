@@ -4,6 +4,14 @@
 
 ---
 
+### Quarantine-primary context undo — 2026-07-22 `304ed2d`
+**Used for**: Hot-swapping on-disk AI-mech trees (`aitools context swap` / `restore`).  
+**How**: Before installing a `context-profile`, move swappable paths into `.aitools/context-quarantine/<id>/` with a path map; record `quarantineId` + moves on `lock.context`. Restore always prefers that local quarantine; registry baseline is fallback only when quarantine is absent. Deterministic discover/catalog is separate from assist-only stay judgment (proposal file → `accept-stay`).  
+**Example**: `packages/core/src/context/quarantine.ts`, `packages/core/src/context/swap.ts`  
+**Do not**: Treat registry re-download as the default undo when quarantine exists; do not auto-apply inferred stay without pin.
+
+---
+
 ### Commander v12 action signature
 **Used for**: Every CLI command handler.  
 **How**: The action callback receives `(options, cmd)` where `cmd` is the `Command` instance. For subcommands with positional args, it's `(arg, options, cmd)`. Always check `cmd.args[0] === 'help'` at the top of the action to intercept `ai-tools <command> help` before running logic.  

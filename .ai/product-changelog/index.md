@@ -5,7 +5,7 @@
 
 ## System Overview
 
-`AITools` is a package manager for AI tools — skills, rules, commands, agents, hooks, and MCP tools. Think `npm` for the AI tooling ecosystem. It is a TypeScript + Node.js ≥20 ESM monorepo with packages: `@bitgenetics/aitools-core`, `@bitgenetics/aitools-cli` (binary: `aitools`), `@bitgenetics/aitools-cursor` (binary: `aitools-cursor`; also via `aitools cursor`), `@bitgenetics/aitools-server` (Fastify HTTP registry), and `@bitgenetics/aitools-e2e`. Three file roles: `aitools.json` + `aitools-lock.json` (deps/lock under project cwd or `~/.aitools/` by install scope), `aitools.config.json` (settings — user default on write, project overrides on read). Install can **transform** across IDE platforms; plugins default to **explode**, with opt-in `--cursor-plugin` (opaque local plugin) and `--plugin-bundle` (author-layout roots for shipping members). Per-file `placementMode` defaults to **strict** (honor `dest`); **transform** remaps placement (e.g. plugin assets). Registries can be **HTTP** or **git-backed**. Product context: `.ai/product-changelog/` (load `index.md` first).
+`AITools` is a package manager for AI tools — skills, rules, commands, agents, hooks, MCP tools, plugins, and **context-profile** role stacks. Think `npm` for the AI tooling ecosystem. It is a TypeScript + Node.js ≥20 ESM monorepo with packages: `@bitgenetics/aitools-core`, `@bitgenetics/aitools-cli` (binary: `aitools`), `@bitgenetics/aitools-cursor` (binary: `aitools-cursor`; also via `aitools cursor`), `@bitgenetics/aitools-server` (Fastify HTTP registry), and `@bitgenetics/aitools-e2e`. Three file roles: `aitools.json` + `aitools-lock.json` (deps/lock under project cwd or `~/.aitools/` by install scope), `aitools.config.json` (settings — user default on write, project overrides on read). Install can **transform** across IDE platforms; plugins default to **explode**, with opt-in `--cursor-plugin` (opaque local plugin) and `--plugin-bundle` (author-layout roots for shipping members). `aitools context` hot-swaps on-disk AI-mech trees via quarantine + registry profiles (IDE remains the loader). Per-file `placementMode` defaults to **strict** (honor `dest`); **transform** remaps placement (e.g. plugin assets). Registries can be **HTTP** or **git-backed**. Product context: `.ai/product-changelog/` (load `index.md` first).
 
 ---
 
@@ -24,8 +24,9 @@
 
 ## Recent Changes
 
-- **2026-07-22** — AI-mech context swap (`aitools context`; quarantine primary restore; `context-profile`) — see `features.md`, `constraints.md`
-- **2026-07-22** — `aitools cursor load` / `@bitgenetics/aitools-cursor` maps `.code-workspace` folders to agent `--workspace` + `--add-dir` — see `features.md`
+- **2026-07-22** `304ed2d` — AI-mech context swap (`aitools context`; quarantine primary restore; `context-profile`) — see `features.md`, `constraints.md`, `architecture.md`, `patterns.md`, `integrations.md`
+- **2026-07-22** `620018f` — `aitools cursor load` / `@bitgenetics/aitools-cursor` maps `.code-workspace` folders to agent `--workspace` + `--add-dir` — see `features.md`
+- **2026-07-21** `ffdfd65` / `92ec714` — Anchor-skill convention + `path-rewrite-free` portability grade (publish gate) — see `features.md`, `constraints.md`
 - **2026-07-17** `31b7508` — File `placementMode` (`strict` default vs `transform` remap) — see `features.md`, `patterns.md`
 - **2026-07-16** `8c15b68` — Plugin-bundle install layout (`--plugin-bundle` → author roots `skills/`/`rules/`/…) — see `features.md`, `constraints.md`, `patterns.md`
 - **2026-07-16** `ad7a20d` — Catch-up `a8239bb..HEAD` + user-scope/`--cursor-plugin`/MCP paths/changelog-first e2e — see `features.md`, `architecture.md`, `constraints.md`, `patterns.md`
@@ -40,5 +41,5 @@
 
 ---
 
-<!-- Last SHA: 31b7508 -->
-<!-- Last updated: 2026-07-17 -->
+<!-- Last SHA: 304ed2d -->
+<!-- Last updated: 2026-07-22 -->

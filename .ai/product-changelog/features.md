@@ -4,19 +4,19 @@
 
 ---
 
-### AI-mech context swap (role profiles) — 2026-07-22
+### AI-mech context swap (role profiles) — 2026-07-22 `304ed2d`
 **What**: `aitools context` hot-swaps project AI-mechanism files (rules, skills, agents, `AGENTS.md` / `CLAUDE.md`, `.claude/**`, scoped hooks/MCP AI configs). Modes: `replace` (full) and `overlay` (preserve authored `context.stay` globs). Every `swap` **quarantines** displaced files under `.aitools/context-quarantine/<id>/` (primary restore). Profile packages (`category: context-profile`) install as a tree overlay from the registry. Optional baseline package / capture hashes for integrity and registry fallback when quarantine is missing. `discover` is deterministic; stay judgment is assist-only via proposal file + `accept-stay`. Dirty AI-mech git paths block swap/restore unless `--force`.  
 **Why**: Developers vs auditors (and similar roles) need reproducible swap/restore of on-disk AI guidance without owning vendor loaders.  
 **Impact**: Additive schemas (`context` on `aitools.json` / lock; keep `lockfileVersion: 1`). E2e: `packages/e2e/src/context-swap.test.ts` asserts discover → swap (quarantine) → restore round-trip with stay-set overlay.  
-**Key APIs**: `discoverAiMech`, `quarantineAiMech`, `restoreQuarantine`, `resolveStaySet`, `swapContextProfile`, `restoreContext`  
-**Key files**: `packages/core/src/context/`, `packages/cli/src/commands/context.ts`, `packages/e2e/src/context-swap.test.ts`
+**Key APIs**: `discoverAiMech`, `swappablePaths`, `quarantineFiles`, `restoreQuarantine`, `swapContextProfile`, `restoreContext`, `acceptStayProposal`, `installContextProfileTree`, `getContextStatus`  
+**Key files**: `packages/core/src/context/`, `packages/cli/src/commands/context.ts`, `packages/e2e/src/context-swap.test.ts`, `tools/propose-context-stay/`
 
 ---
 
-### cursor load (multi-root agent from .code-workspace) — 2026-07-22
+### cursor load (multi-root agent from .code-workspace) — 2026-07-22 `620018f`
 **What**: Modular package `@bitgenetics/aitools-cursor` (bin: `aitools-cursor`) parses a VS Code/Cursor multi-root `.code-workspace` file, resolves each `folders[].path` against the workspace file directory, and launches the Cursor Agent CLI (`agent`) with the first folder as `--workspace` and each additional folder as `--add-dir` (Cursor's real multi-root flag; not `--add-path`). Exposed as `aitools cursor load <workspace-file> [--dry-run] [--agent-bin <bin>] [-- <agentArgs...>]` via a thin CLI wrapper; the standalone binary supports the same `load` subcommand so the package can be split out later.  
 **Why**: `.code-workspace` multi-root layouts (e.g. `chip_agent-hub.code-workspace`) are not accepted as `--workspace` by the agent CLI; authors need a one-shot way to map workspace folders into agent roots.  
-**Impact**: Unit tests cover JSONC parse, path resolution, argv building, and dry-run; spawn is injectable. Does not auto-publish `@bitgenetics/aitools-cursor` to npm yet (monorepo-local; published with CLI as a dependency when CLI publishes).  
+**Impact**: Unit tests cover JSONC parse, path resolution, argv building, and dry-run; spawn is injectable. CI builds/publishes `@bitgenetics/aitools-cursor` with the workspace (`51d2a0b`, `8c9ede8`).  
 **Key APIs**: `parseCodeWorkspaceFile`, `resolveWorkspaceFolders`, `buildAgentArgv`, `loadWorkspaceFromFile`, `createCursorProgram`  
 **Key files**: `packages/cursor/src/`, `packages/cli/src/commands/cursor.ts`
 
@@ -76,9 +76,9 @@
 
 ---
 
-### Anchor-skill plugin convention + portability grade — 2026-07-21 (updated 2026-07-22)
+### Anchor-skill plugin convention + portability grade — 2026-07-21 `ffdfd65` (rename `92ec714`)
 **What**: A uniform authoring convention for `category: plugin` bundles. One skill folder named after the package — the **anchor** (`anchorSkillName(name)` = `sanitizePackageDirName(name)`) — is the plugin's hub: it owns shared content (`references/`, `assets/`, `scripts/`) and a **skill-map** documenting how member skills work together. Sibling skills reference the hub via `../<anchor>/…`, which resolves 1:1 after explode (no dynamic path rewrite). `analyzePluginPortability()` grades a plugin `path-rewrite-free` (shared content under `skills/<name>/…`; relative links need no `rewriteRelativePaths`), `rewrite-required` (plugin-root `assets/`/`scripts/` need path rewrite at install), or `unsupported` (orphan files with no install home). The grade + findings are surfaced by `aitools manifest validate` and `aitools compat` (which now has a plugin section). `aitools compat --fix` and `aitools manifest init --category plugin` scaffold/refresh the anchor `SKILL.md` skill-map.  
-**Why**: Shared plugin content authored under the anchor skill avoids install-time *path* rewriting; the grade tells authors when they've drifted into rewrite territory before publish.  
+**Why**: Shared plugin content authored under the anchor skill avoids install-time *path* rewriting; the grade tells authors when they've drifted into rewrite territory before publish. Renamed from misleading `transform-free` so path-rewrite intent is not confused with vendor frontmatter transforms.  
 **Impact**: `manifest validate` / `compat` are advisory (warn, non-fatal). **`aitools publish` gates on the grade** for plugins: `unsupported` (orphan files) always fails; `rewrite-required` / `missing-anchor` warnings prompt `Publish anyway? (y/N)` on an interactive TTY, are blocked by `--strict`, auto-continue with `--yes`, and proceed with a printed notice when non-interactive. Orphans remain fatal in `validate` via `validatePluginStructure`. Single-skill plugins use the same shape (`skills/<name>/SKILL.md`). E2e: `packages/e2e/src/plugin-anchor.test.ts` asserts a path-rewrite-free anchored plugin explodes with resolving `../<anchor>/…` refs and that a root-`assets` variant grades `rewrite-required`.  
 **Key APIs**: `anchorSkillName(name)`, `analyzePluginPortability({ packageName, sources, pluginJson })` → `{ grade, findings }`  
 **Key files**: `packages/core/src/manifest/plugin-anchor.ts`, `packages/core/src/manifest/plugin-explode.ts`, `packages/cli/src/commands/manifest.ts`, `packages/cli/src/commands/compat.ts`, `packages/cli/src/commands/publish.ts`, `packages/e2e/src/plugin-anchor.test.ts`
