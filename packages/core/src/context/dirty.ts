@@ -33,7 +33,9 @@ export function dirtyTrackedAiMechPaths(projectRoot: string, relPaths: string[])
   const dirty = new Set<string>();
   const lines = (result.stdout ?? '').split(/\r?\n/).filter(Boolean);
   for (const line of lines) {
-    // format: XY path  or  XY orig -> path
+    // format: XY path  or  XY orig -> path — ignore untracked/ignored (not "tracked" dirt).
+    const code = line.slice(0, 2);
+    if (code === '??' || code === '!!') continue;
     const rest = line.slice(3).trim();
     const arrow = rest.indexOf(' -> ');
     const filePart = arrow >= 0 ? rest.slice(arrow + 4) : rest;

@@ -333,6 +333,20 @@ describe('aitools list', () => {
     expect(out).toContain(pluginName);
     expect(out).toContain('[cursor-plugin]');
   });
+
+  it('marks plugin-bundle installs with [plugin-bundle] on list', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'aitools.config.json'),
+      JSON.stringify({
+        platform: 'cursor',
+        registries: [{ name: 'e2e-registry', url: REGISTRY_URL, priority: 1 }],
+      }),
+    );
+    run(`install ${fixtureName} --plugin-bundle --platform cursor`, tmpDir);
+    const out = run('list', tmpDir);
+    expect(out).toContain(fixtureName);
+    expect(out).toContain('[plugin-bundle]');
+  });
 });
 
 // ---------------------------------------------------------------------------

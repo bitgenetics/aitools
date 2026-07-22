@@ -7,7 +7,7 @@
 ### AI-mech context swap (role profiles) — 2026-07-22 `304ed2d`
 **What**: `aitools context` hot-swaps project AI-mechanism files (rules, skills, agents, `AGENTS.md` / `CLAUDE.md`, `.claude/**`, scoped hooks/MCP AI configs). Modes: `replace` (full) and `overlay` (preserve authored `context.stay` globs). Every `swap` **quarantines** displaced files under `.aitools/context-quarantine/<id>/` (primary restore). Profile packages (`category: context-profile`) install as a tree overlay from the registry. Optional baseline package / capture hashes for integrity and registry fallback when quarantine is missing. `discover` is deterministic; stay judgment is assist-only via proposal file + `accept-stay`. Dirty AI-mech git paths block swap/restore unless `--force`.  
 **Why**: Developers vs auditors (and similar roles) need reproducible swap/restore of on-disk AI guidance without owning vendor loaders.  
-**Impact**: Additive schemas (`context` on `aitools.json` / lock; keep `lockfileVersion: 1`). E2e: `packages/e2e/src/context-swap.test.ts` asserts discover → swap (quarantine) → restore round-trip with stay-set overlay.  
+**Impact**: Additive schemas (`context` on `aitools.json` / lock; keep `lockfileVersion: 1`). E2e: `packages/e2e/src/context-swap.test.ts` asserts discover → overlay swap (quarantine) → restore; dirty-tree refuse/`--force`; replace mode; `accept-stay`; baseline fallback when quarantine missing; `aitools install` of `context-profile`.  
 **Key APIs**: `discoverAiMech`, `swappablePaths`, `quarantineFiles`, `restoreQuarantine`, `swapContextProfile`, `restoreContext`, `acceptStayProposal`, `installContextProfileTree`, `getContextStatus`  
 **Key files**: `packages/core/src/context/`, `packages/cli/src/commands/context.ts`, `packages/e2e/src/context-swap.test.ts`, `tools/propose-context-stay/`
 
@@ -34,8 +34,8 @@
 ### Plugin-bundle install layout — 2026-07-16 `8c15b68`
 **What**: `aitools install <pkg> --plugin-bundle` installs skill/rule/command/agent/mcp-tool/hook packages into the plugin **author layout** under cwd (`skills/`, `rules/`, `agents/`, `commands/`, `mcp.json`, `hooks/hooks.json` — respecting `.cursor-plugin/plugin.json` path overrides via `getPluginBundleScanPlan`). Lock records `installMethod: plugin-bundle`. Project scope only; rejects `-g` / `--scope user` / `--cursor-plugin`. Reinstall (`aitools install` / `update`) honors the lock method. `list` shows `[plugin-bundle]`. Uninstall deletes locked paths / unmerges MCP/hooks as usual. Default install (no flag) still uses platform dirs (e.g. `.cursor/skills/`). Rejects `category: plugin` and `category: reference` with a clear error. Does not auto-edit the consuming plugin’s publish `files[]` — authors run `manifest files` / validate.  
 **Why**: Plugin authors need registry packages as distribute-with-plugin members under author roots; platform install remains the local/dev dependency path (`-D`).  
-**Impact**: E2e must assert author-root destinations + lock method for `--plugin-bundle`, platform destinations without the flag, and rejects for `-g` / `--cursor-plugin` / `category: plugin`.  
-**Key files**: `packages/core/src/manifest/plugin-bundle-install.ts`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/commands/install.ts`, `packages/e2e/src/cli.test.ts`
+**Impact**: E2e must assert author-root destinations + lock method for `--plugin-bundle`, platform destinations without the flag, rejects for `-g` / `--cursor-plugin` / `category: plugin`, and `list` `[plugin-bundle]` marker.  
+**Key files**: `packages/core/src/manifest/plugin-bundle-install.ts`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/commands/install.ts`, `packages/cli/src/commands/list.ts`, `packages/e2e/src/cli.test.ts`
 
 ---
 
@@ -79,7 +79,7 @@
 ### Anchor-skill plugin convention + portability grade — 2026-07-21 `ffdfd65` (rename `92ec714`)
 **What**: A uniform authoring convention for `category: plugin` bundles. One skill folder named after the package — the **anchor** (`anchorSkillName(name)` = `sanitizePackageDirName(name)`) — is the plugin's hub: it owns shared content (`references/`, `assets/`, `scripts/`) and a **skill-map** documenting how member skills work together. Sibling skills reference the hub via `../<anchor>/…`, which resolves 1:1 after explode (no dynamic path rewrite). `analyzePluginPortability()` grades a plugin `path-rewrite-free` (shared content under `skills/<name>/…`; relative links need no `rewriteRelativePaths`), `rewrite-required` (plugin-root `assets/`/`scripts/` need path rewrite at install), or `unsupported` (orphan files with no install home). The grade + findings are surfaced by `aitools manifest validate` and `aitools compat` (which now has a plugin section). `aitools compat --fix` and `aitools manifest init --category plugin` scaffold/refresh the anchor `SKILL.md` skill-map.  
 **Why**: Shared plugin content authored under the anchor skill avoids install-time *path* rewriting; the grade tells authors when they've drifted into rewrite territory before publish. Renamed from misleading `transform-free` so path-rewrite intent is not confused with vendor frontmatter transforms.  
-**Impact**: `manifest validate` / `compat` are advisory (warn, non-fatal). **`aitools publish` gates on the grade** for plugins: `unsupported` (orphan files) always fails; `rewrite-required` / `missing-anchor` warnings prompt `Publish anyway? (y/N)` on an interactive TTY, are blocked by `--strict`, auto-continue with `--yes`, and proceed with a printed notice when non-interactive. Orphans remain fatal in `validate` via `validatePluginStructure`. Single-skill plugins use the same shape (`skills/<name>/SKILL.md`). E2e: `packages/e2e/src/plugin-anchor.test.ts` asserts a path-rewrite-free anchored plugin explodes with resolving `../<anchor>/…` refs and that a root-`assets` variant grades `rewrite-required`.  
+**Impact**: `manifest validate` / `compat` are advisory (warn, non-fatal). **`aitools publish` gates on the grade** for plugins: `unsupported` (orphan files) always fails; `rewrite-required` / `missing-anchor` warnings prompt `Publish anyway? (y/N)` on an interactive TTY, are blocked by `--strict`, auto-continue with `--yes`, and proceed with a printed notice when non-interactive. Orphans remain fatal in `validate` via `validatePluginStructure`. Single-skill plugins use the same shape (`skills/<name>/SKILL.md`). E2e: `packages/e2e/src/plugin-anchor.test.ts` asserts path-rewrite-free explode, compat grades, and publish dry-run gates (orphan / `--strict` / `--yes`).  
 **Key APIs**: `anchorSkillName(name)`, `analyzePluginPortability({ packageName, sources, pluginJson })` → `{ grade, findings }`  
 **Key files**: `packages/core/src/manifest/plugin-anchor.ts`, `packages/core/src/manifest/plugin-explode.ts`, `packages/cli/src/commands/manifest.ts`, `packages/cli/src/commands/compat.ts`, `packages/cli/src/commands/publish.ts`, `packages/e2e/src/plugin-anchor.test.ts`
 
@@ -106,12 +106,6 @@
 ### E2E git registry round-trip — 2026-06-26 `d7f8fa0`
 **What**: Docker e2e runs publish → install → search against a Gitea-hosted git registry; local e2e uses a temporary bare repo when `GITEA_URL` is unset. Shared helpers in `test-env.ts` isolate `HOME`/`AITOOLS_CONFIG_ROOT` so user config does not leak into tests.  
 **Key files**: `packages/e2e/src/cli.test.ts`, `packages/e2e/src/test-env.ts`, `packages/e2e/global-setup.cjs`, `packages/e2e/gitea-setup.cjs`
-
----
-
-### README registry types documentation — 2026-06-26 `52eaa5a`
-**What**: `readme.md` reorganized with table of contents, quick-start slot for lightweight git registry, and a **Registry types** reference (git vs HTTP comparison, repo layout, config examples, CLI flags).  
-**Key files**: `readme.md`, `docs/deployment.md` (link to `#registry-types`)
 
 ---
 
@@ -153,25 +147,6 @@
 
 ---
 
-### init — 2026-04-26 `d0b6f60`
-**What**: `aitools init` creates `aitools.json` in the current directory with sensible defaults (project name from directory name, empty tools/devTools).  
-**Key files**: `packages/cli/src/commands/init.ts`
-
----
-
-### manifest platforms field — 2026-04-26 `d719124`
-**What**: `ToolManifest` now has an optional `platforms?: TargetPlatform[]` field. When set, `Installer.installFiles` rejects the install with a clear error if the configured platform is not in the list (and `'universal'` is not present). Omitting the field means "supports all platforms". Validated by `ToolManifestSchema` (Zod). Documented in `tools/create-ai-tool/references/manifest-reference.md`.  
-**Key files**: `packages/core/src/types/tool.ts`, `packages/core/src/schema/tool-schema.ts`, `packages/cli/src/utils/installer.ts`
-
----
-
-### manifest update — 2026-04-27 `d719124`
-**What**: `aitools manifest update` edits fields in an existing `aitools.manifest.json`. Interactive mode (no flags) prompts for every field with the current value as default — press Enter to keep, type a new value to change, type `-` to clear an optional field. `--yes` mode applies only the flags explicitly passed and leaves everything else unchanged. Covers all metadata fields: `name`, `description`, `category`, `author`, `repository`, `keywords`, `tags`, `platforms`. Files are preserved; use `manifest init --force` to re-scaffold files.  
-**Key flags**: `--name`, `--description`, `--category`, `--author`, `--keywords`, `--tags`, `--repository`, `--platforms`, `-y/--yes`  
-**Key files**: `packages/cli/src/commands/manifest.ts`
-
----
-
 ### Admin portal login — 2026-04-30 `d22c706`
 **What**: Session-cookie login flow gating `/portal/admin`. `GET /portal/admin/login` serves a login form; `POST /portal/admin/login` validates the submitted token via `IAdminAuth.createSession()` and sets an `HttpOnly; SameSite=Strict` cookie (`admin_session`). `GET /portal/admin` redirects to login when the session is absent or expired. `GET /portal/admin/logout` invalidates the session. Admin portal routes are only registered when admin auth is configured.
 **Key files**: `packages/server/src/routes/portal.ts`, `packages/server/src/providers/auth/simple.ts`, `packages/server/src/providers/auth/database.ts`
@@ -203,12 +178,6 @@
 
 ---
 
-### Expanded tool categories + `nativeFor` — 2026-06-27 `6eba41d`
-**What**: `ToolCategory` adds `rule`, `command`, `agent`, `hook` (legacy `subagent`/`prompt` normalize via `normalizeCategory`). Manifest optional `nativeFor: TargetPlatform` declares authorship platform. Adapters expose category install dirs and `resolveHooksConfig()` for hook merging.  
-**Key files**: `packages/core/src/types/tool.ts`, `packages/core/src/types/category.ts`, `packages/cli/src/adapters/`
-
----
-
 ### `aitools mcp` — 2026-06-27 `6eba41d`
 **What**: `aitools mcp` runs an MCP stdio server exposing registry search/install and on-demand `aitools_transform`. Subcommands `mcp install` / `mcp remove` register the server in detected platform `mcp.json` files (project or `--user`). Uses `@modelcontextprotocol/sdk`.  
 **Key files**: `packages/cli/src/commands/mcp.ts`, `packages/cli/src/cli.ts`
@@ -218,10 +187,4 @@
 ### E2E config layer contract — 2026-06-28 `e0a753f` (updated `ad7a20d`)
 **What**: `packages/e2e/src/config-layers.test.ts` is the executable e2e for settings write targets, cascade read merge, and install scope (including user tracking under `~/.aitools/`). Product expectations for that model live in this changelog; e2e implements them.  
 **Key files**: `packages/e2e/src/config-layers.test.ts`, `packages/e2e/src/test-env.ts`, `AGENTS.md`, `.agents/skills/project-changelog/SKILL.md`
-
----
-
-### `npm run test:coverage` + server thresholds — 2026-06-28 `e0a753f`
-**What**: Root script runs Jest with `--coverage` on core/cli/server; CI `test.yml` invokes it. Reports emit to `packages/*/coverage/` (gitignored). Server adds scoped `collectCoverageFrom`, expanded auth/storage/route tests, and global thresholds (80% stmts/lines/funcs, 70% branches).  
-**Key files**: `package.json`, `.github/workflows/test.yml`, `packages/server/jest.config.cjs`, `packages/server/src/auth/publisher-auth.test.ts`
 

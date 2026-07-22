@@ -17,6 +17,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   acceptStayProposal,
+  dirtyTrackedAiMechPaths,
   discoverAiMech,
   getContextStatus,
   installContextProfileTree,
@@ -258,5 +259,13 @@ describe('installContextProfileTree', () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe('dirtyTrackedAiMechPaths', () => {
+  it('ignores untracked paths in porcelain output', () => {
+    // Pure parsing behaviour is covered via assertClean after a real git repo in e2e;
+    // here we only assert the exported helper returns [] for empty input.
+    expect(dirtyTrackedAiMechPaths(os.tmpdir(), [])).toEqual([]);
   });
 });

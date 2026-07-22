@@ -5,7 +5,7 @@
 ---
 
 ### AI-mech context swap — coordinator not loader; quarantine primary — 2026-07-22 `304ed2d`
-**Constraint**: AITools coordinates **on-disk** AI-mech trees only; Cursor/Claude/etc. remain the prompt loaders. Overlay stay-set must be **authored** in `aitools.json` (`context.stay`) before swap applies it — inferred stay proposals never auto-apply. Every swap writes a local quarantine under `.aitools/context-quarantine/` which is the **primary** restore source; registry baseline is fallback when quarantine is absent. Keep `lockfileVersion: 1` with optional `context` (do not bump). Quarantine is gitignored; refuse swap/restore on dirty tracked AI-mech paths unless `--force`. Older CLIs that strip unknown lock keys leave active swaps unmanaged — `status`/`restore` require a CLI that understands `lock.context`.  
+**Constraint**: AITools coordinates **on-disk** AI-mech trees only; Cursor/Claude/etc. remain the prompt loaders. Overlay stay-set must be **authored** in `aitools.json` (`context.stay`) before swap applies it — inferred stay proposals never auto-apply. Every swap writes a local quarantine under `.aitools/context-quarantine/` which is the **primary** restore source; registry baseline is fallback when quarantine is absent. Keep `lockfileVersion: 1` with optional `context` (do not bump). Quarantine is gitignored; refuse swap/restore on dirty **tracked** AI-mech paths unless `--force` (untracked profile overlays do not count as dirty). Older CLIs that strip unknown lock keys leave active swaps unmanaged — `status`/`restore` require a CLI that understands `lock.context`.  
 **Reason**: Matches vendor filesystem-driven loaders; preserves exact pre-swap bytes for undo; avoids breaking older clients that require lockfileVersion 1.  
 **Do not change**: Do not inject into vendor system prompts; do not auto-pin inferred stay; do not treat registry re-download as the default undo path when quarantine exists.  
 **Key files**: `packages/core/src/context/`, `packages/cli/src/commands/context.ts`, `packages/e2e/src/context-swap.test.ts`
@@ -93,14 +93,6 @@
 **Reason**: Leaked user `platform` or registry config caused flaky e2e failures.  
 **Do not change**: Any new e2e suite helpers should use `packages/e2e/src/test-env.ts` rather than assuming a clean real home directory.  
 **Key files**: `packages/e2e/src/test-env.ts`, `packages/core/src/config/cascade.ts`
-
----
-
-### Gitea web install wizard unsuitable for automation — 2026-06-26 `d7f8fa0`
-**Constraint**: Do not bootstrap Gitea in CI/e2e via POST to the install page — use `gitea migrate` + `gitea admin user create` with `INSTALL_LOCK=true` instead.  
-**Reason**: Install POST triggers a fatal `MustInstalled()` race when `GITEA__security__INSTALL_LOCK=false` env vars are present; API never becomes available.  
-**Do not change**: Keep `gitea-init` as a one-shot CLI bootstrap sharing the `gitea-data` volume with the `gitea` service.  
-**Key files**: `packages/e2e/gitea/bootstrap.sh`, `docker-compose.e2e.yml`
 
 ---
 

@@ -15,10 +15,10 @@
 /**
  * Anchor-skill convention + portability grade e2e.
  *
- * Changelog contract: features → "Anchor-skill plugin convention + portability grade".
- * Asserts (1) an anchored multi-skill plugin explodes path-rewrite-free with resolving
- * `../<anchor>/…` cross-refs, and (2) `aitools compat` grades path-rewrite-free vs
- * rewrite-required.
+ * Changelog contract: features → "Anchor-skill plugin convention + portability grade";
+ * constraints → "Anchor-skill portability grade — advisory in validate/compat, gated at publish".
+ * Asserts (1) anchored explode path-rewrite-free, (2) compat grades, (3) publish gates orphans /
+ * `--strict` warnings / `--yes` continue (dry-run).
  */
 
 import fs from 'node:fs';
@@ -178,5 +178,85 @@ describe('aitools compat portability grade', () => {
     ]);
     const out = run('compat --platform cursor', tmpDir);
     expect(out).toContain('rewrite-required');
+  });
+});
+
+describe('aitools publish portability gate', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = makeE2eProjectDir('aitools-anchor-publish-');
+    writeProjectConfig(tmpDir, 'cursor');
+  });
+
+  afterEach(() => {
+    rmTmpDir(tmpDir);
+  });
+
+  function writePluginForPublish(files: Array<{ src: string; dest: string }>): void {
+    const allFiles = [
+      { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+      ...files,
+    ];
+    fs.writeFileSync(
+      path.join(tmpDir, 'aitools.json'),
+      JSON.stringify({
+        name: 'local-publish-plugin',
+        version: '1.0.0',
+        description: 'local publish portability plugin',
+        category: 'plugin',
+        nativeFor: 'cursor',
+        files: allFiles,
+      }),
+    );
+    for (const f of allFiles) {
+      const abs = path.join(tmpDir, f.src);
+      fs.mkdirSync(path.dirname(abs), { recursive: true });
+      const content = f.src.endsWith('plugin.json') ? '{"name":"local-publish-plugin"}\n' : '# stub\n';
+      fs.writeFileSync(abs, content);
+    }
+  }
+
+  function expectPublishFails(args: string, pattern: RegExp): void {
+    try {
+      run(args, tmpDir);
+      throw new Error(`expected publish to fail: ${args}`);
+    } catch (err) {
+      const e = err as { message?: string; stderr?: string; stdout?: string };
+      const blob = `${e.message ?? ''}\n${e.stderr ?? ''}\n${e.stdout ?? ''}`;
+      expect(blob).toMatch(pattern);
+    }
+  }
+
+  it('blocks publish when plugin has orphan files', () => {
+    writePluginForPublish([
+      { src: 'skills/local-publish-plugin/SKILL.md', dest: 'skills/local-publish-plugin/SKILL.md' },
+      { src: 'random/orphan.bin', dest: 'random/orphan.bin' },
+    ]);
+    expectPublishFails(
+      `publish --dry-run --registry ${REGISTRY_URL}`,
+      /no install home|Publish blocked/i,
+    );
+  });
+
+  it('blocks rewrite-required warnings under --strict', () => {
+    writePluginForPublish([
+      { src: 'skills/local-publish-plugin/SKILL.md', dest: 'skills/local-publish-plugin/SKILL.md' },
+      { src: 'assets/logo.svg', dest: 'assets/logo.svg' },
+    ]);
+    expectPublishFails(
+      `publish --dry-run --strict --registry ${REGISTRY_URL}`,
+      /Publish blocked by --strict/i,
+    );
+  });
+
+  it('continues past rewrite-required warnings with --yes on dry-run', () => {
+    writePluginForPublish([
+      { src: 'skills/local-publish-plugin/SKILL.md', dest: 'skills/local-publish-plugin/SKILL.md' },
+      { src: 'assets/logo.svg', dest: 'assets/logo.svg' },
+    ]);
+    const out = run(`publish --dry-run --yes --registry ${REGISTRY_URL}`, tmpDir);
+    expect(out).toContain('Would publish');
+    expect(out).toContain('local-publish-plugin');
   });
 });

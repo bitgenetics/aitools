@@ -41,5 +41,5 @@
 
 ---
 
-<!-- Last SHA: 304ed2d -->
+<!-- Last SHA: ea25bd8 -->
 <!-- Last updated: 2026-07-22 -->
