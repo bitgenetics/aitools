@@ -45,6 +45,27 @@ For an **mcp-tool** — the manifest needs an `mcpServer` block. Content files a
 
 For a **plugin** — a multi-file bundle (`.cursor-plugin/plugin.json`, skills, rules, scripts, etc.) published as one package. Use `manifest init --category plugin --nativeFor cursor`. On install, members explode into normal platform paths (not `.cursor/plugins/local/`). See [docs/design/plugin-marketplaces-comparison.md](../../docs/design/plugin-marketplaces-comparison.md).
 
+#### Authoring a plugin (anchor convention)
+
+Plugins should follow the **anchor skill** pattern so installs stay transform-free:
+
+1. **One anchor (hub) skill** named after the package — `skills/<name>/` where `<name>` is the sanitized package name (`@scope/pkg` → `@scope__pkg`). The anchor owns shared content and a managed skill-map section in its `SKILL.md`.
+2. **Keep shared content under the anchor** — put `references/`, `assets/`, and `scripts/` under `skills/<name>/…`. Member skills link back with `../<name>/references/…`. Sibling skills explode side-by-side, so those relative links resolve 1:1 with **no path rewrite** → graded **transform-free**.
+3. **Avoid plugin-root `assets/` / `scripts/`** — those require install-time link rewriting → **rewrite-required**. Orphan files (no install home) → **unsupported**.
+4. **Single-skill plugins** use the same shape: one `skills/<name>/SKILL.md` that is both the anchor and the only skill.
+
+Authoring loop:
+
+```bash
+aitools manifest init --category plugin --nativeFor cursor   # scaffolds anchor + skill-map
+aitools manifest validate                                    # structure + portability grade
+aitools compat --platform cursor                             # prints portability grade
+aitools compat --platform cursor --fix                      # scaffolds/refreshes skill-map
+aitools publish                                              # orphans fail; warnings prompt
+```
+
+Full detail: [references/manifest-reference.md](references/manifest-reference.md#plugin-authoring-convention-anchor-skill).
+
 ### Step 2: Initialise the manifest
 
 ```bash
@@ -123,6 +144,7 @@ After: `"Use this skill when asked to create, package, or publish a reusable AI 
 - **`repository` in the manifest must be a full URL.** `user/repo` fails validation — use `https://github.com/user/repo`.
 - **Run `manifest validate` before every publish** — catches missing files before they reach the registry.
 - **`dest` is relative to the category dir, not the project root.** Do not prefix it with `skills/`, `agents/`, etc.
+- **Plugin portability at publish** — orphan files fail publish; `rewrite-required` / `missing-anchor` warnings prompt to continue or abort (`--yes` skips the prompt, `--strict` blocks warnings). Prefer the anchor layout so the grade is **transform-free**.
 
 ---
 

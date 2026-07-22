@@ -1,5 +1,37 @@
 {
-  "tools": {
-    "create-ai-tool": "^1.0.0"
-  }
+  "name": "create-ai-tool",
+  "version": "1.2.0",
+  "description": "Skill that teaches an AI agent how to create skills, subagents, prompts, and MCP tools compatible with the ai-tools registry",
+  "category": "skill",
+  "files": [
+    {
+      "src": "SKILL.md",
+      "dest": "create-ai-tool/SKILL.md"
+    },
+    {
+      "src": "references/manifest-reference.md",
+      "dest": "create-ai-tool/references/manifest-reference.md"
+    },
+    {
+      "src": "references/platform-paths.md",
+      "dest": "create-ai-tool/references/platform-paths.md"
+    }
+  ],
+  "keywords": [
+    "skill-authoring",
+    "subagent",
+    "mcp",
+    "prompt",
+    "registry",
+    "publishing"
+  ],
+  "author": "ai-tools",
+  "tags": [
+    "meta",
+    "authoring",
+    "registry",
+    "skill",
+    "subagent",
+    "mcp-tool"
+  ]
 }

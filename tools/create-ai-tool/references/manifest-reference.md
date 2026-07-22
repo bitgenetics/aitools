@@ -27,7 +27,7 @@ A plugin should have one **anchor** (hub) skill named after the package — `ski
 - **Avoid plugin-root `assets/` / `scripts/`**: these install under a synthetic `<name>/…` package and require link rewriting at install time — graded **rewrite-required**. Prefer the anchor layout above.
 - **Orphans are fatal**: any file with no install home fails `manifest validate` — graded **unsupported**.
 
-`aitools manifest init --category plugin` scaffolds `skills/<name>/SKILL.md` (with a skill-map) when no anchor exists. `aitools compat` prints the portability grade; `aitools compat --fix` scaffolds/refreshes the anchor skill-map. The grade is **advisory** (warnings only) — it does not block publish; only true orphans do.
+`aitools manifest init --category plugin` scaffolds `skills/<name>/SKILL.md` (with a skill-map) when no anchor exists. `aitools compat` prints the portability grade; `aitools compat --fix` scaffolds/refreshes the anchor skill-map. The grade is **advisory** in `validate` / `compat` (warnings only). At **`publish`**, orphan findings fail the publish; `rewrite-required` / `missing-anchor` warnings prompt to continue or abort (`--yes` skips the prompt, `--strict` blocks warnings).
 
 Single-skill plugins use the same shape: one `skills/<name>/SKILL.md` that is both the anchor and the only skill.
 

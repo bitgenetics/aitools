@@ -132,6 +132,29 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      # Guard against npm read-after-write propagation lag: the CLI pins an exact
+      # dependency on aitools-core@<version>, so it must not be published until that
+      # version is actually resolvable on the registry read path. Otherwise users hit
+      # `ETARGET: No matching version found for @bitgenetics/aitools-core@<version>`.
+      - name: Wait for aitools-core to be resolvable on npm
+        run: |
+          VERSION="$(node -p "require('./packages/core/package.json').version")"
+          for attempt in $(seq 1 30); do
+            RESOLVED="$(npm view "@bitgenetics/aitools-core@$VERSION" version --prefer-online 2>/dev/null || true)"
+            if [ "$RESOLVED" = "$VERSION" ]; then
+              echo "aitools-core@$VERSION is resolvable on npm (attempt $attempt)."
+              # Small extra buffer for CDN edge propagation before the dependent publish.
+              sleep 5
+              exit 0
+            fi
+            echo "Attempt $attempt/30: aitools-core@$VERSION not yet visible; sleeping 10s..."
+            sleep 10
+          done
+          echo "Timed out after 5 minutes waiting for aitools-core@$VERSION to become resolvable."
+          exit 1
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Publish @bitgenetics/aitools-cli
         run: npm publish -w @bitgenetics/aitools-cli --access public --provenance
         env:
