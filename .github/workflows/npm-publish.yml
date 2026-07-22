@@ -108,7 +108,7 @@ jobs:
             echo "Tag v$TAG does not match workspace version $VERSION"
             exit 1
           fi
-          for pkg in core cli; do
+          for pkg in core cursor cli; do
             PKG_VERSION="$(node -p "require('./packages/$pkg/package.json').version")"
             if [ "$PKG_VERSION" != "$VERSION" ]; then
               echo "packages/$pkg/package.json version $PKG_VERSION does not match tag v$TAG"
@@ -126,32 +126,42 @@ jobs:
         run: |
           VERSION="$(node -p "require('./packages/core/package.json').version")"
           npm pkg set "dependencies.@bitgenetics/aitools-core=$VERSION" -w @bitgenetics/aitools-cli
+          npm pkg set "dependencies.@bitgenetics/aitools-cursor=$VERSION" -w @bitgenetics/aitools-cli
 
       - name: Publish @bitgenetics/aitools-core
         run: npm publish -w @bitgenetics/aitools-core --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # Guard against npm read-after-write propagation lag: the CLI pins an exact
-      # dependency on aitools-core@<version>, so it must not be published until that
-      # version is actually resolvable on the registry read path. Otherwise users hit
-      # `ETARGET: No matching version found for @bitgenetics/aitools-core@<version>`.
-      - name: Wait for aitools-core to be resolvable on npm
+      - name: Publish @bitgenetics/aitools-cursor
+        run: npm publish -w @bitgenetics/aitools-cursor --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Guard against npm read-after-write propagation lag: the CLI pins exact
+      # deps on aitools-core@<version> and aitools-cursor@<version>, so it must
+      # not be published until those versions are resolvable on the registry
+      # read path. Otherwise users hit `ETARGET: No matching version found`.
+      - name: Wait for CLI dependencies to be resolvable on npm
         run: |
           VERSION="$(node -p "require('./packages/core/package.json').version")"
-          for attempt in $(seq 1 30); do
-            RESOLVED="$(npm view "@bitgenetics/aitools-core@$VERSION" version --prefer-online 2>/dev/null || true)"
-            if [ "$RESOLVED" = "$VERSION" ]; then
-              echo "aitools-core@$VERSION is resolvable on npm (attempt $attempt)."
-              # Small extra buffer for CDN edge propagation before the dependent publish.
-              sleep 5
-              exit 0
-            fi
-            echo "Attempt $attempt/30: aitools-core@$VERSION not yet visible; sleeping 10s..."
-            sleep 10
+          for pkg in aitools-core aitools-cursor; do
+            for attempt in $(seq 1 30); do
+              RESOLVED="$(npm view "@bitgenetics/$pkg@$VERSION" version --prefer-online 2>/dev/null || true)"
+              if [ "$RESOLVED" = "$VERSION" ]; then
+                echo "@bitgenetics/$pkg@$VERSION is resolvable on npm (attempt $attempt)."
+                break
+              fi
+              if [ "$attempt" -eq 30 ]; then
+                echo "Timed out after 5 minutes waiting for @bitgenetics/$pkg@$VERSION to become resolvable."
+                exit 1
+              fi
+              echo "Attempt $attempt/30: @bitgenetics/$pkg@$VERSION not yet visible; sleeping 10s..."
+              sleep 10
+            done
           done
-          echo "Timed out after 5 minutes waiting for aitools-core@$VERSION to become resolvable."
-          exit 1
+          # Small extra buffer for CDN edge propagation before the dependent publish.
+          sleep 5
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
