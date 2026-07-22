@@ -195,15 +195,23 @@ function overallLabel(result: PlatformResult): string {
 
 /**
  * Print an advisory plugin portability grade + findings. Never exits the process.
+ * Scope: shared-content path rewrite only; vendor frontmatter transforms still apply.
  */
 export function printPortabilityGrade(result: PluginPortabilityResult): void {
   const gradeColor =
-    result.grade === 'transform-free'
+    result.grade === 'path-rewrite-free'
       ? chalk.green
       : result.grade === 'rewrite-required'
         ? chalk.yellow
         : chalk.red;
   console.log(`\n  ${gradeColor('?')} ${chalk.bold('Portability:')} ${gradeColor(result.grade)}`);
+  if (result.grade === 'path-rewrite-free') {
+    console.log(
+      chalk.dim(
+        '      (shared-content paths only — skill/rule/agent frontmatter may still be transformed per platform)',
+      ),
+    );
+  }
   for (const finding of result.findings) {
     if (finding.kind === 'ok') continue;
     const icon = finding.kind === 'orphan' ? chalk.red('?') : chalk.yellow('?');

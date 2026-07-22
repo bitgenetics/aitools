@@ -17,14 +17,23 @@ import type { ClassifyPluginOptions, PluginMember } from './plugin-explode.js';
 import { sanitizePackageDirName } from './plugin-install.js';
 
 /**
- * Portability grade for a plugin bundle.
- * - `transform-free`: all shared content lives under `skills/<name>/…`; sibling skills
- *   reference each other via `../<sibling>/…` which resolves 1:1 after explode (no rewrite).
- * - `rewrite-required`: shared content is kept at plugin root (`assets/`/`scripts/`), so
- *   `rewriteRelativePaths` must relocate links at install time.
+ * Portability grade for a plugin bundle's **shared-content path layout**.
+ *
+ * This grade is only about whether relative links to shared `references/` /
+ * `assets/` / `scripts/` need `rewriteRelativePaths` at install. It does **not**
+ * mean the install is free of all transforms — vendor skill/rule/agent
+ * frontmatter and format differences are still transformed when installing
+ * across platforms.
+ *
+ * - `path-rewrite-free`: all shared content lives under `skills/<name>/…`; sibling
+ *   skills reference the hub via `../<anchor>/…`, which resolves 1:1 after explode
+ *   (no path rewrite).
+ * - `rewrite-required`: shared content is kept at plugin root (`assets/`/`scripts/`),
+ *   so `rewriteRelativePaths` must relocate links at install time.
  * - `unsupported`: one or more files have no install home (orphans) — install would fail.
  */
-export type PluginPortabilityGrade = 'transform-free' | 'rewrite-required' | 'unsupported';
+export type PluginPortabilityGrade = 'path-rewrite-free' | 'rewrite-required' | 'unsupported';
+
 
 export type PluginPortabilityFindingKind =
   | 'orphan'
@@ -95,7 +104,7 @@ export function analyzePluginPortability(opts: ClassifyPluginOptions): PluginPor
     findings.push({
       kind: 'root-shared-content',
       src: m.src,
-      message: `root-level shared content requires path rewrite at install: ${m.src} (author it under skills/${anchor}/ to stay transform-free)`,
+      message: `root-level shared content requires path rewrite at install: ${m.src} (author it under skills/${anchor}/ to stay path-rewrite-free)`,
     });
   }
 
@@ -112,11 +121,15 @@ export function analyzePluginPortability(opts: ClassifyPluginOptions): PluginPor
   } else if (rootShared.length > 0) {
     grade = 'rewrite-required';
   } else {
-    grade = 'transform-free';
+    grade = 'path-rewrite-free';
   }
 
   if (findings.length === 0) {
-    findings.push({ kind: 'ok', message: 'transform-free: all members install 1:1 with no path rewrite' });
+    findings.push({
+      kind: 'ok',
+      message:
+        'path-rewrite-free: shared content links resolve 1:1 (no path rewrite); vendor frontmatter/format transforms may still apply',
+    });
   }
 
   return { grade, anchor, hasAnchor, memberSkills, findings };
@@ -198,7 +211,7 @@ export function scaffoldAnchorSkill(
   const intro = [
     `# ${anchor}`,
     '',
-    `Hub skill for the **${anchor}** plugin. Document how the member skills work together here, and keep shared references, assets, and scripts under this skill so they install transform-free.`,
+    `Hub skill for the **${anchor}** plugin. Document how the member skills work together here, and keep shared references, assets, and scripts under this skill so shared links stay path-rewrite-free (vendor frontmatter transforms may still apply).`,
     '',
   ].join('\n');
   return `${frontmatter}${intro}${renderSkillMap(anchor, memberSkills)}\n`;

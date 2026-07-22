@@ -317,7 +317,7 @@ describe('compat command action', () => {
     }
   }
 
-  it('prints a transform-free portability grade for an anchored plugin', async () => {
+  it('prints a path-rewrite-free portability grade for an anchored plugin', async () => {
     writePluginManifest(tmp, [
       { src: 'skills/local-plugin/SKILL.md', dest: 'skills/local-plugin/SKILL.md' },
       { src: 'skills/researcher/SKILL.md', dest: 'skills/researcher/SKILL.md' },
@@ -327,7 +327,8 @@ describe('compat command action', () => {
     await createCompatCommand().parseAsync(['--platform', 'cursor'], { from: 'user' });
     const output = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
     expect(output).toContain('Portability:');
-    expect(output).toContain('transform-free');
+    expect(output).toContain('path-rewrite-free');
+    expect(output).toContain('frontmatter');
   });
 
   it('prints a rewrite-required grade for root-level shared content', async () => {

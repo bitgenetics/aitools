@@ -16,8 +16,8 @@
  * Anchor-skill convention + portability grade e2e.
  *
  * Changelog contract: features → "Anchor-skill plugin convention + portability grade".
- * Asserts (1) an anchored multi-skill plugin explodes transform-free with resolving
- * `../<anchor>/…` cross-refs, and (2) `aitools compat` grades transform-free vs
+ * Asserts (1) an anchored multi-skill plugin explodes path-rewrite-free with resolving
+ * `../<anchor>/…` cross-refs, and (2) `aitools compat` grades path-rewrite-free vs
  * rewrite-required.
  */
 
@@ -56,7 +56,7 @@ async function publishPlugin(
 }
 
 beforeAll(async () => {
-  // Anchored, transform-free layout: hub skill named after the package owns shared
+  // Anchored, path-rewrite-free layout: hub skill named after the package owns shared
   // references; the sibling skill links back via ../<anchor>/references/…. All members
   // are native skills (omitted placementMode) so nothing is rewritten at install.
   await publishPlugin(
@@ -161,14 +161,14 @@ describe('aitools compat portability grade', () => {
     }
   }
 
-  it('grades an anchored layout transform-free', () => {
+  it('grades an anchored layout path-rewrite-free', () => {
     writePluginManifest([
       { src: 'skills/local-anchor-plugin/SKILL.md', dest: 'skills/local-anchor-plugin/SKILL.md' },
       { src: 'skills/researcher/SKILL.md', dest: 'skills/researcher/SKILL.md' },
     ]);
     const out = run('compat --platform cursor', tmpDir);
     expect(out).toContain('Portability');
-    expect(out).toContain('transform-free');
+    expect(out).toContain('path-rewrite-free');
   });
 
   it('grades root-level shared content rewrite-required', () => {

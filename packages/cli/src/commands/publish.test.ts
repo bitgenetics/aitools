@@ -304,7 +304,7 @@ describe('publish command', () => {
     return original;
   }
 
-  it('publishes a transform-free plugin without prompting', async () => {
+  it('publishes a path-rewrite-free plugin without prompting', async () => {
     writePlugin([{ src: 'skills/my-plugin/SKILL.md', dest: 'skills/my-plugin/SKILL.md' }]);
     jest.spyOn(console, 'log').mockImplementation(() => {});
     await createPublishCommand().parseAsync([], { from: 'user' });

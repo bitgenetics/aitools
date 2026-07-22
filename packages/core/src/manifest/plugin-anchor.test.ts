@@ -34,7 +34,7 @@ describe('anchorSkillName', () => {
 });
 
 describe('analyzePluginPortability', () => {
-  it('grades an anchored multi-skill bundle transform-free', () => {
+  it('grades an anchored multi-skill bundle path-rewrite-free', () => {
     const result = analyzePluginPortability({
       packageName: 'my-plugin',
       sources: [
@@ -43,7 +43,7 @@ describe('analyzePluginPortability', () => {
         'skills/researcher/SKILL.md',
       ],
     });
-    expect(result.grade).toBe('transform-free');
+    expect(result.grade).toBe('path-rewrite-free');
     expect(result.hasAnchor).toBe(true);
     expect(result.memberSkills).toEqual(['researcher']);
     expect(result.findings.every((f) => f.kind === 'ok')).toBe(true);
@@ -81,7 +81,7 @@ describe('analyzePluginPortability', () => {
       packageName: 'solo',
       sources: ['SKILL.md'],
     });
-    expect(result.grade).toBe('transform-free');
+    expect(result.grade).toBe('path-rewrite-free');
     expect(result.hasAnchor).toBe(true);
     expect(result.memberSkills).toEqual([]);
   });

@@ -1,6 +1,6 @@
 {
   "name": "create-ai-tool",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Skill that teaches an AI agent how to create skills, subagents, prompts, and MCP tools compatible with the ai-tools registry",
   "category": "skill",
   "files": [

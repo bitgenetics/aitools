@@ -23,9 +23,11 @@ Publish fields live in the unified `aitools.json` at the package root (same file
 
 A plugin should have one **anchor** (hub) skill named after the package — `skills/<name>/` where `<name>` is the sanitized package name (`@scope/pkg` → `@scope__pkg`). The anchor owns shared content and documents how the member skills work together via a managed **skill-map** section in its `SKILL.md`.
 
-- **Keep shared content under the anchor**: put shared references, assets, and scripts under `skills/<name>/references/`, `skills/<name>/assets/`, `skills/<name>/scripts/`. Member skills link back with `../<name>/references/…`. Because sibling skills explode to `.cursor/skills/<folder>/`, those relative links resolve 1:1 with **no path rewrite** — the plugin is graded **transform-free**.
+- **Keep shared content under the anchor**: put shared references, assets, and scripts under `skills/<name>/references/`, `skills/<name>/assets/`, `skills/<name>/scripts/`. Member skills link back with `../<name>/references/…`. Because sibling skills explode to `.cursor/skills/<folder>/`, those relative links resolve 1:1 with **no path rewrite** — the plugin is graded **path-rewrite-free**.
 - **Avoid plugin-root `assets/` / `scripts/`**: these install under a synthetic `<name>/…` package and require link rewriting at install time — graded **rewrite-required**. Prefer the anchor layout above.
 - **Orphans are fatal**: any file with no install home fails `manifest validate` — graded **unsupported**.
+
+**Grade scope:** `path-rewrite-free` is about shared-content *paths* only. Vendor skill/rule/agent **frontmatter and format differences are still transformed** when installing across platforms — the anchor convention does not make installs free of all transforms.
 
 `aitools manifest init --category plugin` scaffolds `skills/<name>/SKILL.md` (with a skill-map) when no anchor exists. `aitools compat` prints the portability grade; `aitools compat --fix` scaffolds/refreshes the anchor skill-map. The grade is **advisory** in `validate` / `compat` (warnings only). At **`publish`**, orphan findings fail the publish; `rewrite-required` / `missing-anchor` warnings prompt to continue or abort (`--yes` skips the prompt, `--strict` blocks warnings).
 

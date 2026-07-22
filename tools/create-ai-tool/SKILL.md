@@ -47,12 +47,14 @@ For a **plugin** — a multi-file bundle (`.cursor-plugin/plugin.json`, skills, 
 
 #### Authoring a plugin (anchor convention)
 
-Plugins should follow the **anchor skill** pattern so installs stay transform-free:
+Plugins should follow the **anchor skill** pattern so shared content stays **path-rewrite-free**:
 
 1. **One anchor (hub) skill** named after the package — `skills/<name>/` where `<name>` is the sanitized package name (`@scope/pkg` → `@scope__pkg`). The anchor owns shared content and a managed skill-map section in its `SKILL.md`.
-2. **Keep shared content under the anchor** — put `references/`, `assets/`, and `scripts/` under `skills/<name>/…`. Member skills link back with `../<name>/references/…`. Sibling skills explode side-by-side, so those relative links resolve 1:1 with **no path rewrite** → graded **transform-free**.
+2. **Keep shared content under the anchor** — put `references/`, `assets/`, and `scripts/` under `skills/<name>/…`. Member skills link back with `../<name>/references/…`. Sibling skills explode side-by-side, so those relative links resolve 1:1 with **no path rewrite** → graded **path-rewrite-free**.
 3. **Avoid plugin-root `assets/` / `scripts/`** — those require install-time link rewriting → **rewrite-required**. Orphan files (no install home) → **unsupported**.
 4. **Single-skill plugins** use the same shape: one `skills/<name>/SKILL.md` that is both the anchor and the only skill.
+
+**Scope of the grade:** `path-rewrite-free` means shared-content *paths* do not need rewriting. It does **not** mean installs skip all transforms — skill/rule/agent **frontmatter and format still differ by vendor** and are transformed when installing across platforms.
 
 Authoring loop:
 
@@ -144,7 +146,7 @@ After: `"Use this skill when asked to create, package, or publish a reusable AI 
 - **`repository` in the manifest must be a full URL.** `user/repo` fails validation — use `https://github.com/user/repo`.
 - **Run `manifest validate` before every publish** — catches missing files before they reach the registry.
 - **`dest` is relative to the category dir, not the project root.** Do not prefix it with `skills/`, `agents/`, etc.
-- **Plugin portability at publish** — orphan files fail publish; `rewrite-required` / `missing-anchor` warnings prompt to continue or abort (`--yes` skips the prompt, `--strict` blocks warnings). Prefer the anchor layout so the grade is **transform-free**.
+- **Plugin portability at publish** — orphan files fail publish; `rewrite-required` / `missing-anchor` warnings prompt to continue or abort (`--yes` skips the prompt, `--strict` blocks warnings). Prefer the anchor layout so the grade is **path-rewrite-free** (shared paths only — vendor frontmatter transforms still apply).
 
 ---
 
