@@ -47,5 +47,6 @@ describe('isFileCategory', () => {
     expect(isFileCategory('hook')).toBe(false);
     expect(isFileCategory('plugin')).toBe(false);
     expect(isFileCategory('reference')).toBe(false);
+    expect(isFileCategory('context-profile')).toBe(false);
   });
 });

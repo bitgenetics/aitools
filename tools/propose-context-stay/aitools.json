@@ -1,0 +1,13 @@
+{
+  "name": "propose-context-stay",
+  "version": "1.0.0",
+  "description": "Propose authored stay-set for aitools context overlay swaps (proposal file only)",
+  "category": "skill",
+  "files": [
+    {
+      "src": "SKILL.md",
+      "dest": "propose-context-stay/SKILL.md"
+    }
+  ],
+  "keywords": ["context", "stay", "swap", "ai-mech", "profile"]
+}

@@ -9,7 +9,7 @@ Publish fields live in the unified `aitools.json` at the package root (same file
 | `name` | string | npm-style: lowercase, hyphens, numbers. Scoped (`@scope/name`) allowed. |
 | `version` | string | Semver: `1.0.0`, `1.0.0-beta.1`, `1.0.0+build.1` |
 | `description` | string | One-liner shown in registry search results. Non-empty. |
-| `category` | enum | `skill` \| `subagent` \| `prompt` \| `mcp-tool` \| `plugin` |
+| `category` | enum | `skill` \| `subagent` \| `prompt` \| `mcp-tool` \| `plugin` \| `context-profile` (plus canonical `rule` \| `command` \| `agent` \| `hook` \| `reference`) |
 | `files` | array | At least one entry (except `mcp-tool` with no extra files). See File entries below. |
 
 ### Plugin-specific
@@ -32,6 +32,29 @@ A plugin should have one **anchor** (hub) skill named after the package — `ski
 `aitools manifest init --category plugin` scaffolds `skills/<name>/SKILL.md` (with a skill-map) when no anchor exists. `aitools compat` prints the portability grade; `aitools compat --fix` scaffolds/refreshes the anchor skill-map. The grade is **advisory** in `validate` / `compat` (warnings only). At **`publish`**, orphan findings fail the publish; `rewrite-required` / `missing-anchor` warnings prompt to continue or abort (`--yes` skips the prompt, `--strict` blocks warnings).
 
 Single-skill plugins use the same shape: one `skills/<name>/SKILL.md` that is both the anchor and the only skill.
+
+## Context-profile packages (role stacks)
+
+`category: "context-profile"` packages are **tree overlays** of AI-mech paths (rules, skills, agents, `AGENTS.md`, etc.). They are consumed by `aitools context swap`, not exploded like plugins.
+
+- Each `files[]` entry uses a **project-relative** `dest` (e.g. `.cursor/rules/role.mdc`, `AGENTS.md`). Prefer `placementMode: "verbatim"`.
+- Requires a CLI that understands `context-profile` (older CLIs reject the category).
+- Consumer projects author stay/baseline/profiles under optional `aitools.json` → `context`:
+
+```json
+{
+  "context": {
+    "baseline": { "package": "my-project-baseline" },
+    "stay": ["AGENTS.md", ".cursor/rules/local/**"],
+    "profiles": {
+      "researcher": { "package": "role-researcher", "mode": "overlay" },
+      "ship": { "package": "role-ship", "mode": "replace" }
+    }
+  }
+}
+```
+
+Overlay stay must be authored (or proposed via `propose-context-stay` then `aitools context accept-stay`). Every swap quarantines displaced files under `.aitools/context-quarantine/` (primary restore).
 
 ## Optional fields
 

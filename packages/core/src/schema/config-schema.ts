@@ -125,6 +125,25 @@ export const AitoolsJsonSchema = z.preprocess(
     references: z.record(ReferenceBindingSchema).optional(),
     platforms: z.array(PlatformWithUniversalSchema).optional(),
     private: z.boolean().optional(),
+    context: z
+      .object({
+        baseline: z
+          .object({
+            package: z.string().optional(),
+            snapshotId: z.string().optional(),
+          })
+          .optional(),
+        stay: z.array(z.string()).optional(),
+        profiles: z
+          .record(
+            z.object({
+              package: z.string().min(1),
+              mode: z.enum(['replace', 'overlay']),
+            }),
+          )
+          .optional(),
+      })
+      .optional(),
   }),
 );
 
@@ -167,9 +186,35 @@ export const LockEntrySchema = z.object({
   installMethod: z.enum(['cursor-plugin-local', 'plugin-bundle']).optional(),
 });
 
+const ContextLockProfileSchema = z.object({
+  name: z.string(),
+  package: z.string(),
+  version: z.string(),
+  resolved: z.string(),
+  integrity: z.string(),
+  files: z.array(z.string()),
+  installedAt: z.string(),
+});
+
+const QuarantineMoveSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+});
+
+export const AiToolsContextLockSchema = z.object({
+  activeProfile: z.string().nullable(),
+  quarantineId: z.string().optional(),
+  moves: z.array(QuarantineMoveSchema).optional(),
+  snapshotId: z.string().optional(),
+  fileHashes: z.record(z.string()).optional(),
+  baselinePackage: z.string().optional(),
+  profile: ContextLockProfileSchema.optional(),
+});
+
 export const AiToolsLockSchema = z.object({
   lockfileVersion: z.literal(1),
   tools: z.record(LockEntrySchema),
+  context: AiToolsContextLockSchema.optional(),
 });
 
 export type AiToolsConfigInput = z.input<typeof AiToolsConfigSchema>;

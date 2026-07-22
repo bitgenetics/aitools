@@ -14,6 +14,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import type { InstallScope, TargetPlatform } from './tool.js';
 import type { ReferenceBindingInput, ReferenceBindingOverrideInput } from './reference.js';
+import type { AiToolsContextConfig } from '../context/types.js';
 
 /** Shared fields for all registry types. */
 interface RegistryConfigBase {
@@ -119,6 +120,8 @@ export interface AiToolsManifest {
   tags?: string[];
   platforms?: import('./tool.js').TargetPlatform[];
   private?: boolean;
+  /** Optional AI-mech context swap config (baseline, stay-set, named profiles). */
+  context?: AiToolsContextConfig;
 }
 
 /** Alias for unified manifest type. */

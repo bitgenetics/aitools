@@ -38,6 +38,7 @@ import {
   resolvePluginBundleMcpConfig,
   resolvePluginBundleHooksConfig,
   effectivePlacementMode,
+  installContextProfileTree,
 } from '@bitgenetics/aitools-core';
 import type { ConfigManager } from './config-manager.js';
 import type { RegistryClient } from './registry-client.js';
@@ -143,6 +144,11 @@ export class Installer {
           '--plugin-bundle cannot install category "reference". Use reference vendoring into a skill when available.',
         );
       }
+      if (normalized === 'context-profile') {
+        throw new Error(
+          '--plugin-bundle cannot install category "context-profile". Use `aitools context swap` or install without --plugin-bundle.',
+        );
+      }
     }
 
     if (normalized === 'mcp-tool') {
@@ -156,6 +162,10 @@ export class Installer {
 
     if (normalized === 'plugin') {
       return this.installPlugin(client, manifest, scope);
+    }
+
+    if (normalized === 'context-profile') {
+      return this.installContextProfile(client, manifest, scope);
     }
 
     const installed = await this.installFiles(
@@ -797,6 +807,66 @@ export class Installer {
     const updated = upsertLockEntry(lock, manifest.name, toLockEntry(installedTool, registryUrl));
     writeLockFile(track, updated);
     return this.toStoredInstalled(installedTool, scope);
+  }
+
+  /**
+   * Tree-overlay install for context-profile packages (AI-mech paths only).
+   * Dest paths are project-relative; project scope only.
+   */
+  private async installContextProfile(
+    client: RegistryClient,
+    manifest: ToolManifest,
+    scope: InstallScope,
+  ): Promise<InstallResult> {
+    if (scope !== 'project') {
+      throw new Error('context-profile packages must be installed at project scope (omit -g).');
+    }
+
+    let agentsDir: string;
+    let integrity: string;
+    if (this.cache.has(manifest.name, manifest.version)) {
+      agentsDir = this.cache.agentsDir(manifest.name, manifest.version);
+      integrity = this.cache.getMetadata(manifest.name, manifest.version).integrity;
+    } else {
+      const { data, integrity: serverIntegrity } = await client.download(manifest.name, manifest.version);
+      const entry = this.cache.store(manifest.name, manifest.version, data, manifest, serverIntegrity);
+      agentsDir = entry.agentsDir;
+      integrity = entry.integrity;
+    }
+
+    const overlay = installContextProfileTree(this.cwd, agentsDir, manifest, {
+      integrity,
+      resolved: client.config.url,
+    });
+
+    const writtenAbs = overlay.files.map((rel) => path.join(this.cwd, ...rel.split('/')));
+    const installedTool: InstalledTool = {
+      name: manifest.name,
+      version: manifest.version,
+      category: 'context-profile',
+      scope,
+      platform: this.configManager.getPlatform(),
+      installedAt: new Date().toISOString(),
+      files: writtenAbs,
+      registry: client.config.url,
+      integrity,
+    };
+
+    const track = this.trackDir(scope);
+    const lock = readLockFile(track);
+    const previousEntry = lock.tools[manifest.name];
+    if (previousEntry) {
+      const newFileSet = new Set(writtenAbs.map((f) => path.resolve(f)));
+      for (const oldFile of previousEntry.files) {
+        const absOldFile = resolveStoredPath(track, oldFile);
+        if (!newFileSet.has(path.resolve(absOldFile)) && fs.existsSync(absOldFile)) {
+          fs.unlinkSync(absOldFile);
+        }
+      }
+    }
+    const updated = upsertLockEntry(lock, manifest.name, toLockEntry(installedTool, client.config.url));
+    writeLockFile(track, updated);
+    return { ...this.toStoredInstalled(installedTool, scope), fileResults: [] };
   }
 
   /**

@@ -23,7 +23,8 @@ export type NormalizedCategory =
   | 'hook'
   | 'mcp-tool'
   | 'plugin'
-  | 'reference';
+  | 'reference'
+  | 'context-profile';
 
 export interface CategoryNormalization {
   category: NormalizedCategory;
@@ -56,9 +57,18 @@ export function normalizeCategory(category: ToolCategory): CategoryNormalization
   }
 }
 
-/** File-based categories installed as regular files (not MCP config, hook merge, or plugin bundle). */
-export type FileCategory = Exclude<NormalizedCategory, 'mcp-tool' | 'hook' | 'plugin' | 'reference'>;
+/** File-based categories installed as regular files (not MCP config, hook merge, plugin, or context-profile). */
+export type FileCategory = Exclude<
+  NormalizedCategory,
+  'mcp-tool' | 'hook' | 'plugin' | 'reference' | 'context-profile'
+>;
 
 export function isFileCategory(category: NormalizedCategory): category is FileCategory {
-  return category !== 'mcp-tool' && category !== 'hook' && category !== 'plugin' && category !== 'reference';
+  return (
+    category !== 'mcp-tool' &&
+    category !== 'hook' &&
+    category !== 'plugin' &&
+    category !== 'reference' &&
+    category !== 'context-profile'
+  );
 }

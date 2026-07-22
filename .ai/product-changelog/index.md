@@ -24,6 +24,7 @@
 
 ## Recent Changes
 
+- **2026-07-22** — AI-mech context swap (`aitools context`; quarantine primary restore; `context-profile`) — see `features.md`, `constraints.md`
 - **2026-07-22** — `aitools cursor load` / `@bitgenetics/aitools-cursor` maps `.code-workspace` folders to agent `--workspace` + `--add-dir` — see `features.md`
 - **2026-07-17** `31b7508` — File `placementMode` (`strict` default vs `transform` remap) — see `features.md`, `patterns.md`
 - **2026-07-16** `8c15b68` — Plugin-bundle install layout (`--plugin-bundle` → author roots `skills/`/`rules/`/…) — see `features.md`, `constraints.md`, `patterns.md`

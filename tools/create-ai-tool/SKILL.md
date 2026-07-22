@@ -68,6 +68,8 @@ aitools publish                                              # orphans fail; war
 
 Full detail: [references/manifest-reference.md](references/manifest-reference.md#plugin-authoring-convention-anchor-skill).
 
+For a **context-profile** — a tree overlay of AI-mech paths for `aitools context swap` (not a plugin explode). Use `category: "context-profile"` with project-relative `dest` paths. Consumer projects configure `context.stay` / `context.profiles` in `aitools.json`. See [references/manifest-reference.md](references/manifest-reference.md#context-profile-packages-role-stacks). Assist-only stay judgment: skill `propose-context-stay`.
+
 ### Step 2: Initialise the manifest
 
 ```bash

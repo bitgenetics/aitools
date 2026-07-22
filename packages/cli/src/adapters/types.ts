@@ -16,7 +16,10 @@ import type { ToolCategory, InstallScope, TargetPlatform, FileCategory } from '@
 import { normalizeCategory } from '@bitgenetics/aitools-core';
 
 /** Categories that install as regular files through platform adapters. */
-export type AdapterFileCategory = Exclude<ToolCategory, 'mcp-tool' | 'hook' | 'plugin' | 'reference'>;
+export type AdapterFileCategory = Exclude<
+  ToolCategory,
+  'mcp-tool' | 'hook' | 'plugin' | 'reference' | 'context-profile'
+>;
 
 /**
  * A platform adapter translates the universal ai-tools category model into
@@ -57,7 +60,8 @@ export function resolveFileCategory(
     normalized === 'hook' ||
     normalized === 'mcp-tool' ||
     normalized === 'plugin' ||
-    normalized === 'reference'
+    normalized === 'reference' ||
+    normalized === 'context-profile'
   ) {
     throw new Error(`Category "${category}" is not file-based`);
   }
@@ -66,7 +70,13 @@ export function resolveFileCategory(
 
 /** Normalize manifest category to an adapter file category or throw. */
 export function toAdapterFileCategory(category: ToolCategory): AdapterFileCategory {
-  if (category === 'mcp-tool' || category === 'hook' || category === 'plugin' || category === 'reference') {
+  if (
+    category === 'mcp-tool' ||
+    category === 'hook' ||
+    category === 'plugin' ||
+    category === 'reference' ||
+    category === 'context-profile'
+  ) {
     throw new Error(`Category "${category}" is not installed as regular files`);
   }
   const { category: normalized } = normalizeCategory(category);
@@ -74,7 +84,8 @@ export function toAdapterFileCategory(category: ToolCategory): AdapterFileCatego
     normalized === 'mcp-tool' ||
     normalized === 'hook' ||
     normalized === 'plugin' ||
-    normalized === 'reference'
+    normalized === 'reference' ||
+    normalized === 'context-profile'
   ) {
     throw new Error(`Category "${category}" is not installed as regular files`);
   }

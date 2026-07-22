@@ -61,6 +61,7 @@ export const ToolCategorySchema = z.enum([
   'mcp-tool',
   'plugin',
   'reference',
+  'context-profile',
   'subagent',
   'prompt',
 ]);

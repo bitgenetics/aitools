@@ -4,6 +4,14 @@
 
 ---
 
+### AI-mech context swap — coordinator not loader; quarantine primary — 2026-07-22
+**Constraint**: AITools coordinates **on-disk** AI-mech trees only; Cursor/Claude/etc. remain the prompt loaders. Overlay stay-set must be **authored** in `aitools.json` (`context.stay`) before swap applies it — inferred stay proposals never auto-apply. Every swap writes a local quarantine under `.aitools/context-quarantine/` which is the **primary** restore source; registry baseline is fallback when quarantine is absent. Keep `lockfileVersion: 1` with optional `context` (do not bump). Quarantine is gitignored; refuse swap/restore on dirty tracked AI-mech paths unless `--force`.  
+**Reason**: Matches vendor filesystem-driven loaders; preserves exact pre-swap bytes for undo; avoids breaking older clients that require lockfileVersion 1.  
+**Do not change**: Do not inject into vendor system prompts; do not auto-pin inferred stay; do not treat registry re-download as the default undo path when quarantine exists.  
+**Key files**: `packages/core/src/context/`, `packages/cli/src/commands/context.ts`, `packages/e2e/src/context-swap.test.ts`
+
+---
+
 ### `.js` extensions on all local imports
 **Constraint**: Every local TypeScript import must use a `.js` extension (e.g. `import { foo } from './utils/foo.js'`), even though the source file is `.ts`.  
 **Reason**: Node16 module resolution with ESM requires the emitted file extension. TypeScript does not rewrite extensions, so you must write the target extension at the source.  

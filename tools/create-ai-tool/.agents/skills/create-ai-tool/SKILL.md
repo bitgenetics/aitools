@@ -15,6 +15,7 @@ The AITools registry distributes four types of AI tool packages:
 | `prompt` | A reusable prompt template (slash command / instruction file) | `.agents/prompts/` |
 | `mcp-tool` | An MCP server registration + optional server files | platform `mcp.json` |
 | `plugin` | A multi-file plugin bundle (skills, rules, platform descriptor) | Explodes into platform skill/rule/… paths (not Cursor marketplace `.cursor/plugins/`) |
+| `context-profile` | AI-mech tree overlay for `aitools context swap` | Project-relative dest paths (rules/skills/AGENTS.md/…) |
 
 Every package must have an `aitools.json` at its root (unified publish + dependency fields). Legacy `aitools.manifest.json` is still readable — run `aitools manifest migrate`.
 
@@ -27,7 +28,7 @@ Every package must have an `aitools.json` at its root (unified publish + depende
   "name": "@scope/my-skill",          // required — npm-style, lowercase, hyphens allowed
   "version": "1.0.0",                  // required — semver
   "description": "One-line summary",  // required
-  "category": "skill",                 // required — skill | subagent | prompt | mcp-tool | plugin
+  "category": "skill",                 // required — skill | subagent | prompt | mcp-tool | plugin | context-profile
   "files": [                           // required (except mcp-tool with no extra files)
     {
       "src": "SKILL.md",               // path relative to manifest file

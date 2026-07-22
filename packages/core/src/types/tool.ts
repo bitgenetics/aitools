@@ -29,6 +29,7 @@ export type ToolCategory =
   | 'mcp-tool'
   | 'plugin'
   | 'reference'
+  | 'context-profile'
   | 'subagent'
   | 'prompt';
 

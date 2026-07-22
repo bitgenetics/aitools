@@ -39,6 +39,66 @@ export { isGitRegistryConfig } from './types/config.js';
 export type { AiToolsLock, LockEntry } from './types/lock.js';
 export { toLockEntry, emptyLock } from './types/lock.js';
 
+// AI-mech context swap
+export type {
+  ContextSwapMode,
+  ContextBaselineConfig,
+  ContextProfileConfig,
+  AiToolsContextConfig,
+  AiMechKind,
+  AiMechEntry,
+  AiMechInventory,
+  QuarantineMove,
+  QuarantineManifest,
+  ContextLockProfile,
+  AiToolsContextLock,
+  ContextSnapshot,
+  ContextStayProposal,
+  ContextProfileInstallResult,
+  SwapProfilePackage,
+  ContextSwapOptions,
+  ContextSwapResult,
+  ContextRestoreOptions,
+  ContextRestoreResult,
+  ContextStatus,
+  DiscoverOptions,
+} from './context/index.js';
+export {
+  CONTEXT_QUARANTINE_DIR,
+  CONTEXT_SNAPSHOTS_DIR,
+  CONTEXT_INVENTORY_FILE,
+  CONTEXT_STAY_PROPOSAL_FILE,
+  quarantineRoot,
+  quarantineDir,
+  snapshotsRoot,
+  inventoryPath,
+  stayProposalPath,
+  toProjectRel,
+  matchStayGlob,
+  isStayPath,
+  normalizeStayList,
+  discoverAiMech,
+  swappablePaths,
+  quarantineFiles,
+  restoreQuarantine,
+  quarantineExists,
+  ensureQuarantineRoot,
+  captureContext,
+  readSnapshot,
+  dirtyVsSnapshot,
+  dirtyTrackedAiMechPaths,
+  assertCleanAiMechTree,
+  DirtyTreeError,
+  acceptStayProposal,
+  readStayProposal,
+  writeStayProposal,
+  installContextProfileTree,
+  removeContextProfileFiles,
+  swapContextProfile,
+  restoreContext,
+  getContextStatus,
+} from './context/index.js';
+
 // Schemas
 export { ToolManifestSchema, ToolFileSchema, ToolCategorySchema, ReferenceBindingSchema } from './schema/tool-schema.js';
 export {

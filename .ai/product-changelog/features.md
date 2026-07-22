@@ -4,6 +4,15 @@
 
 ---
 
+### AI-mech context swap (role profiles) — 2026-07-22
+**What**: `aitools context` hot-swaps project AI-mechanism files (rules, skills, agents, `AGENTS.md` / `CLAUDE.md`, `.claude/**`, scoped hooks/MCP AI configs). Modes: `replace` (full) and `overlay` (preserve authored `context.stay` globs). Every `swap` **quarantines** displaced files under `.aitools/context-quarantine/<id>/` (primary restore). Profile packages (`category: context-profile`) install as a tree overlay from the registry. Optional baseline package / capture hashes for integrity and registry fallback when quarantine is missing. `discover` is deterministic; stay judgment is assist-only via proposal file + `accept-stay`. Dirty AI-mech git paths block swap/restore unless `--force`.  
+**Why**: Developers vs auditors (and similar roles) need reproducible swap/restore of on-disk AI guidance without owning vendor loaders.  
+**Impact**: Additive schemas (`context` on `aitools.json` / lock; keep `lockfileVersion: 1`). E2e: `packages/e2e/src/context-swap.test.ts` asserts discover → swap (quarantine) → restore round-trip with stay-set overlay.  
+**Key APIs**: `discoverAiMech`, `quarantineAiMech`, `restoreQuarantine`, `resolveStaySet`, `swapContextProfile`, `restoreContext`  
+**Key files**: `packages/core/src/context/`, `packages/cli/src/commands/context.ts`, `packages/e2e/src/context-swap.test.ts`
+
+---
+
 ### cursor load (multi-root agent from .code-workspace) — 2026-07-22
 **What**: Modular package `@bitgenetics/aitools-cursor` (bin: `aitools-cursor`) parses a VS Code/Cursor multi-root `.code-workspace` file, resolves each `folders[].path` against the workspace file directory, and launches the Cursor Agent CLI (`agent`) with the first folder as `--workspace` and each additional folder as `--add-dir` (Cursor's real multi-root flag; not `--add-path`). Exposed as `aitools cursor load <workspace-file> [--dry-run] [--agent-bin <bin>] [-- <agentArgs...>]` via a thin CLI wrapper; the standalone binary supports the same `load` subcommand so the package can be split out later.  
 **Why**: `.code-workspace` multi-root layouts (e.g. `chip_agent-hub.code-workspace`) are not accepted as `--workspace` by the agent CLI; authors need a one-shot way to map workspace folders into agent roots.  

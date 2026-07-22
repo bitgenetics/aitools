@@ -132,6 +132,44 @@ describe('AiToolsLockSchema references', () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it('accepts optional context lock with quarantine metadata', () => {
+    const result = AiToolsLockSchema.safeParse({
+      lockfileVersion: 1,
+      tools: {},
+      context: {
+        activeProfile: 'researcher',
+        quarantineId: 'q-1',
+        moves: [{ from: '.cursor/rules/a.mdc', to: '.cursor/rules/a.mdc' }],
+        profile: {
+          name: 'researcher',
+          package: 'role-researcher',
+          version: '1.0.0',
+          resolved: 'https://registry.example',
+          integrity: 'sha256-x',
+          files: ['.cursor/rules/role.mdc'],
+          installedAt: '2026-07-22T12:00:00.000Z',
+        },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('AitoolsJsonSchema context', () => {
+  it('accepts optional context block with stay and profiles', () => {
+    const result = AitoolsJsonSchema.safeParse({
+      name: 'demo',
+      context: {
+        baseline: { package: 'demo-baseline' },
+        stay: ['AGENTS.md'],
+        profiles: {
+          researcher: { package: 'role-researcher', mode: 'overlay' },
+        },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
 });
 
 describe('AiToolsConfigSchema referenceBindings', () => {
