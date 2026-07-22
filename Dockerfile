@@ -3,16 +3,20 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-# Copy manifests first so dependency install is cached
+# Copy manifests first so dependency install is cached.
+# Include every workspace package.json referenced by the lockfile (packages/*).
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
+COPY packages/cursor/package.json packages/cursor/
+COPY packages/cli/package.json packages/cli/
 COPY packages/server/package.json packages/server/
+COPY packages/e2e/package.json packages/e2e/
 
 # Install all workspace deps — root devDependencies include typescript, which is
 # required by the build step. Scoping to individual workspaces would skip root deps.
 RUN npm ci --ignore-scripts
 
-# Copy source
+# Copy source (only packages built for the registry image)
 COPY tsconfig.base.json ./
 COPY packages/core packages/core/
 COPY packages/server packages/server/
@@ -25,7 +29,10 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
+COPY packages/cursor/package.json packages/cursor/
+COPY packages/cli/package.json packages/cli/
 COPY packages/server/package.json packages/server/
+COPY packages/e2e/package.json packages/e2e/
 
 RUN npm ci --workspace=@bitgenetics/aitools-core --workspace=@bitgenetics/aitools-server --omit=dev --ignore-scripts
 

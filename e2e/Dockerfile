@@ -6,6 +6,7 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
+COPY packages/cursor/package.json packages/cursor/
 COPY packages/cli/package.json packages/cli/
 COPY packages/e2e/package.json packages/e2e/
 
@@ -19,9 +20,12 @@ RUN npm ci --ignore-scripts
 
 COPY tsconfig.base.json ./
 COPY packages/core packages/core/
+COPY packages/cursor packages/cursor/
 COPY packages/cli packages/cli/
 COPY packages/e2e packages/e2e/
 
-RUN npm run build -w @bitgenetics/aitools-core && npm run build -w @bitgenetics/aitools-cli
+RUN npm run build -w @bitgenetics/aitools-core \
+  && npm run build -w @bitgenetics/aitools-cursor \
+  && npm run build -w @bitgenetics/aitools-cli
 
 CMD ["npm", "test", "-w", "@bitgenetics/aitools-e2e"]
