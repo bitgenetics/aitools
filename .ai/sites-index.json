@@ -1,0 +1,44 @@
+{
+  "domains": [
+    {
+      "domain": "cursor.com",
+      "status": "caution",
+      "verified": "2026-07-22",
+      "category": "documentation",
+      "norton_rating": "Untested",
+      "notes": "Norton SafeWeb fetch timed out; vendor docs used via search snippets"
+    },
+    {
+      "domain": "code.claude.com",
+      "status": "caution",
+      "verified": "2026-07-22",
+      "category": "documentation",
+      "norton_rating": "Untested",
+      "notes": "Norton page returned without explicit rating text; Anthropic official docs"
+    },
+    {
+      "domain": "developers.openai.com",
+      "status": "caution",
+      "verified": "2026-07-22",
+      "category": "documentation",
+      "norton_rating": "Untested",
+      "notes": "Norton page returned without explicit rating text; OpenAI Codex docs"
+    },
+    {
+      "domain": "github.com",
+      "status": "safe",
+      "verified": "2026-07-22",
+      "category": "code-hosting",
+      "norton_rating": "Safe",
+      "notes": "user-trusted + ubiquitous OSS host"
+    },
+    {
+      "domain": "safeweb.norton.com",
+      "status": "safe",
+      "verified": "2026-07-22",
+      "category": "security",
+      "norton_rating": "Safe",
+      "notes": "site-check verifier"
+    }
+  ]
+}
