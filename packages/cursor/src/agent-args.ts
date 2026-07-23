@@ -30,14 +30,42 @@ export function buildAgentArgv(folderPaths: string[], extraArgs: string[] = []):
     argv.push('--add-dir', dir);
   }
   if (extraArgs.length > 0) {
-    argv.push(...extraArgs);
+    // Commander may leave a literal `--` when users write `load ws -- --print …`
+    const cleaned =
+      extraArgs[0] === '--' ? extraArgs.slice(1) : extraArgs;
+    argv.push(...cleaned);
   }
   return argv;
 }
 
+/**
+ * Quote one argument for `cmd.exe` when Node will join argv under `shell: true`.
+ * Node does **not** escape the args array in that mode — spaces / metacharacters
+ * (and prompts containing `path)` or drive-like tokens) otherwise break the line.
+ */
+export function quoteWindowsCmdArg(arg: string): string {
+  if (arg.length === 0) {
+    return '""';
+  }
+  // Safe unquoted token for cmd.exe word-splitting / metacharacters.
+  if (!/[\s"&<>|^%!()]/.test(arg)) {
+    return arg;
+  }
+  return `"${arg.replace(/"/gu, '""')}"`;
+}
+
+/** Quote argv for a Windows `shell: true` spawn (cmd.exe). */
+export function quoteWindowsCmdArgv(argv: string[]): string[] {
+  return argv.map(quoteWindowsCmdArg);
+}
+
 /** Format a shell-ish preview of the agent invocation for dry-run output. */
 export function formatAgentCommand(agentBin: string, argv: string[]): string {
+  const useWin = process.platform === 'win32';
   const parts = [agentBin, ...argv].map((part) => {
+    if (useWin) {
+      return quoteWindowsCmdArg(part);
+    }
     if (/[\s"]/u.test(part)) {
       return `"${part.replace(/"/gu, '\\"')}"`;
     }

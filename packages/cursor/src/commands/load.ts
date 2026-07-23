@@ -30,13 +30,16 @@ export function createLoadCommand(): Command {
     .argument('<workspaceFile>', 'Path to a .code-workspace file')
     .argument(
       '[agentArgs...]',
-      'Extra arguments forwarded to the agent (put flags after --)',
+      'Extra arguments forwarded to the agent (e.g. --print, prompt). ' +
+        'Agent flags may follow the workspace file directly; `--` is optional.',
     )
     .option('--dry-run', 'Print the agent command without running it')
     .option(
       '--agent-bin <bin>',
       'Cursor Agent binary (default: agent, or AITOOLS_CURSOR_AGENT_BIN)',
     )
+    // Forward agent CLI flags (--print, --mode, …) instead of rejecting them.
+    .allowUnknownOption(true)
     .action((workspaceFile: string, agentArgs: string[], options: LoadOptions) => {
       try {
         const result = loadWorkspaceFromFile({

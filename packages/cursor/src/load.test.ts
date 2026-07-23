@@ -65,9 +65,41 @@ describe('loadWorkspaceFromFile', () => {
     expect(spawn).toHaveBeenCalledWith(
       'agent',
       ['--workspace', path.resolve(project), 'hello'],
-      expect.objectContaining({ stdio: 'inherit' }),
+      expect.objectContaining({
+        stdio: 'inherit',
+        shell: process.platform === 'win32',
+      }),
     );
     expect(result.exitCode).toBe(0);
+  });
+
+  it('cmd-quotes spaced prompts on Windows when spawning', () => {
+    if (process.platform !== 'win32') {
+      return;
+    }
+
+    const project = path.join(tmp, 'proj');
+    fs.mkdirSync(project);
+    const workspaceFile = path.join(tmp, 'one.code-workspace');
+    fs.writeFileSync(
+      workspaceFile,
+      JSON.stringify({ folders: [{ path: 'proj' }] }),
+      'utf8',
+    );
+
+    const spawn = jest.fn().mockReturnValue({ status: 0, error: undefined });
+    loadWorkspaceFromFile({
+      workspaceFile,
+      agentBin: 'agent',
+      spawn,
+      extraArgs: ['--print', 'Check 1) roots'],
+    });
+
+    expect(spawn).toHaveBeenCalledWith(
+      'agent',
+      ['--workspace', path.resolve(project), '--print', '"Check 1) roots"'],
+      expect.objectContaining({ shell: true }),
+    );
   });
 
   it('throws when the workspace file is missing', () => {

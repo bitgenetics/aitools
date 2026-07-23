@@ -38,4 +38,28 @@ describe('createCursorCommand', () => {
     expect(output).toContain('--workspace');
     expect(output).toContain('--add-dir');
   });
+
+  it('forwards agent flags without requiring a -- separator', async () => {
+    fs.mkdirSync(path.join(tmp, 'a'));
+    fs.mkdirSync(path.join(tmp, 'b'));
+    const workspaceFile = path.join(tmp, 'hub.code-workspace');
+    fs.writeFileSync(
+      workspaceFile,
+      JSON.stringify({ folders: [{ path: 'a' }, { path: 'b' }] }),
+      'utf8',
+    );
+
+    const cmd = createCursorCommand();
+    await cmd.parseAsync(
+      ['load', workspaceFile, '--dry-run', '--print', '--mode', 'ask', 'hello'],
+      { from: 'user' },
+    );
+
+    const output = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(output).toContain('--print');
+    expect(output).toContain('--mode');
+    expect(output).toContain('ask');
+    expect(output).toContain('hello');
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
 });

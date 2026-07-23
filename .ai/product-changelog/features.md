@@ -13,12 +13,12 @@
 
 ---
 
-### cursor load (multi-root agent from .code-workspace) — 2026-07-22 `620018f`
-**What**: Modular package `@bitgenetics/aitools-cursor` (bin: `aitools-cursor`) parses a VS Code/Cursor multi-root `.code-workspace` file, resolves each `folders[].path` against the workspace file directory, and launches the Cursor Agent CLI (`agent`) with the first folder as `--workspace` and each additional folder as `--add-dir` (Cursor's real multi-root flag; not `--add-path`). Exposed as `aitools cursor load <workspace-file> [--dry-run] [--agent-bin <bin>] [-- <agentArgs...>]` via a thin CLI wrapper; the standalone binary supports the same `load` subcommand so the package can be split out later.  
+### cursor load (multi-root agent from .code-workspace) — 2026-07-22 `620018f` (updated 2026-07-23)
+**What**: Modular package `@bitgenetics/aitools-cursor` (bin: `aitools-cursor`) parses a VS Code/Cursor multi-root `.code-workspace` file, resolves each `folders[].path` against the workspace file directory, and launches the Cursor Agent CLI (`agent`) with the first folder as `--workspace` and each additional folder as `--add-dir` (Cursor's real multi-root flag; not `--add-path`). Exposed as `aitools cursor load <workspace-file> [--dry-run] [--agent-bin <bin>] [agentArgs...]` via a thin CLI wrapper; the standalone binary supports the same `load` subcommand so the package can be split out later. Agent flags such as `--print` / `--mode` may follow the workspace file **without** a `--` separator (`allowUnknownOption`). On Windows, spawn uses `shell: true` (required for `agent.cmd`) and **cmd-quotes** argv so prompts with spaces/parentheses are not mangled.  
 **Why**: `.code-workspace` multi-root layouts (e.g. `chip_agent-hub.code-workspace`) are not accepted as `--workspace` by the agent CLI; authors need a one-shot way to map workspace folders into agent roots.  
-**Impact**: Unit tests cover JSONC parse, path resolution, argv building, and dry-run; spawn is injectable. CI builds/publishes `@bitgenetics/aitools-cursor` with the workspace (`51d2a0b`, `8c9ede8`).  
-**Key APIs**: `parseCodeWorkspaceFile`, `resolveWorkspaceFolders`, `buildAgentArgv`, `loadWorkspaceFromFile`, `createCursorProgram`  
-**Key files**: `packages/cursor/src/`, `packages/cli/src/commands/cursor.ts`
+**Impact**: Unit tests cover JSONC parse, path resolution, argv building, dry-run, unknown-option forwarding, and Windows quoting; spawn is injectable. CI builds/publishes `@bitgenetics/aitools-cursor` with the workspace (`51d2a0b`, `8c9ede8`).  
+**Key APIs**: `parseCodeWorkspaceFile`, `resolveWorkspaceFolders`, `buildAgentArgv`, `quoteWindowsCmdArg`, `loadWorkspaceFromFile`, `spawnAgentCli`, `createCursorProgram`  
+**Key files**: `packages/cursor/src/`, `packages/cli/src/commands/cursor.ts`, `packages/cli/src/commands/cursor.test.ts`
 
 ---
 

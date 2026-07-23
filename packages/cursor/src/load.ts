@@ -13,7 +13,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
-import { buildAgentArgv, formatAgentCommand } from './agent-args.js';
+import {
+  buildAgentArgv,
+  formatAgentCommand,
+  quoteWindowsCmdArg,
+  quoteWindowsCmdArgv,
+} from './agent-args.js';
 import { parseCodeWorkspaceFile, resolveWorkspaceFolders } from './workspace.js';
 
 export type AgentSpawner = (
@@ -50,6 +55,29 @@ export function defaultAgentBin(): string {
 }
 
 /**
+ * Spawn the agent CLI. On Windows, `agent` resolves to `agent.cmd`, which
+ * requires `shell: true` (Node EINVAL otherwise). When shell is used, argv must
+ * be cmd-quoted because Node concatenates args without escaping.
+ */
+export function spawnAgentCli(
+  agentBin: string,
+  argv: string[],
+  spawn: AgentSpawner = spawnSync,
+): SpawnSyncReturns<Buffer | string> {
+  if (process.platform === 'win32') {
+    return spawn(quoteWindowsCmdArg(agentBin), quoteWindowsCmdArgv(argv), {
+      stdio: 'inherit',
+      shell: true,
+    });
+  }
+
+  return spawn(agentBin, argv, {
+    stdio: 'inherit',
+    shell: false,
+  });
+}
+
+/**
  * Parse a multi-root workspace file and launch (or dry-run) the Cursor Agent CLI
  * with `--workspace` + `--add-dir` for each folder.
  */
@@ -69,11 +97,7 @@ export function loadWorkspaceFromFile(options: LoadWorkspaceOptions): LoadWorksp
     return { folderPaths, agentBin, argv, commandPreview, dryRun: true };
   }
 
-  const result = spawn(agentBin, argv, {
-    stdio: 'inherit',
-    // Windows resolves `agent` via PATH as agent.ps1 / agent.cmd — shell required.
-    shell: process.platform === 'win32',
-  });
+  const result = spawnAgentCli(agentBin, argv, spawn);
 
   if (result.error) {
     throw new Error(
