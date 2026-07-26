@@ -20,8 +20,19 @@ export {
   resolveWorkspaceFolders,
 } from './workspace.js';
 export type { CodeWorkspaceDocument, CodeWorkspaceFolder } from './workspace.js';
-export { buildAgentArgv, formatAgentCommand, quoteWindowsCmdArg, quoteWindowsCmdArgv } from './agent-args.js';
+export {
+  buildAgentArgv,
+  buildWorkerArgv,
+  cleanExtraArgs,
+  formatAgentCommand,
+  quoteWindowsCmdArg,
+  quoteWindowsCmdArgv,
+  MAX_WORKER_DIRS,
+} from './agent-args.js';
 export { loadWorkspaceFromFile, defaultAgentBin, spawnAgentCli } from './load.js';
 export type { LoadWorkspaceOptions, LoadWorkspaceResult, AgentSpawner } from './load.js';
+export { workerWorkspaceFromFile } from './worker.js';
+export type { WorkerWorkspaceOptions, WorkerWorkspaceResult } from './worker.js';
 export { createLoadCommand } from './commands/load.js';
+export { createWorkerCommand } from './commands/worker.js';
 export { createCursorProgram } from './program.js';

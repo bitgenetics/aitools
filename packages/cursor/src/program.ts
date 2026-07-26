@@ -14,6 +14,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import { Command } from 'commander';
 import { createLoadCommand } from './commands/load.js';
+import { createWorkerCommand } from './commands/worker.js';
 import { CURSOR_CLI_VERSION } from './version.js';
 
 /**
@@ -30,5 +31,6 @@ export function createCursorProgram(name = 'aitools-cursor'): Command {
     .version(CURSOR_CLI_VERSION);
 
   program.addCommand(createLoadCommand());
+  program.addCommand(createWorkerCommand());
   return program;
 }

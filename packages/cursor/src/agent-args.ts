@@ -13,6 +13,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+/** Cursor self-hosted worker accepts at most this many `--worker-dir` roots. */
+export const MAX_WORKER_DIRS = 20;
+
+/**
+ * Strip a leading `--` separator that Commander may leave when users write
+ * `load ws -- --print …` / `worker ws -- start`.
+ */
+export function cleanExtraArgs(extraArgs: string[]): string[] {
+  if (extraArgs.length > 0 && extraArgs[0] === '--') {
+    return extraArgs.slice(1);
+  }
+  return extraArgs;
+}
+
 /**
  * Build argv for the Cursor Agent CLI from resolved workspace folder paths.
  *
@@ -29,12 +43,33 @@ export function buildAgentArgv(folderPaths: string[], extraArgs: string[] = []):
   for (const dir of rest) {
     argv.push('--add-dir', dir);
   }
-  if (extraArgs.length > 0) {
-    // Commander may leave a literal `--` when users write `load ws -- --print …`
-    const cleaned =
-      extraArgs[0] === '--' ? extraArgs.slice(1) : extraArgs;
-    argv.push(...cleaned);
+  argv.push(...cleanExtraArgs(extraArgs));
+  return argv;
+}
+
+/**
+ * Build argv for `agent worker` from resolved workspace folder paths.
+ *
+ * Every folder becomes a repeatable `--worker-dir` (first = assignment identity).
+ * Extra args (e.g. `start`, `--pool`, `debug`) follow the dir flags so worker
+ * options stay before the worker subcommand action.
+ */
+export function buildWorkerArgv(folderPaths: string[], extraArgs: string[] = []): string[] {
+  if (folderPaths.length === 0) {
+    throw new Error('At least one workspace folder is required');
   }
+  if (folderPaths.length > MAX_WORKER_DIRS) {
+    throw new Error(
+      `Cursor worker accepts at most ${MAX_WORKER_DIRS} --worker-dir roots ` +
+        `(got ${folderPaths.length} from the workspace file)`,
+    );
+  }
+
+  const argv: string[] = ['worker'];
+  for (const dir of folderPaths) {
+    argv.push('--worker-dir', dir);
+  }
+  argv.push(...cleanExtraArgs(extraArgs));
   return argv;
 }
 

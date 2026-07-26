@@ -1,5 +1,11 @@
 // Copyright (C) 2026 Nucleic Logic Studios, LLC
-import { buildAgentArgv, formatAgentCommand, quoteWindowsCmdArg } from './agent-args.js';
+import {
+  buildAgentArgv,
+  buildWorkerArgv,
+  formatAgentCommand,
+  quoteWindowsCmdArg,
+  MAX_WORKER_DIRS,
+} from './agent-args.js';
 
 describe('buildAgentArgv', () => {
   it('uses --workspace for the first folder and --add-dir for the rest', () => {
@@ -33,6 +39,49 @@ describe('buildAgentArgv', () => {
 
   it('rejects an empty folder list', () => {
     expect(() => buildAgentArgv([])).toThrow(/At least one/);
+  });
+});
+
+describe('buildWorkerArgv', () => {
+  it('emits worker subcommand with --worker-dir for every folder', () => {
+    expect(buildWorkerArgv(['/a', '/b', '/c'])).toEqual([
+      'worker',
+      '--worker-dir',
+      '/a',
+      '--worker-dir',
+      '/b',
+      '--worker-dir',
+      '/c',
+    ]);
+  });
+
+  it('appends worker args after the dir flags', () => {
+    expect(buildWorkerArgv(['/a'], ['--pool', 'start', '--verbose'])).toEqual([
+      'worker',
+      '--worker-dir',
+      '/a',
+      '--pool',
+      'start',
+      '--verbose',
+    ]);
+  });
+
+  it('strips a leading -- separator from extra args', () => {
+    expect(buildWorkerArgv(['/a'], ['--', 'start'])).toEqual([
+      'worker',
+      '--worker-dir',
+      '/a',
+      'start',
+    ]);
+  });
+
+  it('rejects an empty folder list', () => {
+    expect(() => buildWorkerArgv([])).toThrow(/At least one/);
+  });
+
+  it('rejects more than MAX_WORKER_DIRS folders', () => {
+    const dirs = Array.from({ length: MAX_WORKER_DIRS + 1 }, (_, i) => `/d${i}`);
+    expect(() => buildWorkerArgv(dirs)).toThrow(/at most 20/);
   });
 });
 
