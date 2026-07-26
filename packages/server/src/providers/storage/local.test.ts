@@ -50,9 +50,12 @@ describe('LocalStorageProvider', () => {
   });
 
   it('removes files and reports mtime after write', async () => {
+    const beforeWrite = Date.now();
     await storage.write('remove-me.txt', 'x');
     const before = await storage.stat('remove-me.txt');
-    expect(before.mtime.getTime()).toBeLessThanOrEqual(Date.now());
+    // FS mtime can land slightly ahead of Date.now() on CI runners; allow 2s slack.
+    expect(before.mtime.getTime()).toBeGreaterThanOrEqual(beforeWrite - 2000);
+    expect(before.mtime.getTime()).toBeLessThanOrEqual(Date.now() + 2000);
     await storage.remove('remove-me.txt');
     expect(await storage.exists('remove-me.txt')).toBe(false);
   });
