@@ -1,6 +1,6 @@
 {
   "name": "@bitgenetics/aitools-server",
-  "version": "3.3.3",
+  "version": "3.4.0",
   "private": true,
   "description": "Registry server for AITools packages",
   "main": "./dist/index.js",
