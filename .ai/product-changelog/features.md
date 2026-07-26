@@ -22,7 +22,7 @@
 
 ---
 
-### cursor worker (multi-root self-hosted worker from .code-workspace) — 2026-07-26
+### cursor worker (multi-root self-hosted worker from .code-workspace) — 2026-07-26 `8d487ed`
 **What**: `aitools cursor worker <workspace-file> [--dry-run] [--agent-bin <bin>] [workerArgs...]` maps the same `.code-workspace` folders into `agent worker` with one `--worker-dir` per folder (first folder = assignment identity). Extra args (e.g. `start`, `--pool`, `debug`) forward after the dir flags; `--` separator optional (`allowUnknownOption`). Caps at Cursor’s 20 `--worker-dir` limit. Reuses workspace parse/resolve, Windows cmd-quote spawn, and dry-run preview from the load path.  
 **Why**: Self-hosted multi-repo workers need repeatable `--worker-dir` roots; authors already keep those roots in `.code-workspace` for `cursor load`.  
 **Impact**: Unit tests cover argv building, dry-run, >20 refusal, and CLI dry-run via `aitools cursor`. E2e: `packages/e2e/src/cursor-workspace.test.ts` asserts CLI dry-run emits `worker` + `--worker-dir` per folder (first marked primary) and forwards worker args (`start`, `--pool`). Same package surface as load (`@bitgenetics/aitools-cursor`).  

@@ -24,7 +24,7 @@
 
 ## Recent Changes
 
-- **2026-07-26** — `aitools cursor worker` maps `.code-workspace` folders to `agent worker --worker-dir` (multi-repo self-hosted) — see `features.md`
+- **2026-07-26** `8d487ed` — `aitools cursor worker` maps `.code-workspace` folders to `agent worker --worker-dir` (multi-repo self-hosted; e2e dry-run) — see `features.md`
 - **2026-07-22** `304ed2d` — AI-mech context swap (`aitools context`; quarantine primary restore; `context-profile`) — see `features.md`, `constraints.md`, `architecture.md`, `patterns.md`, `integrations.md`
 - **2026-07-22** `620018f` — `aitools cursor load` / `@bitgenetics/aitools-cursor` maps `.code-workspace` folders to agent `--workspace` + `--add-dir` (2026-07-23: forward agent flags without `--`; Windows cmd-quote spawn) — see `features.md`
 - **2026-07-21** `ffdfd65` / `92ec714` — Anchor-skill convention + `path-rewrite-free` portability grade (publish gate) — see `features.md`, `constraints.md`
@@ -42,5 +42,5 @@
 
 ---
 
-<!-- Last SHA: f652869 -->
+<!-- Last SHA: 8d487ed -->
 <!-- Last updated: 2026-07-26 -->
