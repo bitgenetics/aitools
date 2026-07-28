@@ -39,6 +39,46 @@
       "category": "security",
       "norton_rating": "Safe",
       "notes": "site-check verifier"
+    },
+    {
+      "domain": "blog.kunchenguid.com",
+      "status": "caution",
+      "verified": "2026-07-26",
+      "category": "blog",
+      "norton_rating": "Untested",
+      "notes": "Norton timed out; practitioner Substack on CLI demo pipeline; used for research"
+    },
+    {
+      "domain": "asciinema.org",
+      "status": "caution",
+      "verified": "2026-07-26",
+      "category": "documentation",
+      "norton_rating": "Untested",
+      "notes": "Norton empty/timeout; official asciinema docs host"
+    },
+    {
+      "domain": "docs.asciinema.org",
+      "status": "caution",
+      "verified": "2026-07-26",
+      "category": "documentation",
+      "norton_rating": "Untested",
+      "notes": "Norton timeout; official docs"
+    },
+    {
+      "domain": "tenthirtyam.org",
+      "status": "caution",
+      "verified": "2026-07-26",
+      "category": "blog",
+      "norton_rating": "Untested",
+      "notes": "Norton not rechecked; used via search snippet for VHS docs article"
+    },
+    {
+      "domain": "obsproject.com",
+      "status": "caution",
+      "verified": "2026-07-26",
+      "category": "software",
+      "norton_rating": "Untested",
+      "notes": "Norton 500; well-known OSS screen capture project"
     }
   ]
 }
