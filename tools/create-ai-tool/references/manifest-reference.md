@@ -29,6 +29,38 @@ A plugin should have one **anchor** (hub) skill named after the package — `ski
 
 **Grade scope:** `path-rewrite-free` is about shared-content *paths* only. Vendor skill/rule/agent **frontmatter and format differences are still transformed** when installing across platforms — the anchor convention does not make installs free of all transforms.
 
+### Hub skill vs install homes
+
+The hub is for **shared, agent-readable** content — not a catch-all for every file that is not a skill, rule, or agent.
+
+**First-class install homes** (classified and exploded by the installer):
+
+| Root | Kind | Notes |
+|---|---|---|
+| `skills/` | skill | Includes the anchor hub + member skills |
+| `rules/` | rule | Platform rules |
+| `agents/` | agent | Subagent / agent personas |
+| `commands/` | command | Slash / command files |
+| `hooks/` | hook | Runtime hooks (`hooks.json` + scripts) — must live here to install |
+| `mcp.json` | mcp | Or path from `plugin.json` → `mcpServers` |
+| `.cursor-plugin/` | (descriptor) | Required when `nativeFor` is `cursor` |
+| `assets/`, `scripts/` at plugin root | asset | Installs, but **rewrite-required** — prefer under the hub |
+
+**Hub skill** (`skills/<name>/…`) — put here when member skills/agents need to **link to, read, or copy** the same material:
+
+- `references/` — methodology, docs, **templates** (e.g. hook *templates* used during a setup skill)
+- `assets/` — logos, sample payloads
+- `scripts/` — helpers shared across skills
+
+**Decision rule:**
+
+1. Platform must activate it after install → **install home** (`hooks/`, `rules/`, …) + `files[]` entry.
+2. Agents must discover/copy it during a workflow → **hub** `references/` / `assets/` / `scripts/`.
+3. Often both (e.g. hooks): hub holds copyable templates + setup instructions; `hooks/` holds the real runtime files. Templates on the hub alone do **not** wire hooks.
+4. No home and not under the hub → **orphan** (validate/publish failure).
+
+`"template": true` on a `files[]` entry is install-time Handlebars substitution. It is unrelated to markdown/code templates stored under the hub’s `references/`.
+
 `aitools manifest init --category plugin` scaffolds `skills/<name>/SKILL.md` (with a skill-map) when no anchor exists. `aitools compat` prints the portability grade; `aitools compat --fix` scaffolds/refreshes the anchor skill-map. The grade is **advisory** in `validate` / `compat` (warnings only). At **`publish`**, orphan findings fail the publish; `rewrite-required` / `missing-anchor` warnings prompt to continue or abort (`--yes` skips the prompt, `--strict` blocks warnings).
 
 Single-skill plugins use the same shape: one `skills/<name>/SKILL.md` that is both the anchor and the only skill.

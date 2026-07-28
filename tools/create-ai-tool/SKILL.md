@@ -3,10 +3,9 @@ name: create-ai-tool
 description: >-
   Use this skill when asked to create, package, or publish a reusable AI tool for
   the AITools registry — even if the user doesn't explicitly say "registry" or
-  "ai-tools". Covers all four package types: skill (SKILL.md workflow instructions),
-  subagent (agent persona files), prompt (reusable templates), and mcp-tool (MCP
-  server registrations). Also use when bumping a version or republishing an
-  existing package.
+  "ai-tools". Covers skills, subagents, prompts, mcp-tools, plugins (anchor/hub
+  layout, shared templates vs install homes), and context-profiles. Also use when
+  bumping a version or republishing an existing package.
 metadata:
   author: ai-tools
 ---
@@ -55,6 +54,29 @@ Plugins should follow the **anchor skill** pattern so shared content stays **pat
 4. **Single-skill plugins** use the same shape: one `skills/<name>/SKILL.md` that is both the anchor and the only skill.
 
 **Scope of the grade:** `path-rewrite-free` means shared-content *paths* do not need rewriting. It does **not** mean installs skip all transforms — skill/rule/agent **frontmatter and format still differ by vendor** and are transformed when installing across platforms.
+
+##### Hub skill vs install homes
+
+Not everything “extra” belongs on the hub. Split by **who needs the file**:
+
+| Content | Where it lives | Why |
+|---|---|---|
+| Skills, rules, agents, commands | `skills/`, `rules/`, `agents/`, `commands/` | First-class install homes — explode to platform paths |
+| Runtime hooks (active after install) | `hooks/` (e.g. `hooks/hooks.json` + scripts) | First-class install home — not hub-only |
+| MCP descriptor | `mcp.json` (or path in `plugin.json`) | First-class install home |
+| Plugin descriptor | `.cursor-plugin/plugin.json` | Required for Cursor-native plugins |
+| Shared methodology, docs, **templates** agents copy | Hub: `skills/<name>/references/` | Agent-readable; siblings link with `../<name>/…` |
+| Shared logos / sample files / helper scripts | Hub: `skills/<name>/assets/` or `…/scripts/` | Same — keep path-rewrite-free |
+| Skill-private helpers | That skill’s own folder | No need to share via hub |
+| Anything with no install home | **Orphan** — fails validate | Move under hub *or* a first-class root |
+
+**Rule of thumb:**
+
+- If an **agent must read or copy it** as part of a workflow (templates, methodology, setup samples) → put it on the **hub skill**.
+- If the **platform/runtime must have it installed** at a fixed kind of path (hooks, rules, agents, commands, MCP) → put it in that **install home** and list it in `files[]`.
+- Hooks often need **both**: templates under the hub for setup guidance, plus real files under `hooks/` so install actually wires them. Hub templates alone do not activate hooks.
+
+Do not confuse hub reference templates with `"template": true` on a `files[]` entry — the latter is install-time Handlebars substitution, not shared docs under the hub.
 
 Authoring loop:
 
@@ -149,6 +171,7 @@ After: `"Use this skill when asked to create, package, or publish a reusable AI 
 - **Run `manifest validate` before every publish** — catches missing files before they reach the registry.
 - **`dest` is relative to the category dir, not the project root.** Do not prefix it with `skills/`, `agents/`, etc.
 - **Plugin portability at publish** — orphan files fail publish; `rewrite-required` / `missing-anchor` warnings prompt to continue or abort (`--yes` skips the prompt, `--strict` blocks warnings). Prefer the anchor layout so the grade is **path-rewrite-free** (shared paths only — vendor frontmatter transforms still apply).
+- **Hub ≠ dump for everything non-skill** — first-class roots (`hooks/`, `rules/`, `agents/`, `commands/`, …) stay at those paths; the hub holds *shared agent-readable* content. See [Hub skill vs install homes](#hub-skill-vs-install-homes).
 
 ---
 
