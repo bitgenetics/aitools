@@ -76,8 +76,8 @@ describe('aitools search', () => {
 
 describe('aitools install', () => {
   const fixtureName = 'cli-e2e-install-fixture';
-  const rejectPluginName = 'cli-e2e-bundle-reject-plugin';
-  const rejectPluginVersion = '1.0.0';
+  const nestPluginName = 'cli-e2e-bundle-nest-plugin';
+  const nestPluginVersion = '1.0.0';
   let tmpDir: string;
 
   beforeAll(async () => {
@@ -87,25 +87,31 @@ describe('aitools install', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         manifest: {
-          name: rejectPluginName,
-          version: rejectPluginVersion,
-          description: 'Plugin for --plugin-bundle reject e2e',
+          name: nestPluginName,
+          version: nestPluginVersion,
+          description: 'Plugin for --plugin-bundle nest e2e',
           category: 'plugin',
           nativeFor: 'cursor',
           author: 'e2e',
           files: [
             { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+            {
+              src: `skills/${nestPluginName}/SKILL.md`,
+              dest: `skills/${nestPluginName}/SKILL.md`,
+              placementMode: 'transform',
+            },
             { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md', placementMode: 'transform' },
           ],
         },
         files: {
-          '.cursor-plugin/plugin.json': JSON.stringify({ name: rejectPluginName }),
+          '.cursor-plugin/plugin.json': JSON.stringify({ name: nestPluginName }),
+          [`skills/${nestPluginName}/SKILL.md`]: '# Nest Hub\n',
           'skills/x/SKILL.md': '# X\n',
         },
       }),
     });
     if (!res.ok && res.status !== 409) {
-      throw new Error(`Failed to publish reject plugin: ${res.status} ${await res.text()}`);
+      throw new Error(`Failed to publish nest plugin: ${res.status} ${await res.text()}`);
     }
   });
 
@@ -169,10 +175,71 @@ describe('aitools install', () => {
     }).toThrow();
   });
 
-  it('rejects --plugin-bundle for category plugin', () => {
+  it('nests a plugin into author layout with --plugin-bundle and syncs files[]', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'aitools.config.json'),
+      JSON.stringify({
+        platform: 'cursor',
+        registries: [{ name: 'e2e-registry', url: REGISTRY_URL, priority: 1 }],
+      }),
+    );
+    fs.mkdirSync(path.join(tmpDir, '.cursor-plugin'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, '.cursor-plugin', 'plugin.json'), '{"name":"host"}', 'utf8');
+    fs.writeFileSync(
+      path.join(tmpDir, 'aitools.json'),
+      JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        description: 'Host plugin',
+        category: 'plugin',
+        nativeFor: 'cursor',
+        files: [{ src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' }],
+      }),
+      'utf8',
+    );
+
+    run(`install ${nestPluginName}@${nestPluginVersion} --plugin-bundle --platform cursor`, tmpDir);
+
+    expect(fs.existsSync(path.join(tmpDir, 'skills', nestPluginName, 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'skills', 'x', 'SKILL.md'))).toBe(true);
+    expect(JSON.parse(fs.readFileSync(path.join(tmpDir, '.cursor-plugin', 'plugin.json'), 'utf8'))).toEqual({
+      name: 'host',
+    });
+
+    const host = JSON.parse(fs.readFileSync(path.join(tmpDir, 'aitools.json'), 'utf8')) as {
+      files: Array<{ src: string }>;
+    };
+    expect(host.files.some((f) => f.src === `skills/${nestPluginName}/SKILL.md`)).toBe(true);
+
+    const lock = JSON.parse(fs.readFileSync(path.join(tmpDir, 'aitools-lock.json'), 'utf8')) as {
+      tools: Record<string, { installMethod?: string }>;
+    };
+    expect(lock.tools[nestPluginName]?.installMethod).toBe('plugin-bundle');
+
+    run(`uninstall ${nestPluginName}`, tmpDir);
+    expect(fs.existsSync(path.join(tmpDir, 'skills', nestPluginName, 'SKILL.md'))).toBe(false);
+    const hostAfter = JSON.parse(fs.readFileSync(path.join(tmpDir, 'aitools.json'), 'utf8')) as {
+      files: Array<{ src: string }>;
+    };
+    expect(hostAfter.files.some((f) => f.src === `skills/${nestPluginName}/SKILL.md`)).toBe(false);
+  });
+
+  it('fails --plugin-bundle nest on collision', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'aitools.config.json'),
+      JSON.stringify({
+        platform: 'cursor',
+        registries: [{ name: 'e2e-registry', url: REGISTRY_URL, priority: 1 }],
+      }),
+    );
+    fs.mkdirSync(path.join(tmpDir, 'skills', 'x'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'skills', 'x', 'SKILL.md'), '# keep\n', 'utf8');
+
     expect(() => {
-      run(`install ${rejectPluginName}@${rejectPluginVersion} --plugin-bundle`, tmpDir);
-    }).toThrow();
+      run(`install ${nestPluginName}@${nestPluginVersion} --plugin-bundle --platform cursor`, tmpDir);
+    }).toThrow(/collision/);
+
+    expect(fs.readFileSync(path.join(tmpDir, 'skills', 'x', 'SKILL.md'), 'utf8')).toBe('# keep\n');
   });
 
   it('default install still uses platform skill dirs (not skills/)', () => {

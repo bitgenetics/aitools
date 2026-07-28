@@ -20,6 +20,9 @@ import {
   resolvePluginBundleHooksConfig,
   resolvePluginBundleInstallBase,
   resolvePluginBundleMcpConfig,
+  findPluginBundleCollisions,
+  upsertHostPublishFileEntries,
+  removeHostPublishFileEntries,
 } from './plugin-bundle-install.js';
 
 describe('plugin-bundle-install', () => {
@@ -89,6 +92,27 @@ describe('plugin-bundle-install', () => {
         'utf8',
       );
       expect(loadCursorPluginJsonFromCwd(tmp)).toEqual({ name: 'demo', skills: 'skills/' });
+    });
+  });
+
+  describe('findPluginBundleCollisions', () => {
+    it('reports existing paths not in the owned set', () => {
+      const dest = path.join(tmp, 'skills', 'x', 'SKILL.md');
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.writeFileSync(dest, 'x', 'utf8');
+      expect(findPluginBundleCollisions([dest], [])).toEqual([path.resolve(dest)]);
+      expect(findPluginBundleCollisions([dest], [dest])).toEqual([]);
+    });
+  });
+
+  describe('host publish files[] helpers', () => {
+    it('upserts and removes project-relative entries', () => {
+      const base = { name: 'host', files: [{ src: 'keep.md', dest: 'keep.md' }] };
+      const withNew = upsertHostPublishFileEntries(base, ['skills/a/SKILL.md']);
+      expect(withNew.files?.some((f) => f.src === 'skills/a/SKILL.md')).toBe(true);
+      const removed = removeHostPublishFileEntries(withNew, ['skills/a/SKILL.md']);
+      expect(removed.files?.some((f) => f.src === 'skills/a/SKILL.md')).toBe(false);
+      expect(removed.files?.some((f) => f.src === 'keep.md')).toBe(true);
     });
   });
 });

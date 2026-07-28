@@ -171,6 +171,10 @@ export {
   resolvePluginBundleInstallBase,
   resolvePluginBundleMcpConfig,
   resolvePluginBundleHooksConfig,
+  findPluginBundleCollisions,
+  upsertHostPublishFileEntries,
+  removeHostPublishFileEntries,
+  assertPluginBundleNestPortability,
   PluginBundleInstallError,
 } from './manifest/plugin-bundle-install.js';
 export {

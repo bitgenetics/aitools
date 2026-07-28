@@ -158,7 +158,7 @@ async function installSingle(
     }
     if (options.pluginBundle) {
       console.log(
-        chalk.dim('\n  Installed into plugin author layout. Run `aitools manifest files` to include paths in publish files[].'),
+        chalk.dim('\n  Installed into plugin author layout; host aitools.json files[] updated.'),
       );
     }
   } catch (err) {

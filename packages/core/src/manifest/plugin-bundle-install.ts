@@ -117,3 +117,76 @@ export function resolvePluginBundleHooksConfig(
   }
   return path.resolve(cwd, 'hooks', 'hooks.json');
 }
+
+/** Absolute paths that already exist and are not owned by the package being (re)installed. */
+export function findPluginBundleCollisions(
+  plannedAbsPaths: string[],
+  ownedAbsPaths: Iterable<string> = [],
+): string[] {
+  const owned = new Set(
+    [...ownedAbsPaths].map((p) => path.resolve(p).replace(/\\/g, '/').toLowerCase()),
+  );
+  const seen = new Set<string>();
+  const collisions: string[] = [];
+  for (const dest of plannedAbsPaths) {
+    const abs = path.resolve(dest);
+    const key = abs.replace(/\\/g, '/').toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (fs.existsSync(abs) && !owned.has(key)) {
+      collisions.push(abs);
+    }
+  }
+  return collisions;
+}
+
+/**
+ * Upsert project-relative author-layout paths into the host publish `files[]`.
+ * `src` and `dest` are both the author-layout relative path (e.g. `skills/foo/SKILL.md`).
+ */
+export function upsertHostPublishFileEntries(
+  manifest: import('../types/config.js').AiToolsManifest,
+  relPaths: string[],
+): import('../types/config.js').AiToolsManifest {
+  const files = [...(manifest.files ?? [])];
+  for (const raw of relPaths) {
+    const n = norm(raw.replace(/\\/g, '/'));
+    if (!n || n === '.cursor-plugin' || n.startsWith('.cursor-plugin/')) continue;
+    const idx = files.findIndex((f) => norm(f.src) === n || norm(f.dest) === n);
+    const entry = { src: n, dest: n, placementMode: 'strict' as const };
+    if (idx >= 0) {
+      files[idx] = { ...files[idx], src: n, dest: n };
+    } else {
+      files.push(entry);
+    }
+  }
+  return { ...manifest, files };
+}
+
+/** Remove publish `files[]` entries whose src or dest matches any of the relative paths. */
+export function removeHostPublishFileEntries(
+  manifest: import('../types/config.js').AiToolsManifest,
+  relPaths: string[],
+): import('../types/config.js').AiToolsManifest {
+  if (!manifest.files?.length || relPaths.length === 0) return manifest;
+  const remove = new Set(relPaths.map((p) => norm(p.replace(/\\/g, '/'))).filter(Boolean));
+  const files = manifest.files.filter((f) => !remove.has(norm(f.src)) && !remove.has(norm(f.dest)));
+  return { ...manifest, files };
+}
+
+/**
+ * Fail when a nested plugin is not safe to explode into a host author tree.
+ * Allows path-rewrite-free (including missing-anchor-only). Rejects unsupported / rewrite-required.
+ */
+export function assertPluginBundleNestPortability(grade: import('./plugin-anchor.js').PluginPortabilityGrade): void {
+  if (grade === 'unsupported') {
+    throw new PluginBundleInstallError(
+      'Nested plugin has orphan files (portability grade: unsupported). Fix the package structure before installing with --plugin-bundle.',
+    );
+  }
+  if (grade === 'rewrite-required') {
+    throw new PluginBundleInstallError(
+      'Nested plugin requires path rewrite (root assets/scripts). Re-author shared content under the hub skill (skills/<name>/) so the nest stays path-rewrite-free.',
+    );
+  }
+}

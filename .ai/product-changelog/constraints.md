@@ -154,11 +154,11 @@
 
 ---
 
-### Plugin-bundle install is project-scope author layout only — 2026-07-16 `8c15b68`
-**Constraint**: `--plugin-bundle` writes under cwd author roots only (project scope). It rejects user scope (`-g` / `--scope user`), `--cursor-plugin`, and packages with `category: plugin` or `category: reference`. Install method is persisted on the lock (`plugin-bundle`), not as rich dependency objects in `aitools.json` (v1). Does not auto-mutate the plugin package’s publish `files[]`.  
-**Reason**: Author layout is always repo-relative; nesting whole plugins or reference vendoring are separate workflows; surprising publish-set edits are out of scope for the installer.  
-**Do not change**: Do not allow user-scope plugin-bundle installs or dual-write platform + author layout for one lock entry.  
-**Key files**: `packages/cli/src/commands/install.ts`, `packages/core/src/manifest/plugin-bundle-install.ts`, `packages/e2e/src/cli.test.ts`
+### Plugin-bundle install is project-scope author layout only — 2026-07-16 `8c15b68` (updated `2026-07-28`)
+**Constraint**: `--plugin-bundle` writes under cwd author roots only (project scope). It rejects user scope (`-g` / `--scope user`), `--cursor-plugin`, and packages with `category: reference` or `category: context-profile`. `category: plugin` **is allowed**: nested plugin members explode into the host author roots; the nested `.cursor-plugin/` tree is skipped (host descriptor wins). Nested plugins must grade **path-rewrite-free** (or missing-anchor-only); `unsupported` / `rewrite-required` fail before write. Path collisions with files not owned by the same package’s lock entry fail (no overwrite, no partial install); mid-install failures roll back. Install method is persisted on the lock (`plugin-bundle`). **Does** auto-mutate the host publish `files[]` on every `--plugin-bundle` install/uninstall (all categories).  
+**Reason**: Author layout is always repo-relative; whole plugins are a common compose-with unit; publish-ready install/uninstall requires `files[]` sync; path-rewrite-free nests keep hub-skill relative links valid under host `skills/`.  
+**Do not change**: Do not allow user-scope plugin-bundle installs or dual-write platform + author layout for one lock entry; do not overwrite the host `.cursor-plugin/plugin.json` when nesting a plugin; do not soft-merge or rename on collision.  
+**Key files**: `packages/cli/src/commands/install.ts`, `packages/core/src/manifest/plugin-bundle-install.ts`, `packages/cli/src/utils/installer.ts`, `packages/e2e/src/cli.test.ts`
 
 ### User-scope tracking root — 2026-07-16 `ad7a20d`
 **Constraint**: Project-scope installs track in `{cwd}/aitools.json` + `aitools-lock.json`. User-scope (`-g` / `--scope user`) tracks in `~/.aitools/aitools.json` + `~/.aitools/aitools-lock.json`. Payload files still go to platform vendor user dirs (e.g. `~/.cursor/skills/`). Settings remain in `~/aitools.config.json` / `~/.aitools.config.json`.  

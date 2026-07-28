@@ -78,6 +78,19 @@ Not everything “extra” belongs on the hub. Split by **who needs the file**:
 
 Do not confuse hub reference templates with `"template": true` on a `files[]` entry — the latter is install-time Handlebars substitution, not shared docs under the hub.
 
+##### Nesting plugins (`--plugin-bundle`)
+
+To vendor another registry plugin (or skill/rule/agent/…) into this plugin’s author tree:
+
+```bash
+aitools install other-plugin --plugin-bundle
+```
+
+- Members explode into host `skills/` / `rules/` / … (host `.cursor-plugin/` is kept).
+- Host `aitools.json` `files[]` is updated on install and stripped on uninstall.
+- Path collisions fail (no overwrite); nested plugins must be **path-rewrite-free** (hub owns shared `references/` / `assets/` / `scripts/`).
+- Use a normal install (no `--plugin-bundle`) when the package should not join the host publish set.
+
 Authoring loop:
 
 ```bash

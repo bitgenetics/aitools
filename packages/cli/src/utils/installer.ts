@@ -37,8 +37,15 @@ import {
   resolvePluginBundleInstallBase,
   resolvePluginBundleMcpConfig,
   resolvePluginBundleHooksConfig,
+  findPluginBundleCollisions,
+  upsertHostPublishFileEntries,
+  removeHostPublishFileEntries,
+  assertPluginBundleNestPortability,
+  analyzePluginPortability,
   effectivePlacementMode,
   installContextProfileTree,
+  readManifest,
+  writeManifest,
 } from '@bitgenetics/aitools-core';
 import type { ConfigManager } from './config-manager.js';
 import type { RegistryClient } from './registry-client.js';
@@ -134,11 +141,6 @@ export class Installer {
       if (scope !== 'project') {
         throw new Error('--plugin-bundle requires project scope (omit -g / --scope user).');
       }
-      if (normalized === 'plugin') {
-        throw new Error(
-          '--plugin-bundle cannot install category "plugin". Install member packages (skill, rule, agent, …) instead.',
-        );
-      }
       if (normalized === 'reference') {
         throw new Error(
           '--plugin-bundle cannot install category "reference". Use reference vendoring into a skill when available.',
@@ -161,7 +163,7 @@ export class Installer {
     }
 
     if (normalized === 'plugin') {
-      return this.installPlugin(client, manifest, scope);
+      return this.installPlugin(client, manifest, scope, options.pluginBundle);
     }
 
     if (normalized === 'context-profile') {
@@ -287,6 +289,11 @@ export class Installer {
     const lock = readLockFile(track);
     const updated = upsertLockEntry(lock, manifest.name, toLockEntry(installedTool, client.config.url));
     writeLockFile(track, updated);
+    if (pluginBundle) {
+      const publishPaths = [...writtenFiles];
+      if (hooksAdded && hooksConfigPath) publishPaths.push(hooksConfigPath);
+      this.syncHostPublishFilesFromAbs(publishPaths, 'upsert');
+    }
     return { ...this.toStoredInstalled(installedTool, scope), fileResults };
   }
 
@@ -340,6 +347,36 @@ export class Installer {
 
     const writtenFiles: string[] = [];
     const fileResults: InstallFileResult[] = [];
+
+    const track = this.trackDir(scope);
+    const previousEntry = readLockFile(track).tools[manifest.name];
+    const ownedAbs = (previousEntry?.files ?? []).map((f) => resolveStoredPath(track, f));
+
+    // Precompute destinations for collision check (plugin-bundle only)
+    const plannedDests: string[] = [];
+    for (const file of filesToInstall) {
+      const placement = effectivePlacementMode(file);
+      const normalizedDest = file.dest.replace(/\\/g, '/');
+      const relDest =
+        relInstallBase && normalizedDest.startsWith(relInstallBase + '/')
+          ? normalizedDest.slice(relInstallBase.length + 1)
+          : normalizedDest;
+      const destPath =
+        placement === 'verbatim' && !pluginBundle
+          ? path.resolve(this.scopeRoot(scope), normalizedDest.replace(/^\.\//, ''))
+          : path.resolve(installBase, relDest);
+      plannedDests.push(destPath);
+    }
+
+    if (pluginBundle) {
+      const collisions = findPluginBundleCollisions(plannedDests, ownedAbs);
+      if (collisions.length > 0) {
+        const rel = collisions.map((c) => path.relative(this.cwd, c).replace(/\\/g, '/'));
+        throw new Error(
+          `--plugin-bundle collision: path(s) already exist and are not owned by "${manifest.name}":\n  ${rel.join('\n  ')}`,
+        );
+      }
+    }
 
     for (const file of filesToInstall) {
       const srcPath = path.join(agentsDir, file.src);
@@ -396,8 +433,9 @@ export class Installer {
       fileResults.push({ dest: destPath, transform: transformResult });
     }
 
-    const track = this.trackDir(scope);
-    if (writtenFiles.length > 0) {
+    // Do not drop a package descriptor into plugin author layout (would pollute publish set /
+    // risk overwriting host aitools.json when LCM is the project root).
+    if (!pluginBundle && writtenFiles.length > 0) {
       const descriptorDir = lowestCommonInstallDirAbs(writtenFiles);
       const descriptorPath = path.join(descriptorDir, MANIFEST_FILENAME);
       fs.mkdirSync(descriptorDir, { recursive: true });
@@ -405,6 +443,10 @@ export class Installer {
       if (!writtenFiles.includes(descriptorPath)) {
         writtenFiles.push(descriptorPath);
       }
+    }
+
+    if (pluginBundle) {
+      this.syncHostPublishFilesFromAbs(writtenFiles, 'upsert');
     }
 
     const installedTool: InstalledTool = {
@@ -420,8 +462,6 @@ export class Installer {
       ...(pluginBundle ? { installMethod: 'plugin-bundle' as const } : {}),
     };
 
-    const lock = readLockFile(track);
-    const previousEntry = lock.tools[manifest.name];
     if (previousEntry) {
       const newFileSet = new Set(writtenFiles.map((f) => path.resolve(f)));
       for (const oldFile of previousEntry.files) {
@@ -433,7 +473,7 @@ export class Installer {
       }
     }
 
-    const updated = upsertLockEntry(lock, manifest.name, toLockEntry(installedTool, client.config.url));
+    const updated = upsertLockEntry(readLockFile(track), manifest.name, toLockEntry(installedTool, client.config.url));
     writeLockFile(track, updated);
     return { ...this.toStoredInstalled(installedTool, scope), fileResults };
   }
@@ -442,6 +482,7 @@ export class Installer {
     client: RegistryClient,
     manifest: ToolManifest,
     scope: InstallScope,
+    pluginBundle = false,
   ): Promise<InstallResult> {
     let agentsDir: string;
     let integrity: string;
@@ -477,11 +518,22 @@ export class Installer {
       );
     }
 
+    if (pluginBundle) {
+      const portability = analyzePluginPortability({
+        packageName: manifest.name,
+        sources,
+        pluginJson,
+      });
+      assertPluginBundleNestPortability(portability.grade);
+    }
+
+    const hostPluginJson = pluginBundle ? loadCursorPluginJsonFromCwd(this.cwd) : null;
     const activePlatform = this.configManager.getPlatform();
     const sourcePlatform = manifest.nativeFor ?? 'universal';
     const track = this.trackDir(scope);
     const lock = readLockFile(track);
     const previousEntry = lock.tools[manifest.name];
+    const ownedAbs = (previousEntry?.files ?? []).map((f) => resolveStoredPath(track, f));
 
     // On reinstall, unmerge previous hooks before merging the new set so handlers are not doubled.
     if (previousEntry?.hooksAdded && previousEntry.hooksConfig) {
@@ -501,7 +553,6 @@ export class Installer {
       manifest.files.map((f) => [f.src.replace(/\\/g, '/').replace(/^\.\//, ''), f]),
     );
 
-    // First pass: resolve final destinations for file members (needed for path map)
     type FilePlan = {
       member: (typeof members)[number];
       absDest: string;
@@ -521,16 +572,14 @@ export class Installer {
       let relDest: string;
 
       if (placementMode === 'verbatim') {
-        // Escape hatch: honor `dest` as written, anchored at the scope root (project cwd or
-        // user home). Used for exact custom paths (e.g. an asset placed as a sibling of the
-        // platform category dirs) — never unconditionally the cwd.
         const dest = (toolFile?.dest ?? member.src).replace(/\\/g, '/').replace(/^\.\//, '');
         absDest = path.resolve(this.scopeRoot(scope), dest);
         relDest = path.relative(this.cwd, absDest).replace(/\\/g, '/');
+      } else if (pluginBundle) {
+        const installBase = resolvePluginBundleInstallBase(member.fileCategory, this.cwd, hostPluginJson);
+        absDest = path.resolve(installBase, member.destWithinCategory);
+        relDest = path.relative(this.cwd, absDest).replace(/\\/g, '/');
       } else {
-        // strict (default) and transform both place relative to the platform's install area for
-        // the member's category + scope, so user installs land under ~/.<platform>/… not the cwd.
-        // `transform` additionally remaps content/extension (handled in the write pass below).
         const installBase = this.configManager.resolveInstallPath(member.fileCategory, scope);
         absDest = path.resolve(installBase, member.destWithinCategory);
         relDest = path.relative(this.cwd, absDest).replace(/\\/g, '/');
@@ -545,6 +594,19 @@ export class Installer {
       });
     }
 
+    if (pluginBundle) {
+      const collisions = findPluginBundleCollisions(
+        filePlans.map((p) => p.absDest),
+        ownedAbs,
+      );
+      if (collisions.length > 0) {
+        const rel = collisions.map((c) => path.relative(this.cwd, c).replace(/\\/g, '/'));
+        throw new Error(
+          `--plugin-bundle collision: path(s) already exist and are not owned by "${manifest.name}":\n  ${rel.join('\n  ')}`,
+        );
+      }
+    }
+
     const pathMap = buildPluginPathMap(
       filePlans.map((p) => ({ src: p.member.src, finalRel: p.relDest })),
     );
@@ -555,149 +617,189 @@ export class Installer {
     let mcpConfigRel: string | undefined;
     let hooksAdded: Record<string, unknown[]> | undefined;
     let hooksConfigRel: string | undefined;
+    let mcpMergedThisAttempt = false;
+    let hooksMergedThisAttempt = false;
 
-    for (const plan of filePlans) {
-      if (!fs.existsSync(plan.srcPath)) {
-        throw new Error(`Package "${manifest.name}@${manifest.version}" missing file: ${plan.member.src}`);
-      }
-
-      let writeContent = fs.readFileSync(plan.srcPath, 'utf8');
-      let transformResult: TransformResult | undefined;
-      let destPath = plan.absDest;
-      let relDest = plan.relDest;
-
-      const isText =
-        /\.(md|mdc|json|ts|js|mjs|cjs|txt|ya?ml|toml|sh|py|prompt\.md|agent\.md)$/i.test(plan.member.src) ||
-        plan.member.kind === 'skill' ||
-        plan.member.kind === 'rule' ||
-        plan.member.kind === 'command' ||
-        plan.member.kind === 'agent';
-
-      if (isText) {
-        if (sourcePlatform !== activePlatform && sourcePlatform !== 'universal') {
-          const category =
-            plan.member.kind === 'asset' ? 'skill' : (plan.member.kind as ToolCategory);
-          transformResult = transform(writeContent, category, sourcePlatform, activePlatform, {
-            destPath: relDest,
-          });
-          emitTransformMessages(relDest, transformResult);
-
-          if (transformResult.recommendNativePath) {
-            process.stderr.write(`[aitools] Advisory: ${transformResult.recommendNativePath}\n`);
-            fileResults.push({ dest: relDest, transform: transformResult, skipped: true });
-            continue;
-          }
-          if (transformResult.confidence === 'unsupported' && !transformResult.content.trim()) {
-            fileResults.push({ dest: relDest, transform: transformResult, skipped: true });
-            continue;
-          }
-          writeContent = transformResult.content;
-          if (plan.placementMode === 'transform' && transformResult.destExtension) {
-            const baseRel = plan.member.destWithinCategory;
-            const installBase = this.configManager.resolveInstallPath(plan.member.fileCategory!, scope);
-            destPath = path.resolve(installBase, applyDestExtension(baseRel, transformResult));
-            relDest = path.relative(this.cwd, destPath).replace(/\\/g, '/');
-          }
+    const rollback = (): void => {
+      for (const f of writtenFiles) {
+        if (fs.existsSync(f)) {
+          fs.rmSync(f, { force: true });
+          cleanEmptyDirs(path.dirname(f), this.stopDir(scope));
         }
-
-        const rewritten = rewriteRelativePaths(writeContent, pathMap);
-        if (rewritten.warnings.length > 0 || rewritten.confidence !== 'native') {
-          transformResult = {
-            content: rewritten.content,
-            confidence: rewritten.confidence,
-            warnings: [...(transformResult?.warnings ?? []), ...rewritten.warnings],
-            skillPrompt: transformResult?.skillPrompt,
-            destExtension: transformResult?.destExtension,
-          };
-          emitTransformMessages(relDest, transformResult);
-        }
-        writeContent = rewritten.content;
       }
-
-      fs.mkdirSync(path.dirname(destPath), { recursive: true });
-      fs.writeFileSync(destPath, writeContent, 'utf8');
-      writtenFiles.push(destPath);
-      fileResults.push({ dest: destPath, transform: transformResult });
-    }
-
-    // MCP merge
-    const mcpMember = members.find((m: PluginMember) => m.kind === 'mcp');
-    if (mcpMember) {
-      const mcpSrc = path.join(agentsDir, mcpMember.src);
-      if (!fs.existsSync(mcpSrc)) {
-        throw new Error(`Package "${manifest.name}@${manifest.version}" missing file: ${mcpMember.src}`);
+      if (mcpMergedThisAttempt && mcpKeys.length > 0 && mcpConfigRel) {
+        removeMcpKeys(mcpConfigRel, mcpKeys);
       }
-      let mcpContent = fs.readFileSync(mcpSrc, 'utf8');
-      const rewritten = rewriteRelativePaths(mcpContent, pathMap);
-      mcpContent = rewritten.content;
-      for (const w of rewritten.warnings) {
-        process.stderr.write(`[aitools] ${w}\n`);
-      }
-
-      const configPath = this.configManager.resolveMcpConfig(scope);
-      fs.mkdirSync(path.dirname(configPath), { recursive: true });
-      const keys = mergePluginMcpServers(configPath, mcpContent);
-      mcpKeys.push(...keys);
-      mcpConfigRel = configPath;
-      fileResults.push({ dest: mcpConfigRel });
-    }
-
-    // Hooks merge
-    const hookMember = members.find((m: PluginMember) => m.kind === 'hook');
-    if (hookMember) {
-      const hooksConfigPath = this.configManager.resolveHooksConfig(scope);
-      if (!hooksConfigPath) {
-        process.stderr.write(
-          `[aitools] Skipping hooks from plugin "${manifest.name}": platform "${activePlatform}" has no hooks config.\n`,
+      if (hooksMergedThisAttempt && hooksAdded && hooksConfigRel && fs.existsSync(hooksConfigRel)) {
+        const cleaned = unmergeHookConfigs(
+          fs.readFileSync(hooksConfigRel, 'utf8'),
+          hooksAdded,
+          activePlatform,
         );
-      } else {
-        const hookSrc = path.join(agentsDir, hookMember.src);
-        if (!fs.existsSync(hookSrc)) {
-          throw new Error(`Package "${manifest.name}@${manifest.version}" missing file: ${hookMember.src}`);
-        }
-        let hookContent = fs.readFileSync(hookSrc, 'utf8');
-        hookContent = normalizePluginHooksContent(hookContent);
+        fs.writeFileSync(hooksConfigRel, cleaned, 'utf8');
+      }
+    };
 
+    try {
+      for (const plan of filePlans) {
+        if (!fs.existsSync(plan.srcPath)) {
+          throw new Error(`Package "${manifest.name}@${manifest.version}" missing file: ${plan.member.src}`);
+        }
+
+        let writeContent = fs.readFileSync(plan.srcPath, 'utf8');
         let transformResult: TransformResult | undefined;
-        if (sourcePlatform !== activePlatform && sourcePlatform !== 'universal') {
-          transformResult = transform(hookContent, 'hook', sourcePlatform, activePlatform, {
-            destPath: path.relative(this.cwd, hooksConfigPath).replace(/\\/g, '/'),
-          });
-          emitTransformMessages(
-            path.relative(this.cwd, hooksConfigPath).replace(/\\/g, '/'),
-            transformResult,
-          );
-          if (!transformResult.recommendNativePath && transformResult.content.trim()) {
-            hookContent = transformResult.content;
-          } else if (transformResult.recommendNativePath || !transformResult.content.trim()) {
-            fileResults.push({
-              dest: path.relative(this.cwd, hooksConfigPath).replace(/\\/g, '/'),
-              transform: transformResult,
-              skipped: true,
+        let destPath = plan.absDest;
+        let relDest = plan.relDest;
+
+        const isText =
+          /\.(md|mdc|json|ts|js|mjs|cjs|txt|ya?ml|toml|sh|py|prompt\.md|agent\.md)$/i.test(plan.member.src) ||
+          plan.member.kind === 'skill' ||
+          plan.member.kind === 'rule' ||
+          plan.member.kind === 'command' ||
+          plan.member.kind === 'agent';
+
+        if (isText) {
+          if (sourcePlatform !== activePlatform && sourcePlatform !== 'universal') {
+            const category =
+              plan.member.kind === 'asset' ? 'skill' : (plan.member.kind as ToolCategory);
+            transformResult = transform(writeContent, category, sourcePlatform, activePlatform, {
+              destPath: relDest,
             });
-            hookContent = '';
+            emitTransformMessages(relDest, transformResult);
+
+            if (transformResult.recommendNativePath) {
+              process.stderr.write(`[aitools] Advisory: ${transformResult.recommendNativePath}\n`);
+              fileResults.push({ dest: relDest, transform: transformResult, skipped: true });
+              continue;
+            }
+            if (transformResult.confidence === 'unsupported' && !transformResult.content.trim()) {
+              fileResults.push({ dest: relDest, transform: transformResult, skipped: true });
+              continue;
+            }
+            writeContent = transformResult.content;
+            if (plan.placementMode === 'transform' && transformResult.destExtension) {
+              const baseRel = plan.member.destWithinCategory;
+              const installBase = pluginBundle
+                ? resolvePluginBundleInstallBase(plan.member.fileCategory!, this.cwd, hostPluginJson)
+                : this.configManager.resolveInstallPath(plan.member.fileCategory!, scope);
+              destPath = path.resolve(installBase, applyDestExtension(baseRel, transformResult));
+              relDest = path.relative(this.cwd, destPath).replace(/\\/g, '/');
+            }
           }
+
+          const rewritten = rewriteRelativePaths(writeContent, pathMap);
+          if (rewritten.warnings.length > 0 || rewritten.confidence !== 'native') {
+            transformResult = {
+              content: rewritten.content,
+              confidence: rewritten.confidence,
+              warnings: [...(transformResult?.warnings ?? []), ...rewritten.warnings],
+              skillPrompt: transformResult?.skillPrompt,
+              destExtension: transformResult?.destExtension,
+            };
+            emitTransformMessages(relDest, transformResult);
+          }
+          writeContent = rewritten.content;
         }
 
-        if (hookContent.trim()) {
-          const rewritten = rewriteRelativePaths(hookContent, pathMap);
-          hookContent = rewritten.content;
-          for (const w of rewritten.warnings) {
-            process.stderr.write(`[aitools] ${w}\n`);
+        fs.mkdirSync(path.dirname(destPath), { recursive: true });
+        fs.writeFileSync(destPath, writeContent, 'utf8');
+        writtenFiles.push(destPath);
+        fileResults.push({ dest: destPath, transform: transformResult });
+      }
+
+      const mcpMember = members.find((m: PluginMember) => m.kind === 'mcp');
+      if (mcpMember) {
+        const mcpSrc = path.join(agentsDir, mcpMember.src);
+        if (!fs.existsSync(mcpSrc)) {
+          throw new Error(`Package "${manifest.name}@${manifest.version}" missing file: ${mcpMember.src}`);
+        }
+        let mcpContent = fs.readFileSync(mcpSrc, 'utf8');
+        const rewritten = rewriteRelativePaths(mcpContent, pathMap);
+        mcpContent = rewritten.content;
+        for (const w of rewritten.warnings) {
+          process.stderr.write(`[aitools] ${w}\n`);
+        }
+
+        const configPath = pluginBundle
+          ? resolvePluginBundleMcpConfig(this.cwd, hostPluginJson)
+          : this.configManager.resolveMcpConfig(scope);
+        fs.mkdirSync(path.dirname(configPath), { recursive: true });
+        const keys = mergePluginMcpServers(configPath, mcpContent);
+        mcpKeys.push(...keys);
+        mcpConfigRel = configPath;
+        mcpMergedThisAttempt = keys.length > 0;
+        fileResults.push({ dest: mcpConfigRel });
+      }
+
+      const hookMember = members.find((m: PluginMember) => m.kind === 'hook');
+      if (hookMember) {
+        const hooksConfigPath = pluginBundle
+          ? resolvePluginBundleHooksConfig(this.cwd, hostPluginJson)
+          : this.configManager.resolveHooksConfig(scope);
+        if (!hooksConfigPath) {
+          process.stderr.write(
+            `[aitools] Skipping hooks from plugin "${manifest.name}": platform "${activePlatform}" has no hooks config.\n`,
+          );
+        } else {
+          const hookSrc = path.join(agentsDir, hookMember.src);
+          if (!fs.existsSync(hookSrc)) {
+            throw new Error(`Package "${manifest.name}@${manifest.version}" missing file: ${hookMember.src}`);
+          }
+          let hookContent = fs.readFileSync(hookSrc, 'utf8');
+          hookContent = normalizePluginHooksContent(hookContent);
+
+          let transformResult: TransformResult | undefined;
+          if (sourcePlatform !== activePlatform && sourcePlatform !== 'universal') {
+            transformResult = transform(hookContent, 'hook', sourcePlatform, activePlatform, {
+              destPath: path.relative(this.cwd, hooksConfigPath).replace(/\\/g, '/'),
+            });
+            emitTransformMessages(
+              path.relative(this.cwd, hooksConfigPath).replace(/\\/g, '/'),
+              transformResult,
+            );
+            if (!transformResult.recommendNativePath && transformResult.content.trim()) {
+              hookContent = transformResult.content;
+            } else if (transformResult.recommendNativePath || !transformResult.content.trim()) {
+              fileResults.push({
+                dest: path.relative(this.cwd, hooksConfigPath).replace(/\\/g, '/'),
+                transform: transformResult,
+                skipped: true,
+              });
+              hookContent = '';
+            }
           }
 
-          hooksAdded = extractHooksAdded(hookContent, activePlatform);
-          fs.mkdirSync(path.dirname(hooksConfigPath), { recursive: true });
-          let existingContent: string | null = null;
-          if (fs.existsSync(hooksConfigPath)) {
-            existingContent = fs.readFileSync(hooksConfigPath, 'utf8');
+          if (hookContent.trim()) {
+            const rewritten = rewriteRelativePaths(hookContent, pathMap);
+            hookContent = rewritten.content;
+            for (const w of rewritten.warnings) {
+              process.stderr.write(`[aitools] ${w}\n`);
+            }
+
+            hooksAdded = extractHooksAdded(hookContent, activePlatform);
+            fs.mkdirSync(path.dirname(hooksConfigPath), { recursive: true });
+            let existingContent: string | null = null;
+            if (fs.existsSync(hooksConfigPath)) {
+              existingContent = fs.readFileSync(hooksConfigPath, 'utf8');
+            }
+            const merged = mergeHookConfigs(existingContent, hookContent, activePlatform);
+            fs.writeFileSync(hooksConfigPath, merged, 'utf8');
+            hooksConfigRel = hooksConfigPath;
+            hooksMergedThisAttempt = Boolean(hooksAdded && Object.keys(hooksAdded).length > 0);
+            fileResults.push({ dest: hooksConfigRel, transform: transformResult });
           }
-          const merged = mergeHookConfigs(existingContent, hookContent, activePlatform);
-          fs.writeFileSync(hooksConfigPath, merged, 'utf8');
-          hooksConfigRel = hooksConfigPath;
-          fileResults.push({ dest: hooksConfigRel, transform: transformResult });
         }
       }
+    } catch (err) {
+      rollback();
+      throw err;
+    }
+
+    if (pluginBundle) {
+      const publishPaths = [...writtenFiles];
+      if (mcpConfigRel) publishPaths.push(mcpConfigRel);
+      if (hooksConfigRel) publishPaths.push(hooksConfigRel);
+      this.syncHostPublishFilesFromAbs(publishPaths, 'upsert');
     }
 
     const installedTool: InstalledTool = {
@@ -710,6 +812,7 @@ export class Installer {
       files: writtenFiles,
       registry: client.config.url,
       integrity,
+      ...(pluginBundle ? { installMethod: 'plugin-bundle' as const } : {}),
       ...(mcpKeys.length > 0 ? { mcpKeys, mcpConfig: mcpConfigRel } : {}),
       ...(hooksAdded && Object.keys(hooksAdded).length > 0
         ? { hooksAdded, hooksConfig: hooksConfigRel }
@@ -731,10 +834,7 @@ export class Installer {
         const keep = new Set(mcpKeys);
         const stale = previous.mcpKeys.filter((k: string) => !keep.has(k));
         if (stale.length > 0) {
-          removeMcpKeys(
-            resolveStoredPath(track, previous.mcpConfig),
-            stale,
-          );
+          removeMcpKeys(resolveStoredPath(track, previous.mcpConfig), stale);
         }
       }
     }
@@ -788,6 +888,7 @@ export class Installer {
     fs.writeFileSync(configPath, JSON.stringify(mcpJson, null, 2) + '\n', 'utf8');
 
     const track = this.trackDir(scope);
+    const lock = readLockFile(track);
     const installedTool: InstalledTool = {
       name: manifest.name,
       version: manifest.version,
@@ -803,9 +904,11 @@ export class Installer {
       ...(pluginBundle ? { installMethod: 'plugin-bundle' as const } : {}),
     };
 
-    const lock = readLockFile(track);
     const updated = upsertLockEntry(lock, manifest.name, toLockEntry(installedTool, registryUrl));
     writeLockFile(track, updated);
+    if (pluginBundle) {
+      this.syncHostPublishFilesFromAbs([configPath], 'upsert');
+    }
     return this.toStoredInstalled(installedTool, scope);
   }
 
@@ -1025,7 +1128,31 @@ export class Installer {
 
     const updated = removeLockEntry(lock, name);
     writeLockFile(track, updated);
+
+    if (entry.installMethod === 'plugin-bundle' && scope === 'project') {
+      const absForSync = [
+        ...entry.files.map((f) => resolveStoredPath(track, f)),
+        ...(entry.mcpConfig ? [resolveStoredPath(track, entry.mcpConfig)] : []),
+        ...(entry.hooksConfig ? [resolveStoredPath(track, entry.hooksConfig)] : []),
+      ];
+      this.syncHostPublishFilesFromAbs(absForSync, 'remove');
+    }
+
     return removed;
+  }
+
+  private syncHostPublishFilesFromAbs(absPaths: string[], mode: 'upsert' | 'remove'): void {
+    const relPaths = absPaths
+      .map((abs) => path.relative(this.cwd, path.resolve(abs)).replace(/\\/g, '/'))
+      .filter((rel) => rel && !rel.startsWith('..') && !path.isAbsolute(rel));
+    if (relPaths.length === 0) return;
+
+    const existing = readManifest(this.cwd) ?? {};
+    const next =
+      mode === 'upsert'
+        ? upsertHostPublishFileEntries(existing, relPaths)
+        : removeHostPublishFileEntries(existing, relPaths);
+    writeManifest(this.cwd, next);
   }
 
   getLock(scope: InstallScope = 'project'): AiToolsLock {

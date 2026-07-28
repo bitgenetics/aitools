@@ -2030,6 +2030,11 @@ describe('Installer.install (--plugin-bundle)', () => {
     expect(fs.existsSync(path.join(tmp, '.cursor', 'skills', 'bundle-skill', 'SKILL.md'))).toBe(false);
     expect(installed.installMethod).toBe('plugin-bundle');
     expect(installer.getLock().tools['bundle-skill']?.installMethod).toBe('plugin-bundle');
+
+    const host = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
+      files: Array<{ src: string }>;
+    };
+    expect(host.files.some((f) => f.src === 'skills/bundle-skill/SKILL.md')).toBe(true);
   });
 
   it('uninstalls plugin-bundle skill files from author layout', async () => {
@@ -2088,23 +2093,153 @@ describe('Installer.install (--plugin-bundle)', () => {
     expect(mcp.servers['bundle-mcp']).toBeDefined();
   });
 
-  it('rejects plugin-bundle for category plugin', async () => {
+  it('installs a nested plugin under author layout with --plugin-bundle', async () => {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.json'),
+      JSON.stringify({
+        name: 'host-plugin',
+        version: '1.0.0',
+        description: 'Host',
+        category: 'plugin',
+        nativeFor: 'cursor',
+        files: [{ src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' }],
+      }),
+      'utf8',
+    );
+    fs.mkdirSync(path.join(tmp, '.cursor-plugin'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, '.cursor-plugin', 'plugin.json'), '{"name":"host-plugin"}', 'utf8');
+
     const pluginManifest: ToolManifest = {
       name: 'nested-plugin',
       version: '1.0.0',
       description: 'Plugin',
       category: 'plugin',
-      files: [{ src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' }],
+      nativeFor: 'cursor',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'skills/nested-plugin/SKILL.md', dest: 'skills/nested-plugin/SKILL.md', placementMode: 'transform' },
+        { src: 'skills/member/SKILL.md', dest: 'skills/member/SKILL.md', placementMode: 'transform' },
+      ],
     };
+    const tarball = Buffer.from(
+      JSON.stringify([
+        { path: '.cursor-plugin/plugin.json', content: '{"name":"nested-plugin"}' },
+        { path: 'skills/nested-plugin/SKILL.md', content: '# Nested Hub' },
+        { path: 'skills/member/SKILL.md', content: '# Member' },
+      ]),
+      'utf8',
+    );
     const mockClient = {
       config: { name: 'test-registry', url: 'https://test.example.com' },
       getManifest: jest.fn(),
       search: jest.fn(),
-      download: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
     };
+
+    const installed = await installer.install(mockClient as never, pluginManifest, 'project', {
+      pluginBundle: true,
+    });
+
+    expect(installed.installMethod).toBe('plugin-bundle');
+    expect(fs.existsSync(path.join(tmp, 'skills', 'nested-plugin', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, 'skills', 'member', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, '.cursor', 'skills', 'nested-plugin', 'SKILL.md'))).toBe(false);
+    // Nested descriptor must not overwrite host
+    expect(JSON.parse(fs.readFileSync(path.join(tmp, '.cursor-plugin', 'plugin.json'), 'utf8'))).toEqual({
+      name: 'host-plugin',
+    });
+
+    const host = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
+      files: Array<{ src: string }>;
+    };
+    expect(host.files.some((f) => f.src === 'skills/nested-plugin/SKILL.md')).toBe(true);
+    expect(host.files.some((f) => f.src === 'skills/member/SKILL.md')).toBe(true);
+
+    installer.uninstall('nested-plugin', 'project');
+    expect(fs.existsSync(path.join(tmp, 'skills', 'nested-plugin', 'SKILL.md'))).toBe(false);
+    const hostAfter = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
+      files: Array<{ src: string }>;
+    };
+    expect(hostAfter.files.some((f) => f.src === 'skills/nested-plugin/SKILL.md')).toBe(false);
+    expect(hostAfter.files.some((f) => f.src === '.cursor-plugin/plugin.json')).toBe(true);
+  });
+
+  it('fails --plugin-bundle nest on path collision without writing', async () => {
+    fs.mkdirSync(path.join(tmp, 'skills', 'x'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'skills', 'x', 'SKILL.md'), '# Existing', 'utf8');
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.json'),
+      JSON.stringify({ name: 'host', category: 'plugin', files: [] }),
+      'utf8',
+    );
+
+    const pluginManifest: ToolManifest = {
+      name: 'collide-plugin',
+      version: '1.0.0',
+      description: 'Plugin',
+      category: 'plugin',
+      nativeFor: 'cursor',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'skills/x/SKILL.md', dest: 'skills/x/SKILL.md', placementMode: 'transform' },
+      ],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([
+        { path: '.cursor-plugin/plugin.json', content: '{"name":"collide-plugin"}' },
+        { path: 'skills/x/SKILL.md', content: '# New' },
+      ]),
+      'utf8',
+    );
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+
     await expect(
       installer.install(mockClient as never, pluginManifest, 'project', { pluginBundle: true }),
-    ).rejects.toThrow(/cannot install category "plugin"/);
+    ).rejects.toThrow(/collision/);
+
+    expect(fs.readFileSync(path.join(tmp, 'skills', 'x', 'SKILL.md'), 'utf8')).toBe('# Existing');
+    const host = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as {
+      files: unknown[];
+    };
+    expect(host.files).toEqual([]);
+  });
+
+  it('rejects --plugin-bundle nest when nested plugin is rewrite-required', async () => {
+    const pluginManifest: ToolManifest = {
+      name: 'rewrite-plugin',
+      version: '1.0.0',
+      description: 'Plugin',
+      category: 'plugin',
+      nativeFor: 'cursor',
+      files: [
+        { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+        { src: 'skills/rewrite-plugin/SKILL.md', dest: 'skills/rewrite-plugin/SKILL.md', placementMode: 'transform' },
+        { src: 'assets/logo.svg', dest: 'assets/logo.svg', placementMode: 'transform' },
+      ],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([
+        { path: '.cursor-plugin/plugin.json', content: '{"name":"rewrite-plugin"}' },
+        { path: 'skills/rewrite-plugin/SKILL.md', content: '# Hub' },
+        { path: 'assets/logo.svg', content: '<svg/>' },
+      ]),
+      'utf8',
+    );
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+
+    await expect(
+      installer.install(mockClient as never, pluginManifest, 'project', { pluginBundle: true }),
+    ).rejects.toThrow(/path rewrite|hub skill/i);
   });
 
   it('rejects plugin-bundle for category reference', async () => {

@@ -27,6 +27,10 @@ A plugin should have one **anchor** (hub) skill named after the package — `ski
 - **Avoid plugin-root `assets/` / `scripts/`**: these install under a synthetic `<name>/…` package and require link rewriting at install time — graded **rewrite-required**. Prefer the anchor layout above.
 - **Orphans are fatal**: any file with no install home fails `manifest validate` — graded **unsupported**.
 
+### Nesting packages with `--plugin-bundle`
+
+`aitools install <pkg> --plugin-bundle` vendors a registry package into the **host** plugin’s author roots and upserts host `aitools.json` `files[]` (stripped on uninstall). Nested `category: plugin` packages explode members into those roots; the nested `.cursor-plugin/` is skipped. Nests must be **path-rewrite-free**; collisions with unowned paths fail with rollback (no overwrite).
+
 **Grade scope:** `path-rewrite-free` is about shared-content *paths* only. Vendor skill/rule/agent **frontmatter and format differences are still transformed** when installing across platforms — the anchor convention does not make installs free of all transforms.
 
 ### Hub skill vs install homes
