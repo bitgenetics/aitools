@@ -9,8 +9,20 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
-    "version.cjs"
+    "version.cjs",
+    "README.md"
   ],
+  "keywords": [
+    "aitools",
+    "cursor",
+    "ai",
+    "cli",
+    "agents"
+  ],
+  "homepage": "https://github.com/bitgenetics/aitools#readme",
+  "bugs": {
+    "url": "https://github.com/bitgenetics/aitools/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bitgenetics/aitools.git",

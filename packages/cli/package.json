@@ -1,7 +1,7 @@
 {
   "name": "@bitgenetics/aitools-cli",
   "version": "3.6.0",
-  "description": "CLI tool for managing AITools packages",
+  "description": "CLI for AITools — install, update, and publish AI skills, subagents, prompts, and MCP tools across IDEs",
   "bin": {
     "aitools": "./dist/cli.js"
   },
@@ -9,8 +9,24 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
-    "version.cjs"
+    "version.cjs",
+    "README.md"
   ],
+  "keywords": [
+    "aitools",
+    "ai",
+    "cli",
+    "skills",
+    "agents",
+    "mcp",
+    "cursor",
+    "vscode",
+    "package-manager"
+  ],
+  "homepage": "https://github.com/bitgenetics/aitools#readme",
+  "bugs": {
+    "url": "https://github.com/bitgenetics/aitools/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bitgenetics/aitools.git",

@@ -5,8 +5,20 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
+  "keywords": [
+    "aitools",
+    "ai",
+    "skills",
+    "agents",
+    "mcp"
+  ],
+  "homepage": "https://github.com/bitgenetics/aitools#readme",
+  "bugs": {
+    "url": "https://github.com/bitgenetics/aitools/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bitgenetics/aitools.git",
