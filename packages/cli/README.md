@@ -4,7 +4,7 @@ CLI for **AITools** — a package manager for AI tools. Discover, install, updat
 
 Think `npm`, but for the AI tooling ecosystem.
 
-> **Experimental software.** APIs, file formats, and behavior may change without notice. Use at your own risk.
+> **Experimental software.** This project is under active development. APIs, file formats, and behavior may change without notice. There are **no warranties of any kind**, express or implied. **Use at your own risk.**
 >
 > **Full docs:** [github.com/bitgenetics/aitools](https://github.com/bitgenetics/aitools)
 
@@ -47,5 +47,9 @@ The HTTP registry server is **not** on npm — build from the repo, Docker, or `
 
 - [Repository README](https://github.com/bitgenetics/aitools#readme) — features, CLI reference, registries, self-hosting
 - [License (AGPL-3.0-or-later)](https://github.com/bitgenetics/aitools/blob/main/LICENSE)
+
+## License
+
+This software is provided **as is**, without warranty of any kind. See the experimental notice at the top of this document.
 
 Maintained by [Nucleic Logic Studios, LLC](https://github.com/bitgenetics).
