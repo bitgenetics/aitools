@@ -18,9 +18,9 @@ import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { Command } from 'commander';
 import chalk from 'chalk';
-import semver from 'semver';
 import { ToolManifestSchema, MANIFEST_FILENAME, LEGACY_PUBLISH_MANIFEST_FILENAME, readManifest, writeManifest, isPublishable, AitoolsJsonSchema, validatePluginStructure, parseCursorPluginJson, getPluginBundleScanPlan, resolvePluginBundleSources, analyzePluginPortability, scaffoldAnchorSkill, resolvePluginBundleInstallBase } from '@bitgenetics/aitools-core';
 import type { AiToolsManifest, ToolFile, PluginPortabilityResult } from '@bitgenetics/aitools-core';
+import { bumpManifestVersion } from '../utils/bump-version.js';
 
 type Category = 'skill' | 'subagent' | 'prompt' | 'mcp-tool' | 'plugin';
 type ContentCategory = Exclude<Category, 'plugin'>;
@@ -1185,49 +1185,17 @@ function createManifestValidateCommand(): Command {
 
 // -- manifest bump -------------------------------------------------------------
 
-type BumpType = 'major' | 'minor' | 'patch';
-
 function createManifestBumpCommand(): Command {
   return new Command('bump')
     .description(`Increment the version in ${MANIFEST_FILENAME}`)
     .argument('<release>', 'Release type: patch | minor | major, or an explicit version like 1.2.3')
     .action((release: string) => {
-      const cwd = process.cwd();
-      const doc = loadPublishDoc(cwd);
-      const current = doc.version ?? '';
-
-      if (!semver.valid(current)) {
-        console.error(chalk.red(`Current version "${current}" is not a valid semver string.`));
+      const result = bumpManifestVersion(process.cwd(), release);
+      if (!result.ok) {
+        console.error(chalk.red(result.error));
         process.exit(1);
       }
-
-      let next: string | null;
-      const BUMP_TYPES: BumpType[] = ['major', 'minor', 'patch'];
-      if ((BUMP_TYPES as string[]).includes(release)) {
-        next = semver.inc(current, release as BumpType);
-      } else if (semver.valid(release)) {
-        if (semver.lte(release, current)) {
-          console.error(
-            chalk.red(`New version "${release}" must be greater than current "${current}".`),
-          );
-          process.exit(1);
-        }
-        next = semver.clean(release);
-      } else {
-        console.error(
-          chalk.red(`Invalid release argument "${release}".`),
-          chalk.dim('Use: patch | minor | major | <x.y.z>'),
-        );
-        process.exit(1);
-      }
-
-      if (!next) {
-        console.error(chalk.red('Could not compute next version.'));
-        process.exit(1);
-      }
-
-      writeManifest(cwd, { ...doc, version: next });
-      console.log(`${chalk.dim(current)} ? ${chalk.green(next)}`);
+      console.log(`${chalk.dim(result.previous)} → ${chalk.green(result.next)}`);
     });
 }
 

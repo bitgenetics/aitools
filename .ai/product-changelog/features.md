@@ -135,6 +135,14 @@
 
 ---
 
+### version (show / bump) — 2026-08-09
+**What**: `aitools version` prints the current publish version from `aitools.json`. `aitools version patch|minor|major` (or an explicit semver) bumps/sets that version and writes the file. Same behaviour as `aitools manifest bump`; shared helper is `bumpManifestVersion`. Does not change the CLI binary version (`aitools --version` / `-V`).  
+**Why**: Shorter authoring UX for package version bumps without the `manifest` prefix.  
+**Impact**: Requires a publishable `aitools.json` (same as `manifest bump`). Explicit versions must be greater than current.  
+**Key files**: `packages/cli/src/commands/pkg-version.ts`, `packages/cli/src/utils/bump-version.ts`, `packages/e2e/src/cli.test.ts`
+
+---
+
 ### manifest files — 2026-07-15 `dee6a92` (updated dest nesting)
 **What**: `aitools manifest files` walks detected publish candidates and lets the user include/exclude each file and set install `dest` paths. Merges with existing `files[]` by default; `--force` replaces the list. `--yes` includes all detected files with default dest (skill/subagent/prompt nest under the package folder; mcp-tool/plugin keep `dest: src`). Re-scaffolds `mcpServer` entry path when needed for mcp-tool packages.  
 **Key flags**: `--category` (when no manifest yet), `-y/--yes`, `--force`  

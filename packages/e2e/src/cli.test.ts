@@ -591,6 +591,74 @@ describe('aitools manifest bump', () => {
 
 // ---------------------------------------------------------------------------
 
+describe('aitools version', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = makeE2eProjectDir('aitools-e2e-');
+  });
+
+  afterEach(() => {
+    rmTmpDir(tmpDir);
+  });
+
+  function writeManifest(version: string): void {
+    fs.writeFileSync(
+      path.join(tmpDir, 'aitools.json'),
+      JSON.stringify({
+        name: 'version-test',
+        version,
+        description: 'version test',
+        category: 'skill',
+        files: [{ src: 'index.md', dest: 'version-test.md' }],
+      }),
+    );
+  }
+
+  function readVersion(): string {
+    const m = JSON.parse(
+      fs.readFileSync(path.join(tmpDir, 'aitools.json'), 'utf8'),
+    ) as { version: string };
+    return m.version;
+  }
+
+  it('prints the current version', () => {
+    writeManifest('1.2.3');
+    const out = run('version', tmpDir);
+    expect(out.trim()).toBe('1.2.3');
+  });
+
+  it('bumps patch version', () => {
+    writeManifest('1.0.0');
+    run('version patch', tmpDir);
+    expect(readVersion()).toBe('1.0.1');
+  });
+
+  it('bumps minor version', () => {
+    writeManifest('1.0.0');
+    run('version minor', tmpDir);
+    expect(readVersion()).toBe('1.1.0');
+  });
+
+  it('bumps major version', () => {
+    writeManifest('1.0.0');
+    run('version major', tmpDir);
+    expect(readVersion()).toBe('2.0.0');
+  });
+
+  it('sets an explicit version', () => {
+    writeManifest('1.0.0');
+    run('version 3.2.1', tmpDir);
+    expect(readVersion()).toBe('3.2.1');
+  });
+
+  it('exits non-zero when no manifest exists', () => {
+    expect(() => run('version patch', tmpDir)).toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+
 // ---------------------------------------------------------------------------
 
 describe('aitools manifest init', () => {
