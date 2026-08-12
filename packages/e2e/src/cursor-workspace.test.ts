@@ -88,4 +88,31 @@ describe('aitools cursor workspace helpers', () => {
     expect(out).toContain('hub');
     expect(out).toContain('start');
   });
+
+  it('dry-runs load when .code-workspace uses VS Code JSONC trailing commas', () => {
+    const folderA = path.join(tmpDir, 'repo-a');
+    const folderB = path.join(tmpDir, 'repo-b');
+    fs.mkdirSync(folderA);
+    fs.mkdirSync(folderB);
+    const workspaceFile = path.join(tmpDir, 'hub-jsonc.code-workspace');
+    fs.writeFileSync(
+      workspaceFile,
+      `{
+  // multi-root hub
+  "folders": [
+    { "path": "repo-a" },
+    { "path": "repo-b" },
+  ],
+}
+`,
+      'utf8',
+    );
+
+    const out = run(`cursor load "${workspaceFile}" --dry-run`);
+
+    expect(out).toContain('--workspace');
+    expect(out).toContain(path.resolve(folderA));
+    expect(out).toContain('--add-dir');
+    expect(out).toContain(path.resolve(folderB));
+  });
 });

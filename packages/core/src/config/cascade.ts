@@ -17,6 +17,7 @@ import os from 'node:os';
 import path from 'node:path';
 import type { AiToolsConfig, RegistryConfig } from '../types/config.js';
 import { AiToolsConfigSchema } from '../schema/config-schema.js';
+import { stripJsonc } from '../jsonc/strip-jsonc.js';
 
 export const CONFIG_FILENAME = 'aitools.config.json';
 
@@ -85,41 +86,11 @@ export class ConfigCascade {
   }
 
   /**
-   * Strip // line comments and /* block comments *\/ from a JSON string.
-   * Skips content inside quoted strings to avoid false positives.
-   * Enables JSONC-style config files while keeping JSON.parse() as the parser.
+   * Normalize VS Code JSONC (comments, trailing commas, BOM) for JSON.parse().
+   * Delegates to shared {@link stripJsonc}.
    */
   static stripComments(src: string): string {
-    let result = '';
-    let i = 0;
-    while (i < src.length) {
-      // Inside a string ? copy verbatim until closing quote
-      if (src[i] === '"') {
-        result += src[i++];
-        while (i < src.length) {
-          const ch = src[i];
-          result += ch;
-          i++;
-          if (ch === '\\') { result += src[i] ?? ''; i++; continue; }
-          if (ch === '"') break;
-        }
-        continue;
-      }
-      // Line comment
-      if (src[i] === '/' && src[i + 1] === '/') {
-        while (i < src.length && src[i] !== '\n') i++;
-        continue;
-      }
-      // Block comment
-      if (src[i] === '/' && src[i + 1] === '*') {
-        i += 2;
-        while (i < src.length && !(src[i] === '*' && src[i + 1] === '/')) i++;
-        i += 2;
-        continue;
-      }
-      result += src[i++];
-    }
-    return result;
+    return stripJsonc(src);
   }
 
   /**

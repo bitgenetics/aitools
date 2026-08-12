@@ -6,5 +6,6 @@
     "composite": true,
     "isolatedModules": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "references": [{ "path": "../core" }]
 }

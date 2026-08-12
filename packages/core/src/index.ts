@@ -115,6 +115,9 @@ export {
 // Config cascade
 export { ConfigCascade, CONFIG_FILENAME } from './config/cascade.js';
 
+// JSONC (VS Code / Cursor dialect)
+export { stripJsonc } from './jsonc/strip-jsonc.js';
+
 // Stored path helpers
 export { toPosixPath, toStoredPath, resolveStoredPath } from './paths/stored-path.js';
 export { userToolsRoot, trackingRoot } from './paths/tracking-root.js';

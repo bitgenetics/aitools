@@ -14,6 +14,9 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import fs from 'node:fs';
 import path from 'node:path';
+import { stripJsonc } from '@bitgenetics/aitools-core';
+
+export { stripJsonc };
 
 export interface CodeWorkspaceFolder {
   path: string;
@@ -24,60 +27,6 @@ export interface CodeWorkspaceDocument {
   folders: CodeWorkspaceFolder[];
   /** Other workspace keys are ignored. */
   [key: string]: unknown;
-}
-
-/**
- * Strip // and /* *\/ comments from JSONC (VS Code .code-workspace files).
- * Not a full JSONC parser — good enough for typical workspace files.
- */
-export function stripJsonc(text: string): string {
-  let out = '';
-  let i = 0;
-  let inString = false;
-  let escape = false;
-
-  while (i < text.length) {
-    const ch = text[i]!;
-    const next = text[i + 1];
-
-    if (inString) {
-      out += ch;
-      if (escape) {
-        escape = false;
-      } else if (ch === '\\') {
-        escape = true;
-      } else if (ch === '"') {
-        inString = false;
-      }
-      i += 1;
-      continue;
-    }
-
-    if (ch === '"') {
-      inString = true;
-      out += ch;
-      i += 1;
-      continue;
-    }
-
-    if (ch === '/' && next === '/') {
-      i += 2;
-      while (i < text.length && text[i] !== '\n') i += 1;
-      continue;
-    }
-
-    if (ch === '/' && next === '*') {
-      i += 2;
-      while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) i += 1;
-      i += 2;
-      continue;
-    }
-
-    out += ch;
-    i += 1;
-  }
-
-  return out;
 }
 
 export function parseCodeWorkspaceJson(raw: string): CodeWorkspaceDocument {

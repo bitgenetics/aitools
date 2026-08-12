@@ -4,6 +4,14 @@
 
 ---
 
+### Shared VS Code JSONC normalize — 2026-08-12
+**Used for**: Parsing editor JSONC (`.code-workspace`, `aitools.config.json`) with comments, trailing commas, and UTF-8 BOM before `JSON.parse`.  
+**How**: Call `stripJsonc` from `@bitgenetics/aitools-core` (`packages/core/src/jsonc/strip-jsonc.ts`). `ConfigCascade.stripComments` delegates to it; `aitools cursor load` / `worker` parse workspace files through the same helper.  
+**Example**: `packages/core/src/jsonc/strip-jsonc.ts`, `packages/cursor/src/workspace.ts`  
+**Do not**: Re-implement comment/trailing-comma stripping in callers; do not use full JSON5 (unquoted keys / single quotes) — stick to the VS Code JSONC dialect.
+
+---
+
 ### Quarantine-primary context undo — 2026-07-22 `304ed2d`
 **Used for**: Hot-swapping on-disk AI-mech trees (`aitools context swap` / `restore`).  
 **How**: Before installing a `context-profile`, move swappable paths into `.aitools/context-quarantine/<id>/` with a path map; record `quarantineId` + moves on `lock.context`. Restore always prefers that local quarantine; registry baseline is fallback only when quarantine is absent. Deterministic discover/catalog is separate from assist-only stay judgment (proposal file → `accept-stay`).  

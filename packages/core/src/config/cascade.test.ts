@@ -99,6 +99,11 @@ describe('ConfigCascade.stripComments', () => {
     const input = '{"url":"https://example.com//path"}';
     expect(JSON.parse(ConfigCascade.stripComments(input))).toEqual({ url: 'https://example.com//path' });
   });
+
+  it('strips trailing commas so VS Code JSONC configs parse', () => {
+    const input = '{\n  "platform": "cursor",\n}\n';
+    expect(JSON.parse(ConfigCascade.stripComments(input))).toEqual({ platform: 'cursor' });
+  });
 });
 
 describe('ConfigCascade.readFile', () => {

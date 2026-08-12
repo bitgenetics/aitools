@@ -12,6 +12,11 @@ describe('stripJsonc', () => {
   it('keeps // inside strings', () => {
     expect(stripJsonc('{"url":"https://example.com"}')).toContain('https://example.com');
   });
+
+  it('strips trailing commas and BOM so VS Code JSONC parses', () => {
+    const raw = '\uFEFF{\n  "folders": [\n    { "path": "a" },\n  ],\n}\n';
+    expect(JSON.parse(stripJsonc(raw))).toEqual({ folders: [{ path: 'a' }] });
+  });
 });
 
 describe('parseCodeWorkspaceJson', () => {
@@ -27,6 +32,19 @@ describe('parseCodeWorkspaceJson', () => {
       { path: 'chip', name: 'chip' },
       { path: '../ai-tools' },
     ]);
+  });
+
+  it('parses workspace files with trailing commas (VS Code JSONC)', () => {
+    const doc = parseCodeWorkspaceJson(`{
+      "folders": [
+        { "path": "chip", },
+        { "path": "../ai-tools" },
+      ],
+      "settings": {
+        "files.exclude": { "**/.git": true, },
+      },
+    }`);
+    expect(doc.folders).toEqual([{ path: 'chip' }, { path: '../ai-tools' }]);
   });
 
   it('rejects empty folders', () => {
