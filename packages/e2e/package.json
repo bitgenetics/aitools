@@ -1,6 +1,6 @@
 {
   "name": "@bitgenetics/aitools-e2e",
-  "version": "3.6.2",
+  "version": "3.6.3",
   "private": true,
   "description": "End-to-end tests for the AITools registry server and CLI",
   "author": {
