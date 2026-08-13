@@ -4,7 +4,7 @@
 
 ---
 
-### Shared VS Code JSONC normalize — 2026-08-12
+### Shared VS Code JSONC normalize — 2026-08-12 `c55af39`
 **Used for**: Parsing editor JSONC (`.code-workspace`, `aitools.config.json`) with comments, trailing commas, and UTF-8 BOM before `JSON.parse`.  
 **How**: Call `stripJsonc` from `@bitgenetics/aitools-core` (`packages/core/src/jsonc/strip-jsonc.ts`). `ConfigCascade.stripComments` delegates to it; `aitools cursor load` / `worker` parse workspace files through the same helper.  
 **Example**: `packages/core/src/jsonc/strip-jsonc.ts`, `packages/cursor/src/workspace.ts`  

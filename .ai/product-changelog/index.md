@@ -24,7 +24,8 @@
 
 ## Recent Changes
 
-- **2026-08-12** — `.code-workspace` / JSONC parse accepts trailing commas + BOM (shared `stripJsonc`; cursor load/worker + config cascade) — see `features.md`, `patterns.md`
+- **2026-08-12** `059f411` — `aitools cursor load` / `worker` help: workspace-first `.usage`, aitools-only options labeled, agent/worker arg examples — see `features.md`
+- **2026-08-12** `c55af39` — `.code-workspace` / JSONC parse accepts trailing commas + BOM (shared `stripJsonc`; cursor load/worker + config cascade) — see `features.md`, `patterns.md`
 - **2026-07-26** `8d487ed` — `aitools cursor worker` maps `.code-workspace` folders to `agent worker --worker-dir` (multi-repo self-hosted; e2e dry-run) — see `features.md`
 - **2026-07-22** `304ed2d` — AI-mech context swap (`aitools context`; quarantine primary restore; `context-profile`) — see `features.md`, `constraints.md`, `architecture.md`, `patterns.md`, `integrations.md`
 - **2026-07-22** `620018f` — `aitools cursor load` / `@bitgenetics/aitools-cursor` maps `.code-workspace` folders to agent `--workspace` + `--add-dir` (2026-07-23: forward agent flags without `--`; Windows cmd-quote spawn) — see `features.md`
@@ -43,5 +44,5 @@
 
 ---
 
-<!-- Last SHA: 3c086d6 -->
+<!-- Last SHA: 4bbdba9 -->
 <!-- Last updated: 2026-08-12 -->
