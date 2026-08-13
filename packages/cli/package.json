@@ -1,6 +1,6 @@
 {
   "name": "@bitgenetics/aitools-cli",
-  "version": "3.6.3",
+  "version": "3.6.4",
   "description": "CLI for AITools — install, update, and publish AI skills, subagents, prompts, and MCP tools across IDEs",
   "bin": {
     "aitools": "./dist/cli.js"
