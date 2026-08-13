@@ -27,16 +27,29 @@ export function createLoadCommand(): Command {
       'Load a VS Code/Cursor .code-workspace into the Cursor Agent CLI ' +
         '(first folder → --workspace; others → --add-dir)',
     )
+    // Prefer workspace-first usage; Commander's default "[options] <file> …"
+    // reads like aitools flags must precede the path (they need not).
+    .usage('<workspaceFile> [options] [agentArgs...]')
     .argument('<workspaceFile>', 'Path to a .code-workspace file')
     .argument(
       '[agentArgs...]',
-      'Extra arguments forwarded to the agent (e.g. --print, prompt). ' +
-        'Agent flags may follow the workspace file directly; `--` is optional.',
+      'Forwarded to the agent after the auto-built --workspace/--add-dir flags ' +
+        '(e.g. --print, prompt). `--` before agentArgs is optional.',
     )
-    .option('--dry-run', 'Print the agent command without running it')
+    .option('--dry-run', 'aitools only: print the agent command without running it')
     .option(
       '--agent-bin <bin>',
-      'Cursor Agent binary (default: agent, or AITOOLS_CURSOR_AGENT_BIN)',
+      'aitools only: Cursor Agent binary (default: agent, or AITOOLS_CURSOR_AGENT_BIN)',
+    )
+    .addHelpText(
+      'after',
+      '\nNotes:\n' +
+        '  [options] are aitools flags (--dry-run, --agent-bin); they may appear\n' +
+        '  before or after <workspaceFile>. Unknown flags after the file are\n' +
+        '  forwarded as agentArgs (not listed under Options above).\n' +
+        '\nExamples:\n' +
+        '  $ aitools cursor load my.code-workspace --dry-run\n' +
+        '  $ aitools cursor load my.code-workspace --print "summarize this repo"\n',
     )
     // Forward agent CLI flags (--print, --mode, …) instead of rejecting them.
     .allowUnknownOption(true)

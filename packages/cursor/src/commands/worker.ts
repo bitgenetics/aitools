@@ -27,17 +27,34 @@ export function createWorkerCommand(): Command {
       'Start a Cursor self-hosted worker from a .code-workspace ' +
         '(each folder → --worker-dir; first folder = assignment identity)',
     )
+    // Prefer workspace-first usage; Commander's default "[options] <file> …"
+    // reads like aitools flags must precede the path (they need not).
+    .usage('<workspaceFile> [options] [workerArgs...]')
     .argument('<workspaceFile>', 'Path to a .code-workspace file')
     .argument(
       '[workerArgs...]',
-      'Extra arguments forwarded to `agent worker` (e.g. start, --pool, debug). ' +
-        'Worker flags may follow the workspace file directly; `--` is optional. ' +
-        'Put worker options before the action (start/debug).',
+      'Forwarded to `agent worker` after the auto-built --worker-dir flags ' +
+        '(e.g. --pool, --pool-name hub, start). Put worker flags before the ' +
+        'action (start/debug). `--` before workerArgs is optional.',
     )
-    .option('--dry-run', 'Print the agent worker command without running it')
+    .option(
+      '--dry-run',
+      'aitools only: print the agent worker command without running it',
+    )
     .option(
       '--agent-bin <bin>',
-      'Cursor Agent binary (default: agent, or AITOOLS_CURSOR_AGENT_BIN)',
+      'aitools only: Cursor Agent binary (default: agent, or AITOOLS_CURSOR_AGENT_BIN)',
+    )
+    .addHelpText(
+      'after',
+      '\nNotes:\n' +
+        '  [options] are aitools flags (--dry-run, --agent-bin); they may appear\n' +
+        '  before or after <workspaceFile>. Unknown flags after the file are\n' +
+        '  forwarded as workerArgs (not listed under Options above).\n' +
+        '\nExamples:\n' +
+        '  $ aitools cursor worker my.code-workspace --dry-run start\n' +
+        '  $ aitools cursor worker my.code-workspace --pool --pool-name hub start\n' +
+        '  $ aitools cursor worker my.code-workspace start\n',
     )
     // Forward worker CLI flags (--pool, --name, …) instead of rejecting them.
     .allowUnknownOption(true)
