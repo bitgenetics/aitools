@@ -1,0 +1,84 @@
+name: PR review
+
+# After CI passes on a pull request, a read-only Cursor agent reviews it and the
+# verdict is applied with the release App's token: approve → merge commit (so the
+# push to main runs ci.yml and may cut a release) or request changes.
+# Only non-draft PRs from branches in this repo by owners, members or collaborators
+# are reviewed; a review that fails to produce a verdict leaves the PR untouched.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+  actions: read
+
+concurrency:
+  group: pr-review-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Review and merge
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+    steps:
+      - name: Find the pull request and decide whether to review it
+        id: pr
+        run: |
+          NUMBER="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$HEAD_BRANCH" --state open --json number -q '.[0].number')"
+          if [ -z "$NUMBER" ]; then echo "No open PR for $HEAD_BRANCH; nothing to review."; exit 0; fi
+          PR="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$NUMBER")"
+          SHA="$(jq -r .head.sha <<<"$PR")"
+          FORK="$(jq -r .head.repo.fork <<<"$PR")"
+          DRAFT="$(jq -r .draft <<<"$PR")"
+          ASSOC="$(jq -r .author_association <<<"$PR")"
+          if [ "$SHA" != "$HEAD_SHA" ]; then echo "PR #$NUMBER moved to $SHA; a newer run will review it."; exit 0; fi
+          if [ "$FORK" = "true" ]; then echo "PR #$NUMBER is from a fork; not reviewed automatically."; exit 0; fi
+          if [ "$DRAFT" = "true" ]; then echo "PR #$NUMBER is a draft; not reviewed."; exit 0; fi
+          case "$ASSOC" in OWNER|MEMBER|COLLABORATOR) ;; *) echo "PR #$NUMBER author is $ASSOC; not reviewed automatically."; exit 0;; esac
+          echo "number=$NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for every required check on the head commit
+        if: steps.pr.outputs.number != ''
+        run: gh pr checks "${{ steps.pr.outputs.number }}" --repo "$GITHUB_REPOSITORY" --required --watch --fail-fast
+
+      - uses: actions/checkout@v4
+        if: steps.pr.outputs.number != ''
+        with:
+          ref: ${{ env.HEAD_SHA }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        if: steps.pr.outputs.number != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.pr.outputs.number != ''
+        run: npm ci
+
+      - name: Mint release App token
+        if: steps.pr.outputs.number != ''
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Review, then approve and merge or request changes
+        if: steps.pr.outputs.number != ''
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: node scripts/pr-review.cjs
