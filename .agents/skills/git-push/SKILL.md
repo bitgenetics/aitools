@@ -45,8 +45,14 @@ and `Release gate` green.
    merge, so it must carry the `!` if the PR is breaking.
 2. The `Release gate` job summary shows the version that merging would produce —
    read it; a forgotten `!` shows up there as a minor.
-3. The user merges. CI then: merge run → `Cut release` (bump, promote,
-   signed `chore(release): vX.Y.Z` commit + tag via the release App) → release
+3. Once `Test`, `E2E Tests` and `Release gate` pass, `PR review` (`pr-review.yml`)
+   has a read-only Cursor agent review the PR against
+   `.github/pr-review/INSTRUCTIONS.md`. Approve → merge commit + branch deleted.
+   Changes requested → read the review's findings, fix, push; the next green CI
+   run reviews again. The user can still merge by hand (never squash: the `!`
+   on a breaking commit must survive).
+4. After the merge, CI on `main`: `Cut release` (bump, promote, signed
+   `chore(release): vX.Y.Z` commit + tag via the release App) → release
    commit's run → `Ship release` (GHCR image, npm core → cursor → cli, GitHub
    Release). Two CI runs per release.
 

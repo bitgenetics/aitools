@@ -22,6 +22,7 @@ This document covers ongoing maintenance tasks for contributors and project owne
 │   └── workflows/
 │       ├── ci.yml      — Test + E2E on every PR and push to main; on main also cuts and ships releases
 │       ├── release-gate.yml — required PR check: commits and PR title follow Conventional Commits; CHANGELOG.md parses
+│       ├── pr-review.yml — after CI passes on a PR: Cursor agent review → approve + merge, or request changes
 │       └── docker.yml  — PR-only: image builds and runs as non-root (GHCR push lives in ci.yml `ship`)
 ├── scripts/
 │   ├── changelog.cjs   — CHANGELOG.md model: plan / unreleased / notes (used by CI and release scripts)
@@ -305,7 +306,19 @@ npm run version:patch          # or version:minor / version:major
 - Release commit exists but the tag does not (API tag step failed): `gh api -X POST repos/bitgenetics/aitools/git/refs -f ref=refs/tags/vX.Y.Z -f sha=<commit>`, then re-run the commit's CI run.
 - `Cut release` failed because `main` moved: nothing to do — the newer push's run releases everything.
 
-**One-time setup** (done 2026-10-18): GitHub App `aitools-release` (Contents: read & write) installed on this repo; secrets `RELEASE_APP_ID`, `RELEASE_APP_PRIVATE_KEY`, `NPM_TOKEN`; `main` ruleset requires a PR with `Test`, `E2E Tests`, `Release gate` passing, with the App and the admin role as bypass actors.
+**One-time setup** (done 2026-10-18): GitHub App `aitools-release` (Contents: read & write, Pull requests: read & write) installed on this repo; secrets `RELEASE_APP_ID`, `RELEASE_APP_PRIVATE_KEY`, `NPM_TOKEN`, `CURSOR_API_KEY`; `main` ruleset requires a PR with `Test`, `E2E Tests`, `Release gate` passing, with the App and the admin role as bypass actors.
+
+### Automated PR review
+
+`pr-review.yml` runs when a `CI` run for a pull request completes successfully. It reviews only open, non-draft PRs from branches in this repo whose author is an owner, member or collaborator, and only while the PR head is still the commit CI tested; a newer push gets its own run (`cancel-in-progress` per branch).
+
+1. Waits for every required check on the head commit (`gh pr checks --required --watch`), so `Release gate` is covered too.
+2. Checks out the PR head and runs `scripts/pr-review.cjs`: the PR title, body, commits, file list and diff plus `.github/pr-review/INSTRUCTIONS.md` go to a local Cursor SDK agent (`@cursor/sdk`, model `auto`, tools limited to `read`, `grep`, `glob`, `ls`; no shell, edit or network). The reply must end with a `json` verdict block (`approve` / `request_changes`, summary, findings with `blocking` / `suggestion` severity).
+3. Applies the verdict with the release App's token (so the merge counts as a push by the App and `ci.yml` runs on `main`): earlier reviews by `aitools-release[bot]` are dismissed, then either an `APPROVE` review + merge commit + branch delete, or a `REQUEST_CHANGES` review listing the findings. Squash is never used because the release level is read from the commits.
+
+A reply without a valid verdict fails the job and leaves the PR untouched; merging by hand always remains possible. Review criteria live in `.github/pr-review/INSTRUCTIONS.md`; the parsing and GitHub steps are unit-tested in `scripts/pr-review/*.test.cjs`. `node scripts/pr-review.cjs --dry-run` with `PR_NUMBER` and `GITHUB_REPOSITORY` set prints the prompt a PR would get, without calling Cursor or GitHub.
+
+Setup: a Cursor API key (a service-account key bills the team) stored as the `CURSOR_API_KEY` secret, and the `aitools-release` App granted **Pull requests: read & write** (accept the updated permissions on the installation).
 
 ---
 

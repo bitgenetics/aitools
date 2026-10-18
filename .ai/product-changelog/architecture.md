@@ -138,6 +138,12 @@
 **Impact**: Merges to `main` release automatically (two CI runs per release); docs-only merges release nothing. `npm run version:*` remains as an admin-only manual path sharing `scripts/release/prepare.cjs`. Job `name:`s are ruleset contexts — renaming one needs a ruleset update. Jest `coverageThreshold` in package configs is not enforced by the multi-project runner (global-only option); coverage is reported, not gated.  
 **Key files**: `.github/workflows/ci.yml`, `.github/workflows/release-gate.yml`, `.github/scripts/publish-npm.sh`, `scripts/commits.cjs`, `scripts/changelog.cjs`, `scripts/release/plan.cjs`, `scripts/release/`, `CHANGELOG.md`, `MAINTAINING.md`
 
+### Automated PR review and merge via Cursor SDK — 2026-10-18 (uncommitted)
+**What**: `pr-review.yml` runs on `workflow_run` of `CI` for pull requests; after all required checks pass on the head commit, `scripts/pr-review.cjs` sends the PR (metadata + diff + `.github/pr-review/INSTRUCTIONS.md`) to a local `@cursor/sdk` agent restricted to `read`/`grep`/`glob`/`ls`, parses a mandatory ```json verdict (`approve` | `request_changes`, findings with `blocking`/`suggestion`), and applies it with the release App token: dismiss the bot's earlier reviews, then approve + merge commit + delete branch, or request changes.  
+**Why**: Two-person team; a consistent reviewer that enforces the repo's own rules (tests per `AGENTS.md`, Conventional Commits, changelog notes, product changelog) and merges green PRs without waiting. The verdict is produced by the model but *applied* by deterministic code, so the agent never holds write tools or a token. The App token is used for the merge so the resulting push triggers `ci.yml` (a `GITHUB_TOKEN` merge would not) and the release cut follows automatically.  
+**Impact**: Only same-repo, non-draft PRs by owners/members/collaborators are auto-reviewed; forks and drafts are skipped. Merge method is always a merge commit (squash would drop the `!` the release level depends on). A reply without a valid verdict fails the job and leaves the PR alone. Needs `CURSOR_API_KEY` and the App's Pull requests permission; model id is the `CURSOR_MODEL` constant (`auto`, resolved via `Cursor.models.list`).  
+**Key files**: `.github/workflows/pr-review.yml`, `.github/pr-review/INSTRUCTIONS.md`, `scripts/pr-review.cjs`, `scripts/pr-review/{constants,context,prompt,agent,verdict,act}.cjs`, `scripts/pr-review/*.test.cjs`, `MAINTAINING.md`
+
 ---
 
 ### Design documentation aligned with implementation — 2026-06-15 `21e553f`
