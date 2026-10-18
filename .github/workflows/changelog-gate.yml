@@ -1,0 +1,48 @@
+name: Changelog gate
+
+# Required PR check: CHANGELOG.md must parse, and a PR that changes publishable source
+# must add to [Unreleased] (or carry the `no-changelog` label). No `paths:` filter on
+# purpose — a required check that never reports would block the PR forever.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  changelog:
+    name: Changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Release plan (validates CHANGELOG.md; shows what merging would release)
+        run: |
+          node scripts/changelog.cjs plan > "$RUNNER_TEMP/plan.txt"
+          printf '### Release plan after merge\n```\n%s\n```\n' "$(cat "$RUNNER_TEMP/plan.txt")" >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/plan.txt"
+
+      - name: Source changes need an [Unreleased] bullet
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-changelog') }}
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          SRC="$(git diff --name-only "$BASE...HEAD" -- packages/core/src packages/cursor/src packages/cli/src | grep -v '\.test\.ts$' || true)"
+          if [ -z "$SRC" ]; then
+            echo "No publishable source changes."
+            exit 0
+          fi
+          git show "$BASE:CHANGELOG.md" > "$RUNNER_TEMP/base-changelog.md"
+          if cmp -s <(node scripts/changelog.cjs unreleased "$RUNNER_TEMP/base-changelog.md") <(node scripts/changelog.cjs unreleased CHANGELOG.md); then
+            echo "::error file=CHANGELOG.md::Publishable source changed but [Unreleased] is unchanged. Add a bullet (Added/Changed/Deprecated/Removed/Fixed/Security) or apply the no-changelog label."
+            exit 1
+          fi
+          echo "[Unreleased] changed; OK."

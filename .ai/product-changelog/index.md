@@ -26,8 +26,9 @@
 
 ## Recent Changes
 
-- **2026-10-18** (uncommitted) — Root CLI options (`--version`) must precede the subcommand; subcommand `--version` now reaches `install` / `context push` — see `constraints/cli-and-dev.md`
-- **2026-10-17** (implemented 2026-10-18, uncommitted) — AI context snapshots: git-style `save` / `switch` / `stash` / `pop` / `merge` / `pull` / `push` replace quarantine swap; `context.ignore` replaces stay; state project-local, not in lock — see `features/README.md`, `constraints/README.md`, `architecture.md`, `patterns/README.md`, `integrations.md`, `docs/design/context-snapshots.md`
+- **2026-10-18** (uncommitted) — Automatic releases: `CHANGELOG.md` `[Unreleased]` drives level (`**Breaking:**`/`Added`/else); `ci.yml` cut → ship, signed release commit via GitHub App, `Changelog` PR gate; tag-triggered publish removed — see `architecture.md`, `MAINTAINING.md`
+- **2026-10-18** `6a98d0c` — Root CLI options (`--version`) must precede the subcommand; subcommand `--version` now reaches `install` / `context push` — see `constraints/cli-and-dev.md`
+- **2026-10-17** (implemented 2026-10-18 `6a98d0c`) — AI context snapshots: git-style `save` / `switch` / `stash` / `pop` / `merge` / `pull` / `push` replace quarantine swap; `context.ignore` replaces stay; state project-local, not in lock — see `features/README.md`, `constraints/README.md`, `architecture.md`, `patterns/README.md`, `integrations.md`, `docs/design/context-snapshots.md`
 - **2026-08-12** `059f411` — `aitools cursor load` / `worker` help: workspace-first `.usage`, aitools-only options labeled, agent/worker arg examples — see `features/README.md`
 - **2026-08-12** `c55af39` — `.code-workspace` / JSONC parse accepts trailing commas + BOM (shared `stripJsonc`; cursor load/worker + config cascade) — see `features/README.md`, `patterns/platforms-and-placement.md`
 - **2026-07-26** `8d487ed` — `aitools cursor worker` maps `.code-workspace` folders to `agent worker --worker-dir` (multi-repo self-hosted; e2e dry-run) — see `features/README.md`
@@ -48,5 +49,5 @@
 
 ---
 
-<!-- Last SHA: a2cfaf2 -->
+<!-- Last SHA: 6a98d0c -->
 <!-- Last updated: 2026-10-18 -->

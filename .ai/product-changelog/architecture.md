@@ -4,7 +4,7 @@
 
 ---
 
-### AI context as a snapshot store, not a quarantine — 2026-10-17 (implemented 2026-10-18, uncommitted; supersedes `304ed2d`)
+### AI context as a snapshot store, not a quarantine — 2026-10-17 (implemented 2026-10-18 `6a98d0c`; supersedes `304ed2d`)
 **What**: `packages/core/src/context/` becomes a snapshot store: one **catalog** table (managed path patterns + kinds; the single authority for "what is an AI mechanism"), one **snapshot** folder format (`<root>/.aitools/context/<label>/` mirroring files + `manifest.json` with hashes and origin), a project-local **state** file (active label + hashes), and a **stash** stack (`stash/<timestamp>/`, same folder format). Registry `context-profile` packages are the remote form of a snapshot (`pull` / `push`). AITools still only moves files; IDEs remain the loaders.  
 **Why**: The quarantine model had two kinds of state (named package vs unnamed tree), two install paths (`install` vs `swap`) with different safety rules, and derived "active" from a backup folder's presence. Confirmed data loss on failed download, double swap, and stay-path collision. One snapshot type makes every transition the same operation, and the git mental model is one users already hold.  
 **Impact**: `Installer.installContextProfile` is removed; `aitools install <context-profile>` errors with a pointer to `context pull`. `lock.context` and `aitools.json` `context.{stay,profiles,baseline}` are removed from the schema (`context.ignore` only). Scope reuses `trackingRoot` / `userToolsRoot`.  
@@ -132,11 +132,11 @@
 
 ---
 
-### GitHub Actions CI — 2026-06-15 `95123f3` (updated `e0a753f`)
-**What**: Three workflows: `test.yml` (build core/cli/server + `npm run test:coverage` on push/PR), `e2e.yml` (Docker Compose E2E gate), `docker.yml` (registry image build).  
-**Why**: Catch regressions before merge; E2E validates CLI against a live registry in CI.  
-**Impact**: PRs to `main` should pass unit tests locally (`npm test` or `npm run test:coverage`) before push. Full E2E requires Docker (`npm run test:e2e`). Server jest enforces 80% stmts/lines/funcs, 70% branches.  
-**Key files**: `.github/workflows/test.yml`, `package.json`, `packages/server/jest.config.cjs`
+### GitHub Actions CI + automatic releases — 2026-06-15 `95123f3` (updated `e0a753f`; release pipeline 2026-10-18 `6a98d0c`)
+**What**: `ci.yml` runs `Test` (build + coverage + release-script tests) and `E2E Tests` (Docker Compose) on every PR/push; on `main` two state-derived jobs follow: `cut` (if `CHANGELOG.md` `[Unreleased]` has bullets → bump workspaces, promote, create signed `chore(release): vX` commit + tag via the `aitools-release` GitHub App) and `release-check → ship` (if HEAD is tagged `v<pkg version>` with no GitHub Release yet → GHCR image, npm core → cursor → cli, GitHub Release last). `changelog-gate.yml` is a required PR check. `docker.yml` is PR build-verification only. No workflow triggers on tags.  
+**Why**: One source of truth for "what releases and at which level" (`**Breaking:**` → major, `### Added` → minor, else patch) instead of a human-chosen bump; both release jobs read repo state, so re-runs are idempotent and the loop ends when `[Unreleased]` is empty; artifacts ship from the release commit's own tested run, not from a locally patched tree. API commits are GitHub-signed, satisfying the `main` ruleset's signature rule.  
+**Impact**: Merges to `main` release automatically (two CI runs per release); docs-only merges release nothing. `npm run version:*` remains as an admin-only manual path sharing `scripts/release/prepare.cjs`. Job `name:`s are ruleset contexts — renaming one needs a ruleset update. Jest `coverageThreshold` in package configs is not enforced by the multi-project runner (global-only option); coverage is reported, not gated.  
+**Key files**: `.github/workflows/ci.yml`, `.github/workflows/changelog-gate.yml`, `.github/scripts/publish-npm.sh`, `scripts/changelog.cjs`, `scripts/release/`, `CHANGELOG.md`, `MAINTAINING.md`
 
 ---
 

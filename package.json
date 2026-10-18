@@ -7,7 +7,7 @@
   "scripts": {
     "build": "npm run build -w @bitgenetics/aitools-core && npm run build -w @bitgenetics/aitools-cursor && npm run build -w @bitgenetics/aitools-cli && npm run build -w @bitgenetics/aitools-server",
     "typecheck": "tsc -b",
-    "verify": "npm run typecheck && npm test",
+    "verify": "npm run typecheck && npm test && npm run test:scripts",
     "dev": "npm run dev --workspaces --if-present",
     "test": "jest",
     "test:coverage": "jest --coverage",
@@ -15,15 +15,16 @@
     "test:cursor": "jest --selectProjects @bitgenetics/aitools-cursor",
     "test:cli": "jest --selectProjects @bitgenetics/aitools-cli",
     "test:server": "jest --selectProjects @bitgenetics/aitools-server",
+    "test:scripts": "node --test \"scripts/**/*.test.cjs\"",
     "test:e2e": "docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans && docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from e2e",
     "test:e2e:verbose": "docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans && docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from e2e",
     "test:e2e:down": "docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans",
     "lint": "npm run lint --workspaces --if-present",
     "audit": "npm audit --workspaces --include-workspace-root",
     "clean": "npm run clean --workspaces --if-present",
-    "version:patch": "node scripts/version-release.cjs patch",
-    "version:minor": "node scripts/version-release.cjs minor",
-    "version:major": "node scripts/version-release.cjs major"
+    "version:patch": "npm run verify && node scripts/release.cjs patch",
+    "version:minor": "npm run verify && node scripts/release.cjs minor",
+    "version:major": "npm run verify && node scripts/release.cjs major"
   },
   "author": {
     "name": "Nucleic Logic Studios, LLC",

@@ -2,7 +2,7 @@
 
 > CLI command baselines, repo/test conventions, tooling limitations. Part of [constraints/](./README.md).
 
-### Root CLI options must precede the subcommand — 2026-10-18 (uncommitted)
+### Root CLI options must precede the subcommand — 2026-10-18 `6a98d0c`
 **Constraint**: `aitools --version` / `-V` print the CLI version only when they come before a subcommand name. After the subcommand, `--version` belongs to that subcommand (`install --version <v>`, `context push --version <v>`). Commander `enablePositionalOptions()` on the root program in `packages/cli/src/cli.ts`.  
 **Reason**: Without it the root flag swallowed every subcommand `--version`, so `install foo --version 1.2.3` and `context push … --version` silently printed the CLI version and exited 0 without doing anything.  
 **Do not change**: Do not rename the root flag to dodge the collision (users and `packages/e2e/src/cli.test.ts` rely on `aitools --version`); do not give a subcommand a different spelling for "package version" to work around it.  

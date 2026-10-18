@@ -1,93 +1,69 @@
 ---
 name: git-push
 description: >-
-  Bump workspace versions, commit, tag, and push on the aitools repo. Use when
-  the user asks to push to main, publish to npm, ship a release, run version:patch,
-  or run the standard release workflow.
+  Ship work on the aitools repo: PR flow, CHANGELOG.md [Unreleased] bullets, and
+  the automatic release pipeline. Use when the user asks to push, open a PR,
+  publish to npm, ship a release, or run version:patch.
 metadata:
   project: aitools
 ---
 
-Standard workflow for publishing local work on `bitgenetics/aitools`.
+How work lands and gets released on `bitgenetics/aitools`.
 
-## Choosing the bump level
+## The one rule
 
-All three scripts bump **every workspace package** together (`aitools-cli`,
-`aitools-core`, `aitools-server`, `aitools-e2e`) and update `package-lock.json`.
-Pick the level from **what changed**, using [semver](https://semver.org/) intent:
+**Releases are automatic and driven by `CHANGELOG.md`.** You never choose a bump
+level; you describe the change under `## [Unreleased]` and the pipeline derives it:
 
-| Command | Version change | Use when |
-|---------|----------------|----------|
-| `npm run version:patch` | `2.0.2` → `2.0.3` | Bug fixes, CI/test fixes, refactors with no user-visible behavior change, docs-only changes, dependency updates that do not alter the public CLI/API contract |
-| `npm run version:minor` | `2.0.2` → `2.1.0` | New CLI commands or flags, new registry/platform behavior, new optional config fields — **backward compatible** additions users can adopt without breaking existing projects |
-| `npm run version:major` | `2.0.2` → `3.0.0` | **Breaking** changes: removed or renamed CLI commands/flags, changed default install paths, incompatible config or lockfile format, removed registry APIs, renamed npm packages |
+| `[Unreleased]` contains | Release |
+|---|---|
+| a bullet starting `**Breaking:**` (any subsection) | major |
+| a bullet under `### Added` | minor |
+| any other bullet | patch |
+| no bullets | none (docs-only merges release nothing) |
 
-**Decision rules**
+Write bullets in user language (command, flag, file names — not internals) under
+one of `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`. Prefix
+`**Breaking:**` when existing usage would fail without user action.
 
-1. If the user says “patch”, “minor”, or “major” (or “breaking release”), use that
-   command — do not second-guess.
-2. If the user only says “push” / “bump” / “ship it” and does not specify:
-   - default to **`version:patch`** for fixes, chores, and internal work;
-   - use **`version:minor`** when the diff adds user-facing capability without
-     breaking existing usage;
-   - use **`version:major`** only when existing `aitools` workflows or config
-     would fail or need migration without user action.
-3. If multiple levels could apply, prefer the **lowest** compatible bump unless
-   the user explicitly wants a major release.
-4. When unsure and the change might affect CLI consumers or npm publish, **ask**
-   which bump level to use before running the script.
+## Normal workflow (PR)
 
-## Workflow
+`main` is protected: changes arrive by PR, and the PR needs `Test`, `E2E Tests`
+and `Changelog` green.
 
-Run **one** command (do not run separate git steps unless the script failed
-partway through):
+1. Branch, commit, push the branch, open the PR (`gh pr create`).
+2. If the PR touches `packages/{core,cursor,cli}/src` (tests excluded), it must
+   also add to `[Unreleased]`, or the `Changelog` check fails. Apply the
+   `no-changelog` label only for changes with no user-visible effect.
+3. The `Changelog` job summary shows the version that merging would produce —
+   read it; a forgotten `**Breaking:**` shows up there as a minor.
+4. The user merges. CI then: merge run → `Cut release` (bump, promote,
+   signed `chore(release): vX.Y.Z` commit + tag via the release App) → release
+   commit's run → `Ship release` (GHCR image, npm core → cursor → cli, GitHub
+   Release). Two CI runs per release.
+
+Before pushing, run `npm run verify` (typecheck + unit tests + release-script
+tests) locally.
+
+## Manual release (admin only)
+
+Only when the user explicitly asks to release from the machine:
 
 ```bash
 npm run version:patch   # or version:minor / version:major
 ```
 
-`scripts/version-release.cjs` performs, in order:
-
-1. `npm run verify` — **before any `package.json` version changes** (`tsc -b` then `npm test`)
-2. `npm version <level> --workspaces --no-git-tag-version`
-3. `git add .`
-4. `git commit -m "chore: bump"`
-5. `git tag v<version>` — version from `packages/core/package.json`
-6. `git push origin <current-branch> --tags`
-
-If verify fails, workspace versions are not bumped and no commit/tag/push runs.
-
-Run `npm run verify` manually when you want the same checks without changing versions.
-Use `npm run typecheck` for a faster compile-only gate during development.
-
-Commit any non-version work **before** running the script, or leave it unstaged —
-`git add .` stages everything, so the bump commit may include other pending changes.
-
-## What gets triggered
-
-| Push | CI |
-|------|-----|
-| Branch push | E2E (`.github/workflows/e2e.yml`) |
-| `v*` tag | npm publish + Docker/GHCR (tag workflows) |
-
-Published to npm: `@bitgenetics/aitools-core`, `@bitgenetics/aitools-cli` only.
+`scripts/release.cjs` needs a clean tree at the tip of `main`, runs `verify`,
+then bumps and promotes exactly as CI would and pushes branch + tag atomically.
+The level may raise but never lower what `[Unreleased]` implies. CI still ships it.
 
 ## Git safety
 
-- Only run when the user explicitly asks to release, commit, and/or push.
-- Never change git config.
-- Never force-push.
+- Only commit, push, open PRs or release when the user explicitly asks.
+- Never change git config. Never force-push. Never push a bare `v*` tag.
 - Do not commit `.env`, credentials, or other secret files.
-- Script refuses to create a tag that already exists locally.
-- Requires a named branch (not detached HEAD).
 
-## Manual fallback
+## Recovery
 
-If the script fails after the version bump but before push:
-
-```bash
-git add .
-git commit -m "chore: bump"
-git tag vX.Y.Z    # match packages/core/package.json
-git push origin <branch> --tags
-```
+See `MAINTAINING.md` → *Release workflow* → *Recovery* (re-run the failed `ship`
+jobs; create a missing tag with `gh api`).

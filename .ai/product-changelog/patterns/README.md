@@ -13,7 +13,7 @@
 
 ## Entries
 
-### Store-first, pointer-before-tree context mutation — 2026-10-17 (implemented 2026-10-18, uncommitted)
+### Store-first, pointer-before-tree context mutation — 2026-10-17 (implemented 2026-10-18 `6a98d0c`)
 **Used for**: Every `context` command that overwrites working files (`switch`, `pop`, `clear`, `merge --overwrite`).  
 **How**: (1) Fully materialise the source snapshot first (for `pull`, download and unpack into the store before anything else). (2) Check working tree is clean against the active snapshot's hashes, or `--discard` was passed. (3) Write the new active label + target hashes to `state.json`. (4) Only then delete/copy catalog files. A crash between 3 and 4 leaves `status` reporting "dirty vs active" and `switch <label> --discard` repairs it; nothing is ever moved aside before the replacement exists. Snapshots are immutable except via `save` to the same label.  
 **Example**: `packages/core/src/context/operations.ts` (`replaceWorkingTree`)  

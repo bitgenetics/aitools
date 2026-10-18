@@ -57,7 +57,7 @@ When creating or updating an **implementation plan** that changes product behavi
 1. Read `index.md` and the relevant section files (usually `features.md`, `constraints.md`).
 2. Add an explicit plan todo / step, early in the sequence (before “write e2e” / “extend e2e”):
 
-   > **Update product changelog** — run the `project-changelog` skill: record the intended behaviour in `features.md` (and `constraints.md` / `patterns.md` / `architecture.md` as needed). Name the e2e suite(s) that will enforce it under **Key files**.
+   > **Update product changelog** — run the `project-changelog` skill: record the intended behaviour in `features.md` (and `constraints.md` / `patterns.md` / `architecture.md` as needed). Name the e2e suite(s) that will enforce it under **Key files**. If the behaviour is user-visible, also add the bullet to `CHANGELOG.md` `[Unreleased]` (step 3b).
 
 3. Only after that step: implement code, unit tests, then e2e that assert the changelog behaviour.
 4. If the plan already has an e2e todo but no changelog todo, insert the changelog step **before** the e2e todo.
@@ -149,6 +149,19 @@ After adding, **update `index.md`**:
 
 ---
 
+### 3b. User-visible change → `CHANGELOG.md`
+
+This folder records *why*; the root `CHANGELOG.md` records *what changed for users*, per version, and **drives releases**: a merge to `main` releases automatically, with the level derived from `[Unreleased]` (`**Breaking:**` bullet → major, `### Added` → minor, anything else → patch, no bullets → no release).
+
+Whenever an entry here describes behaviour a user of the published packages can see (CLI commands/flags, config or lock format, install paths, registry behaviour), also add **one bullet** under `## [Unreleased]` in `CHANGELOG.md`:
+
+- Pick one subsection: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
+- Write it in user language — command, flag and file names, not module names.
+- Prefix `**Breaking:**` when existing usage or config would fail without user action.
+- The `Changelog` PR check fails when `packages/{core,cursor,cli}/src` changes without a new bullet (label `no-changelog` to opt out).
+
+---
+
 ### 4. Prune & Maintain
 
 Prune when any section file exceeds ~150 lines or entries are stale:
@@ -178,6 +191,7 @@ A good entry:
 - [ ] Dated with short git SHA in the title (when committed; date-only is OK mid-plan)
 - [ ] Under 10 lines
 - [ ] For behaviour changes: readable as an e2e expectation without opening the test file first
+- [ ] For user-visible changes: a matching bullet under `CHANGELOG.md` `[Unreleased]` (step 3b)
 
 A healthy changelog folder:
 - [ ] `index.md` under 80 lines (always cheap to load)
