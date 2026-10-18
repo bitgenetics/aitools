@@ -43,11 +43,20 @@ async function main(argv) {
   const review = await reviewWithCursor({ prompt, cwd: REPO_ROOT, apiKey: requireEnv('CURSOR_API_KEY') });
   console.log(`Cursor review finished (model ${review.model}, ${review.durationMs ?? '?'} ms, request ${review.requestId ?? 'n/a'}).`);
 
-  const verdict = parseVerdict(review.text);
+  // The review is the expensive part, so it reaches the job summary before any step
+  // that can still fail (a malformed reply, or a GitHub write the token cannot make).
+  let verdict;
+  try {
+    verdict = parseVerdict(review.text);
+  } catch (err) {
+    appendSummary(`### Review reply (no valid verdict)\n\n${review.text}\n`);
+    throw err;
+  }
   const body = renderReviewBody(verdict, { model: review.model });
+  appendSummary(`${body}\n`);
+
   const outcome = applyVerdict({ repo, number, headSha: pr.headRefOid, headRef: pr.headRefName, verdict: verdict.verdict, body });
   console.log(`PR #${number}: ${outcome.action} (${outcome.dismissed} earlier review(s) dismissed).`);
-  appendSummary(`${body}\n`);
 }
 
 main(process.argv.slice(2)).catch((err) => {
