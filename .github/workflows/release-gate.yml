@@ -47,6 +47,10 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: |
+          if ! git cat-file -e "$BASE:CHANGELOG.md" 2>/dev/null; then
+            echo "CHANGELOG.md is new in this PR; OK."
+            exit 0
+          fi
           git show "$BASE:CHANGELOG.md" > "$RUNNER_TEMP/base-changelog.md"
           if cmp -s <(node scripts/changelog.cjs unreleased "$RUNNER_TEMP/base-changelog.md") <(node scripts/changelog.cjs unreleased CHANGELOG.md); then
             echo "::warning file=CHANGELOG.md::Merging releases ${{ steps.plan.outputs.next }} but [Unreleased] is unchanged; add a bullet (Added/Changed/Deprecated/Removed/Fixed/Security) or the release ships with a placeholder note."

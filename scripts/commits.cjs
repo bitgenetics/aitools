@@ -69,10 +69,10 @@ function levelFromCommits(commits) {
   return { level, invalid };
 }
 
-/** Non-merge commits in `range` (e.g. "v3.6.5..HEAD"), newest first. */
-function commitsInRange(range) {
+/** Non-merge commits in `range` (e.g. "v3.6.5..HEAD"), newest first. `cwd` is a test seam. */
+function commitsInRange(range, cwd = REPO_ROOT) {
   const result = spawnSync('git', ['log', '--no-merges', '--format=%s%x00%b%x1e', range], {
-    cwd: REPO_ROOT,
+    cwd,
     encoding: 'utf8',
   });
   if (result.status !== 0) throw new Error(`git log ${range} failed: ${(result.stderr || '').trim()}`);
