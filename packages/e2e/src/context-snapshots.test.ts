@@ -19,6 +19,10 @@ const PROFILE = 'e2e-context-auditor';
 const PROFILE_VERSION = '1.0.0';
 const ESCAPING = 'e2e-context-escaping';
 const PUSHED = 'e2e-context-pushed';
+const WITH_IGNORED = 'e2e-context-with-ignored';
+const IGNORED_PATH = '.cursor/mcp.json';
+const IGNORED_ORIGINAL = '{"mcpServers":{}}\n';
+const IGNORED_EDITED = '{"mcpServers":{"local":{}}}\n';
 
 async function publishContextPackage(name: string, version: string, files: Record<string, string>): Promise<void> {
   const manifest = {
@@ -83,6 +87,10 @@ describe('context snapshots', () => {
       '.cursor/rules/ok.mdc': 'ok\n',
       '../escape.md': 'escaped\n',
     });
+    await publishContextPackage(WITH_IGNORED, '1.0.0', {
+      '.cursor/rules/shared.mdc': 'shared\n',
+      [IGNORED_PATH]: '{"mcpServers":{"fromPackage":{}}}\n',
+    });
   });
 
   beforeEach(() => {
@@ -91,10 +99,10 @@ describe('context snapshots', () => {
     fs.writeFileSync(E2E_USER_CONFIG, JSON.stringify({ registries: [{ name: 'e2e-registry', url: REGISTRY_URL, priority: 1 }] }));
     fs.rmSync(path.join(E2E_HOME, '.aitools', 'context'), { recursive: true, force: true });
 
-    writeFile(projectDir, 'aitools.json', JSON.stringify({ name: 'e2e-context-project', context: { ignore: ['.cursor/mcp.json'] } }) + '\n');
+    writeFile(projectDir, 'aitools.json', JSON.stringify({ name: 'e2e-context-project', context: { ignore: [IGNORED_PATH] } }) + '\n');
     writeFile(projectDir, 'AGENTS.md', '# dev agents\n');
     writeFile(projectDir, '.cursor/rules/dev.mdc', 'dev-rule\n');
-    writeFile(projectDir, '.cursor/mcp.json', '{"mcpServers":{}}\n');
+    writeFile(projectDir, IGNORED_PATH, IGNORED_ORIGINAL);
   });
 
   afterEach(() => {
@@ -104,7 +112,28 @@ describe('context snapshots', () => {
 
   it('ls prints the catalog and honours context.ignore', () => {
     const catalog = JSON.parse(run('context ls --json', projectDir)) as { entries: Array<{ path: string }>; ignored: string[] };
-    expect([catalog.entries.map((e) => e.path), catalog.ignored]).toEqual([['.cursor/rules/dev.mdc', 'AGENTS.md'], ['.cursor/mcp.json']]);
+    expect([catalog.entries.map((e) => e.path), catalog.ignored]).toEqual([['.cursor/rules/dev.mdc', 'AGENTS.md'], [IGNORED_PATH]]);
+  });
+
+  it('context.ignore paths are never captured by save nor deleted or restored by clear and switch', () => {
+    run('context save dev', projectDir);
+    const shown = JSON.parse(run('context show dev --json', projectDir)) as { manifest: { files: Array<{ path: string }> } };
+    expect(shown.manifest.files.map((f) => f.path)).not.toContain(IGNORED_PATH);
+
+    writeFile(projectDir, IGNORED_PATH, IGNORED_EDITED);
+    run('context clear', projectDir);
+    expect([readFile(projectDir, '.cursor/rules/dev.mdc'), readFile(projectDir, IGNORED_PATH)]).toEqual([null, IGNORED_EDITED]);
+
+    run('context switch dev', projectDir);
+    expect([readFile(projectDir, '.cursor/rules/dev.mdc'), readFile(projectDir, IGNORED_PATH)]).toEqual(['dev-rule\n', IGNORED_EDITED]);
+  });
+
+  it('switch skips snapshot files matched by context.ignore and reports them', () => {
+    run('context save dev', projectDir);
+    run(`context pull ${WITH_IGNORED}`, projectDir);
+    const out = run(`context switch ${WITH_IGNORED}`, projectDir);
+    expect(out).toMatch(/skipped 1 ignored/);
+    expect([readFile(projectDir, '.cursor/rules/shared.mdc'), readFile(projectDir, IGNORED_PATH)]).toEqual(['shared\n', IGNORED_ORIGINAL]);
   });
 
   it('save → edit → save → switch restores exact bytes both ways', () => {
