@@ -4,7 +4,7 @@
 
 ---
 
-### `aitools context` (cli) ↔ core snapshot store ↔ registry `context-profile` — 2026-10-17 (implemented 2026-10-18, uncommitted)
+### `aitools context` (cli) ↔ core snapshot store ↔ registry `context-profile` — 2026-10-17 (implemented 2026-10-18 `6a98d0c`)
 **How they connect**: CLI parses scope (`--project` vs default user) and opens a core `ContextStore` on `{ projectRoot, userRoot }`. Core resolves a label project-first then user. `pull` / `push` are the only registry touch points: CLI resolves the package via `RegistryClient` + `CacheManager` (same as install) and hands core an unpacked directory; core imports it as a snapshot after validating every `dest` against the catalog. `push` is `RegistryClient.publish` of a snapshot's manifest with `category: context-profile`. No other `context` command touches the network.  
 **Key files**: `packages/cli/src/commands/context.ts`, `packages/core/src/context/store.ts`, `packages/core/src/context/registry-bridge.ts`, `packages/cli/src/utils/registry-client.ts`  
 **Gotchas**: `aitools install <context-profile>` is rejected with a pointer to `context pull` (single path). Stash and `state.json` are project-local even when the snapshot scope is user.

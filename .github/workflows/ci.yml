@@ -1,0 +1,217 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build -w @bitgenetics/aitools-core && npm run build -w @bitgenetics/aitools-cursor && npm run build -w @bitgenetics/aitools-server && npm run build -w @bitgenetics/aitools-cli
+
+      - name: Test with coverage
+        run: npm run test:coverage
+
+      - name: Test release scripts
+        run: npm run test:scripts
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: |
+            packages/core/coverage/
+            packages/cursor/coverage/
+            packages/cli/coverage/
+            packages/server/coverage/
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run E2E tests
+        run: docker compose -f docker-compose.e2e.yml down --volumes --remove-orphans && docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from e2e
+        timeout-minutes: 10
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.e2e.yml down -v
+
+  # Every green push to main: if the Conventional Commits since the last tag call for a
+  # release, bump the workspaces, promote CHANGELOG.md [Unreleased], and create the release
+  # commit + tag through the GitHub API (signed). That commit triggers its own CI run, whose
+  # `ship` job publishes it; its own `cut` sees no commits past the new tag and stops.
+  cut:
+    name: Cut release
+    if: github.event_name == 'push'
+    needs: [test, e2e]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release-cut
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Release plan from the commits since the last tag
+        id: plan
+        run: |
+          node scripts/release/plan.cjs | tee -a "$GITHUB_OUTPUT" > "$RUNNER_TEMP/plan.txt"
+          printf '### Release plan\n```\n%s\n```\n' "$(cat "$RUNNER_TEMP/plan.txt")" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Mint release token
+        if: steps.plan.outputs.level != 'none'
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Bump, promote CHANGELOG.md, commit and tag
+        if: steps.plan.outputs.level != 'none'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: node scripts/release-ci.cjs
+
+  # Every green push to main: ship when HEAD is the tagged release commit for the current
+  # package version and no GitHub Release exists for it yet (the Release is the completion marker).
+  release-check:
+    name: Release check
+    if: github.event_name == 'push'
+    needs: [test, e2e]
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.gate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Is HEAD a tagged, not-yet-released version?
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="$(node -p "require('./packages/core/package.json').version")"
+          TAG_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$VERSION" -q .object.sha 2>/dev/null || true)"
+          if [ "$TAG_SHA" != "$GITHUB_SHA" ]; then
+            echo "HEAD is not tagged v$VERSION; nothing to ship."
+            exit 0
+          fi
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "v$VERSION is already released."
+            exit 0
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  ship:
+    name: Ship release
+    needs: [release-check]
+    if: needs.release-check.outputs.version != ''
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release-ship
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    env:
+      VERSION: ${{ needs.release-check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - name: Verify publishable packages are at v${{ env.VERSION }}
+        run: |
+          for pkg in core cursor cli; do
+            PKG_VERSION="$(node -p "require('./packages/$pkg/package.json').version")"
+            if [ "$PKG_VERSION" != "$VERSION" ]; then
+              echo "packages/$pkg/package.json is $PKG_VERSION; expected $VERSION"
+              exit 1
+            fi
+          done
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push registry server image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:v${{ env.VERSION }}
+            ghcr.io/${{ github.repository }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish npm packages
+        run: .github/scripts/publish-npm.sh
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/changelog.cjs notes "$VERSION" > "$RUNNER_TEMP/notes.md"
+          gh release create "v$VERSION" --verify-tag --title "v$VERSION" --notes-file "$RUNNER_TEMP/notes.md"

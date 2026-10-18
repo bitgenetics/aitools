@@ -1048,6 +1048,10 @@ npm test
 npm run test:coverage
 ```
 
+### Releases
+
+Releases are automatic: write [Conventional Commits](https://www.conventionalcommits.org/) (`feat` → minor, `fix` → patch, `!` → major) and describe the change under `[Unreleased]` in [CHANGELOG.md](CHANGELOG.md). Once the PR merges and CI is green, a release is cut, published to npm and GHCR, and announced as a GitHub Release. Details in [MAINTAINING.md](MAINTAINING.md#release-workflow).
+
 ### Unit / integration tests
 
 `npm test` covers all three packages. Server route handlers are tested via Fastify `inject()` — no real HTTP port needed.
