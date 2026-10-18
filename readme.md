@@ -8,7 +8,7 @@
 >
 > **Registry (your AI tools):** publish and install under your own scope, e.g. `aitools install @bitgenetics/my-skill` — separate from the platform package names above.
 
-A package manager for AI tools — discover, install, update, and publish **skills**, **subagents**, **prompts**, and **MCP tools** across projects and IDE environments.
+A package manager for AI tools — discover, install, update, and publish **skills**, **rules**, **commands**, **agents**, **hooks**, **MCP tools**, and multi-file **plugins** across projects and IDE environments.
 
 Think `npm` but for the AI tooling ecosystem. Tools can be scoped to a project (committed to your repo) or installed at the user level (available across all projects in your IDE).
 
@@ -27,6 +27,8 @@ Think `npm` but for the AI tooling ecosystem. Tools can be scoped to a project (
   - [Developing AITools](#5-developing-aitools)
 - [CLI reference](#cli-reference)
 - [Managing AI context](#managing-ai-context)
+- [MCP server](#mcp-server)
+- [Cursor multi-root workspaces](#cursor-multi-root-workspaces)
 - [Publishing tools](#publishing-tools)
 - [Project files](#project-files)
 - [Tool categories & install paths](#tool-categories--install-paths)
@@ -42,8 +44,13 @@ Think `npm` but for the AI tooling ecosystem. Tools can be scoped to a project (
 
 - **Install / uninstall / update** AI tools by name and version
 - **Project-scope and user-scope** installs with sensible default paths per category
+- **Works across IDEs** — VS Code (Copilot), Claude Code, Cursor, and Windsurf. Rule, command, agent, and hook files written for one platform are converted at install time when you target another.
+- **Plugins** — multi-file bundles that unpack into normal platform paths, or install as an opaque Cursor local plugin (`--cursor-plugin`), or into another plugin's source tree (`--plugin-bundle`)
+- **AI context snapshots** — save, switch, stash, and merge the AI files in a project (`AGENTS.md`, `.cursor/`, `.claude/`, …) like git branches. See [Managing AI context](#managing-ai-context).
 - **Extended search** — search by name, description, keywords, and tags across all configured registries
-- **Publish tools** — package and upload skills, agents, and prompts to any registry
+- **Publish tools** — package and upload any category to any registry, with compatibility and plugin portability checks before upload
+- **MCP server** — `aitools mcp` exposes registry search and install to your AI agent
+- **Cursor multi-root helpers** — `aitools cursor load` / `worker` turn a `.code-workspace` file into Cursor Agent CLI roots
 - **Two registry types** — full HTTP server (`@bitgenetics/aitools-server`) or a **lightweight git-backed registry** (any git remote, no server to run)
 - **Cascading config** — `aitools.config.json` merges from home directory down to project directory, like `.npmrc`
 - **Lock file** — `aitools-lock.json` pins exact versions for reproducible installs
@@ -202,7 +209,7 @@ Full setup with user accounts, a database, and multi-registry chaining for suppl
 
 ```bash
 # Grab the repo (or just docker-compose.yml + .env.example)
-git clone https://github.com/your-org/ai-tools && cd ai-tools
+git clone https://github.com/bitgenetics/aitools && cd aitools
 
 cp .env.example .env   # set POSTGRES_PASSWORD, AITOOLS_ADMIN_TOKEN, etc.
 docker compose up -d
@@ -249,10 +256,10 @@ You can mix HTTP and git registries in the same chain — for example, an intern
 For hacking on the AITools codebase itself:
 
 ```bash
-git clone https://github.com/your-org/ai-tools && cd ai-tools
+git clone https://github.com/bitgenetics/aitools && cd aitools
 npm install
-npm run build       # core → cli → server in dependency order
-npm test            # all packages
+npm run build       # core → cursor → cli → server in dependency order
+npm test            # unit tests for core, cli, and server
 ```
 
 Spin up a local registry backed by the built server:
@@ -320,43 +327,52 @@ aitools dev-init
 
 | Command | Description |
 |---|---|
-| `aitools init` | Create `aitools.json` in the current directory |
-| `aitools install <name[@version]>` | Install a tool |
-| `aitools uninstall <name>` | Remove a tool and its files |
-| `aitools update [name]` | Update one or all installed tools |
-| `aitools search <query>` | Search the registry by keyword |
+| `aitools init` | Create `aitools.json` in the current directory (`--with-convert-skill` also installs the bundled `aitools-convert` skill) |
+| `aitools install [name[@version]]` (`i`) | Install a tool, or every tool in `aitools.json` when no name is given |
+| `aitools uninstall <name>` (`remove`) | Remove a tool and its files |
+| `aitools update [name]` (`up`) | Update one or all installed tools |
+| `aitools search <query>` (`s`) | Search the registry by keyword |
 | `aitools find <description>` | Extended search across name, description, keywords, and tags |
-| `aitools list` | List tools recorded in the lock file |
+| `aitools list` (`ls`) | List tools recorded in the lock file |
+| `aitools dev-init` | Install the bundled `create-ai-tool` skill without a registry |
 | `aitools registry list` | Show configured registries |
-| `aitools registry add <url>` | Add a registry to user config (`~/.aitools.config.json`) |
+| `aitools registry add <url>` | Add a registry to user config (`~/aitools.config.json`) |
 | `aitools registry add <url> --type git` | Add a git-backed registry |
 | `aitools registry add <url> --project` | Add a registry to the current project only |
-| `aitools registry remove <name>` | Remove a registry |
+| `aitools registry remove <name>` | Remove a registry (user config; `--project` for project config) |
 | `aitools config list` | Show all config files and their values |
 | `aitools config get <key>` | Get an effective config value |
-| `aitools config set <key> <value>` | Set a config value in user config (`~/.aitools.config.json`) |
+| `aitools config set <key> <value>` | Set a config value in user config (`~/aitools.config.json`) |
 | `aitools config set <key> <value> --project` | Set a config value in the project config |
 | `aitools config unset <key>` | Remove a config key from user config |
 | `aitools config unset <key> --project` | Remove a config key from project config |
 | `aitools config edit` | Open user config in your editor |
 | `aitools config edit --project` | Open project config in your editor |
 | `aitools manifest init` | Add publish fields to `aitools.json` |
+| `aitools manifest files` | Pick which files to publish and where each one installs |
+| `aitools manifest update` | Change publish fields (name, description, keywords, platforms, …) |
 | `aitools manifest migrate` | Merge legacy `aitools.manifest.json` into `aitools.json` |
 | `aitools manifest validate` | Validate an existing manifest against the schema |
 | `aitools manifest bump <patch\|minor\|major\|x.y.z>` | Bump the manifest version |
+| `aitools version [patch\|minor\|major\|x.y.z]` | Print the package version in `aitools.json`, or bump it (same as `manifest bump`). `aitools --version` prints the CLI's own version. |
 | `aitools publish` | Publish the tool to a registry |
 | `aitools publish --dry-run` | Validate without uploading |
 | `aitools compat` | Audit platform compatibility of a tool package |
-| `aitools context <save\|switch\|stash\|pop\|merge\|…>` | Save and switch snapshots of the project's AI-mech files — see [Managing AI context](#managing-ai-context) |
+| `aitools context <save\|switch\|stash\|pop\|merge\|…>` | Save and switch snapshots of the project's AI files — see [Managing AI context](#managing-ai-context) |
+| `aitools mcp` | Run aitools as an MCP stdio server — see [MCP server](#mcp-server) |
+| `aitools mcp install` / `remove` | Add or remove the aitools server entry in your IDE's `mcp.json` (`--user` for user-level config) |
+| `aitools cursor load <file.code-workspace>` | Start the Cursor Agent CLI with every workspace folder as a root — see [Cursor multi-root workspaces](#cursor-multi-root-workspaces) |
+| `aitools cursor worker <file.code-workspace>` | Start a Cursor self-hosted worker with one `--worker-dir` per folder |
 
 ### Install options
 
 | Flag | Default | Description |
 |---|---|---|
-| `--scope <project\|user>` | `project` | Where to install the tool (user scope tracks under `~/.aitools/`) |
+| `-s, --scope <project\|user>` | `project` | Where to install the tool (user scope tracks under `~/.aitools/`) |
 | `-g, --global` | | Install to user scope (same as `--scope user`) |
 | `--cursor-plugin` | | Opaque Cursor local plugin under `~/.cursor/plugins/local/` (forces user scope) |
-| `--dev` | `false` | Save as a dev dependency in `aitools.json` |
+| `--plugin-bundle` | | Install into the current plugin's source folders (`skills/`, `rules/`, `agents/`, …) so it ships with your plugin. Project scope only. See [`plugin`](#plugin). |
+| `-D, --dev` | `false` | Save as a dev dependency in `aitools.json` |
 | `-v, --version <version>` | | Specific version to install (overrides `@version` in name) |
 | `-p, --platform <platform>` | config / auto-detect | Target IDE — controls install directory layout |
 
@@ -397,9 +413,13 @@ aitools dev-init
 
 | Flag | Description |
 |---|---|
+| `-m, --manifest <path>` | Path to the manifest (default: `./aitools.json`) |
 | `-r, --registry <url>` | Registry URL (overrides config for this publish) |
 | `--dry-run` | Validate and show what would be published without uploading |
-| `--strict` | Block publish if the skill has frontmatter fields unsupported on any platform |
+| `--strict` | Block publish on skill compatibility issues or plugin portability warnings |
+| `-y, --yes` | Skip the plugin portability prompt and publish anyway |
+
+For plugins, publish checks portability first. Files with no install location always block the publish. Softer warnings (the plugin needs path rewriting at install, or has no anchor skill) ask `Publish anyway?` in a terminal, fail with `--strict`, and continue with `--yes` or when not interactive.
 
 ### Registry options
 
@@ -412,7 +432,8 @@ aitools dev-init
 | `--publish-branch <branch>` | git | Branch for publish (default: read branch) |
 | `--path <path>` | git | Directory inside the repo (default: `registry/`) |
 | `--token <token>` | http | Bearer token for authentication |
-| `-g, --global` | both | Write to user-level config (`~/aitools.config.json`) |
+| `-g, --global` | both | Write to user-level config (`~/aitools.config.json`) — the default |
+| `--project` | both | Write to project config (`./aitools.config.json`) |
 
 > Git registries use system git credentials. `--token` is rejected for `--type git`.
 
@@ -430,13 +451,15 @@ aitools dev-init
 |---|---|
 | `-m, --manifest <path>` | Path to manifest file (default: `./aitools.json`) |
 | `-p, --platform <platform>` | Check a specific platform only |
-| `--fix` | Rewrite the SKILL.md file, stripping frontmatter fields unsupported on the target platform(s) |
+| `--fix` | Rewrite the SKILL.md file, stripping frontmatter fields unsupported on the target platform(s). For plugins, also creates or refreshes the anchor skill's skill map. |
+
+For plugins, `compat` and `manifest validate` also print a portability grade. See [`plugin`](#plugin).
 
 ---
 
 ## Managing AI context
 
-`aitools context` treats the AI-mechanism files in a project (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `.cursor/skills`, `.claude/**`, MCP and hook configs, …) as a unit you can save, switch, stash, and merge, the way git treats source. The IDE still loads whatever is on disk; aitools only moves files.
+`aitools context` treats the AI-mechanism files in a project (`AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` at any depth, `.cursorrules`, `.cursor/**`, `.claude/**`, `.agents/**`, `.github/copilot-instructions.md`, MCP and hook configs) as a unit you can save, switch, stash, and merge, the way git treats source. The IDE still loads whatever is on disk; aitools only moves files.
 
 ```bash
 aitools context ls                   # what counts as AI context in this project (the catalog)
@@ -470,6 +493,55 @@ Design notes: [docs/design/context-snapshots.md](docs/design/context-snapshots.m
 
 ---
 
+## MCP server
+
+`aitools mcp` runs aitools as an MCP server over stdio. Your AI agent can then use these tools without leaving the chat:
+
+| Tool | What it does |
+|---|---|
+| `aitools_search` | Search configured registries |
+| `aitools_install` / `aitools_uninstall` | Install or remove a tool |
+| `aitools_list` | List installed tools |
+| `aitools_compat` | Check a package's platform compatibility |
+| `aitools_transform` | Convert a file from one platform's format to another's on request |
+
+```bash
+aitools mcp install          # add an "aitools" server entry to the detected IDE's project mcp.json
+aitools mcp install --user   # ...or to the user-level MCP config
+aitools mcp remove [--user]  # remove the entry again
+```
+
+The entry it writes simply runs `aitools mcp`, so the IDE starts the server for you.
+
+---
+
+## Cursor multi-root workspaces
+
+The Cursor Agent CLI (`agent`) does not accept a VS Code / Cursor `.code-workspace` file. These commands read the workspace's `folders[]`, resolve each path relative to the workspace file, and pass them to `agent` as the right flags. Comments and trailing commas in the workspace file are fine.
+
+```bash
+# Interactive agent: first folder → --workspace, the rest → --add-dir
+aitools cursor load my.code-workspace
+aitools cursor load my.code-workspace --print "summarize this repo"
+
+# Self-hosted worker: one --worker-dir per folder (the first folder is the worker's identity; max 20)
+aitools cursor worker my.code-workspace --pool --pool-name hub start
+
+# Preview the command without running it
+aitools cursor load my.code-workspace --dry-run
+```
+
+| Flag | Description |
+|---|---|
+| `--dry-run` | Print the `agent` command instead of running it |
+| `--agent-bin <bin>` | Cursor Agent binary to run (default: `agent`, or `AITOOLS_CURSOR_AGENT_BIN`) |
+
+These two flags belong to aitools and may come before or after the workspace file. Anything else after the file is passed through to `agent` (or `agent worker`). For `worker`, put worker flags before the action (`start` / `debug`). A `--` separator is optional.
+
+The same commands are available standalone as `aitools-cursor` from the `@bitgenetics/aitools-cursor` package.
+
+---
+
 ## Publishing tools
 
 ### Workflow
@@ -478,14 +550,17 @@ Design notes: [docs/design/context-snapshots.md](docs/design/context-snapshots.m
 # 1. Create the publish manifest (once)
 aitools manifest init --category skill --description "My skill"
 
-# 2. Edit aitools.json publish fields and add your files, then publish
+# 2. Choose files and install destinations (or edit files[] by hand), then publish
+aitools manifest files
 aitools publish
 
 # 3. To release an update, bump the version first
-aitools manifest bump patch     # 1.0.0 -> 1.0.1
-aitools manifest bump minor     # 1.0.0 -> 1.1.0
-aitools manifest bump major     # 1.0.0 -> 2.0.0
-aitools manifest bump 2.0.0     # explicit version
+aitools version                 # print the current version
+aitools version patch           # 1.0.0 -> 1.0.1
+aitools version minor           # 1.0.0 -> 1.1.0
+aitools version major           # 1.0.0 -> 2.0.0
+aitools version 2.0.0           # explicit version (must be higher than the current one)
+# `aitools manifest bump <release>` does the same thing
 
 # 4. Publish the new version
 aitools publish
@@ -522,7 +597,7 @@ Legacy `aitools.manifest.json` is still read with a deprecation warning — run 
   "description": "Does something useful",
   "category": "skill",
   "files": [
-    { "src": "skill.md", "dest": "my-skill.md" }
+    { "src": "SKILL.md", "dest": "my-skill/SKILL.md", "placementMode": "strict" }
   ],
   "dependencies": {
     "@team/base-skill": "^1.0.0"
@@ -535,7 +610,15 @@ Legacy `aitools.manifest.json` is still read with a deprecation warning — run 
 }
 ```
 
-`dest` is relative to the category install directory — do not repeat the category name (use `my-skill.md`, not `skills/my-skill.md`).
+`dest` is relative to the category install directory — do not repeat the category name (use `my-skill/SKILL.md`, not `skills/my-skill/SKILL.md`). `manifest init` and `manifest files` nest skill, agent, and command files under a folder named after the package by default.
+
+**`placementMode`** (per file entry) controls how `dest` maps to disk:
+
+| Mode | Where the file lands |
+|---|---|
+| `strict` (default) | Under the platform's directory for the file's category and scope, e.g. `.cursor/skills/<dest>`. Works for project and user installs and across platforms. |
+| `verbatim` | Exactly at `dest`, relative to the project root (or your home directory for user installs). Use for a custom path such as `.cursor/assets/x`. |
+| `transform` | Like `strict`, plus plugin `assets/` and `scripts/` move under a skill folder and content is converted for the target platform. |
 
 Each entry may include an optional `platform` field (`vscode`, `claude`, `cursor`, `windsurf`, or `universal`) to restrict a file to a specific IDE. When multiple entries share the same `dest`, the platform-specific entry takes precedence over an unscoped entry for the active platform. Entries for other platforms are skipped.
 
@@ -554,8 +637,11 @@ Each entry may include an optional `platform` field (`vscode`, `claude`, `cursor
 | `name` | Yes | Scoped package name (`@scope/name` or `name`) — lowercase, hyphens |
 | `version` | Yes | Semver string |
 | `description` | Yes | Short description |
-| `category` | Yes | `skill`, `subagent`, `prompt`, `mcp-tool`, or `plugin` |
-| `files` | Yes | Array of `{ src, dest, platform? }` file entries |
+| `category` | Yes | `skill`, `rule`, `command`, `agent`, `hook`, `mcp-tool`, `plugin`, or `context-profile`. `subagent` and `prompt` are still accepted as deprecated aliases for `agent` and `command`. |
+| `files` | Yes | Array of `{ src, dest, platform?, placementMode? }` file entries |
+| `nativeFor` | | Platform the files were written for (`vscode`, `claude`, `cursor`, `windsurf`, `universal`). Installs on another platform convert rule, command, agent, and hook files. Required for plugins. |
+| `platforms` | | Platforms the tool supports. Omit to support all. |
+| `mcpServer` | | MCP server entry (`command`, `args`, `env`, or `url`) for `mcp-tool` packages |
 | `keywords` | | Array of strings for search |
 | `author` | | Author name or email |
 | `repository` | | URL to the source repository |
@@ -652,8 +738,8 @@ The file supports JSONC (comments allowed):
 Open the config in your editor:
 
 ```bash
-aitools config edit           # project config
-aitools config edit --global  # user config (~/aitools.config.json)
+aitools config edit            # user config (~/aitools.config.json) — the default
+aitools config edit --project  # project config (./aitools.config.json)
 ```
 
 ---
@@ -664,49 +750,61 @@ Set `platform` in `aitools.config.json` to adapt installs to your IDE.
 
 > **Note:** When no `platform` is set, aitools uses a universal layout. Always set a `platform` value so installed files land where your IDE expects them.
 
-### `skill`
+### Files: `skill`, `rule`, `command`, `agent`
 
-| Platform | Project scope | User scope |
+| Platform | `skill` | `rule` | `command` | `agent` |
+|---|---|---|---|---|
+| `vscode` | `.github/skills` | `.github/instructions` | `.github/prompts` | `.github/agents` |
+| `claude` | `.claude/skills` | `.claude/rules` | `.claude/commands` | `.claude/agents` |
+| `cursor` | `.cursor/skills` | `.cursor/rules` | `.cursor/commands` | `.cursor/agents` |
+| `windsurf` | `.windsurf/skills` | `.devin/rules` | `.windsurf/workflows` | `.windsurf/agents` ¹ |
+| universal (no platform set) | `.agents/skills` | `.agents/rules` | `.agents/commands` | `.agents/agents` |
+
+These are project-scope paths. For user scope (`-g`):
+
+- `vscode` uses `~/.copilot/{skills,instructions,prompts,agents}`.
+- `claude`, `cursor`, and `windsurf` use the same folder names under your home directory (e.g. `~/.cursor/skills`, `~/.devin/rules`).
+- universal uses `~/.aitools/tools/{skills,rules,commands,agents}`.
+
+¹ Windsurf has no native agent format, so agents fall back to `.windsurf/agents` with a warning.
+
+`subagent` and `prompt` are deprecated aliases that install as `agent` and `command`.
+
+If a package's `nativeFor` platform differs from yours, rule, command, agent, and hook files are converted at install time. When a conversion isn't possible or is low-confidence, the CLI says so and suggests running the bundled `/aitools-convert` skill (`aitools init --with-convert-skill`).
+
+### Merged configs: `mcp-tool` and `hook`
+
+These categories don't add files. They merge entries into the platform's config file, and `uninstall` removes exactly the entries it added.
+
+| Platform | `mcp-tool` (project / user) | `hook` (project / user) |
 |---|---|---|
-| `vscode` | `.agents/skills` | `~/.copilot/skills` |
-| `claude` | `.claude/skills` | `~/.claude/skills` |
-| `cursor` | `.agents/skills` | `~/.agents/skills` |
-| `windsurf` | `.windsurf/skills` | `~/.windsurf/skills` |
-
-### `subagent`
-
-| Platform | Project scope | User scope |
-|---|---|---|
-| `vscode` | `.github/agents` | `~/.copilot/agents` |
-| `claude` | `.claude/agents` | `~/.claude/agents` |
-| `cursor` | `.agents/agents` | `~/.agents/agents` |
-| `windsurf` | `.windsurf/agents` | `~/.windsurf/agents` |
-
-### `prompt`
-
-| Platform | Project scope | User scope |
-|---|---|---|
-| `vscode` | `.agents/prompts` | `~/.copilot/prompts` |
-| `claude` | `.claude/commands` | `~/.claude/commands` |
-| `cursor` | `.agents/prompts` | `~/.agents/prompts` |
-| `windsurf` | `.windsurf/rules` | `~/.windsurf/rules` |
-
-### `mcp-tool`
-
-MCP tools inject a server entry into the platform's `mcp.json` config file.
-
-| Platform | Project config | User config |
-|---|---|---|
-| `vscode` | `.vscode/mcp.json` | `~/.vscode/mcp.json` |
-| `claude` | `.mcp.json` | `~/.claude/mcp.json` |
-| `cursor` | `.cursor/mcp.json` | `~/.cursor/mcp.json` |
-| `windsurf` | `.windsurf/mcp.json` | `~/.codeium/windsurf/mcp_config.json` |
+| `vscode` | `.vscode/mcp.json` / VS Code user-profile `mcp.json` | `.github/hooks/hooks.json` / `~/.copilot/hooks/hooks.json` |
+| `claude` | `.mcp.json` / `~/.claude.json` | `.claude/settings.json` / `~/.claude/settings.json` |
+| `cursor` | `.cursor/mcp.json` / `~/.cursor/mcp.json` | `.cursor/hooks.json` / `~/.cursor/hooks.json` |
+| `windsurf` | `.windsurf/mcp.json` / `~/.windsurf/mcp.json` | `.windsurf/hooks.json` / `~/.windsurf/hooks.json` |
+| universal | `.agents/mcp.json` / `~/.aitools/mcp.json` | not supported |
 
 ### `plugin`
 
-Plugin bundles **explode** into normal platform element paths (skills, rules, commands, agents, MCP merge, hooks merge) for the active platform and scope. Plugin-level `scripts/` and `assets/` install under a synthetic skill package. Default explode never writes whole packages to `.cursor/plugins/local/`. Use `aitools install <pkg> --cursor-plugin` for an opaque install into `~/.cursor/plugins/local/` (user scope; tracked in `~/.aitools/`).
+A plugin is a multi-file bundle (skills, rules, commands, agents, MCP servers, hooks). There are three ways to install one:
 
-`manifest validate` requires every `files[]` entry to have an install home. See [docs/design/plugin-marketplaces-comparison.md](docs/design/plugin-marketplaces-comparison.md).
+| Install | What happens |
+|---|---|
+| `aitools install <pkg>` (default) | **Explodes** the plugin: each member goes to its normal platform path from the tables above, and MCP/hook entries are merged. Plugin-level `scripts/` and `assets/` go under a skill folder. Works at project or user scope. |
+| `aitools install <pkg> --cursor-plugin` | Copies the plugin as-is into `~/.cursor/plugins/local/<name>/` for Cursor's local plugin loader. Always user scope; tracked in `~/.aitools/`. |
+| `aitools install <pkg> --plugin-bundle` | For plugin **authors**: installs a registry package (including another plugin) into your plugin's own source folders (`skills/`, `rules/`, `agents/`, `commands/`, `mcp.json`, `hooks/hooks.json`) and adds those paths to your `aitools.json` `files[]`, so they ship with your plugin. Project scope only. Fails without writing anything if a path is already taken by another package. `uninstall` removes the files and the `files[]` entries. |
+
+**Anchor skill convention.** Give the plugin one skill folder named after the package — the *anchor* — and keep shared content (`references/`, `assets/`, `scripts/`) and a skill map there. Other skills link to it with `../<anchor>/…`, which still resolves after the plugin is exploded, so no path rewriting is needed. `aitools manifest init --category plugin` and `aitools compat --fix` scaffold the anchor `SKILL.md`.
+
+`manifest validate` and `compat` grade each plugin:
+
+| Grade | Meaning |
+|---|---|
+| `path-rewrite-free` | Shared content lives under the anchor skill; installs as-is |
+| `rewrite-required` | Plugin-root `assets/` or `scripts/` need paths rewritten at install |
+| `unsupported` | Some files have no install location — publish always fails |
+
+`--plugin-bundle` only accepts nested plugins graded `path-rewrite-free`. See [Publish options](#publish-options) for how `publish` uses the grade, and [docs/design/plugin-marketplaces-comparison.md](docs/design/plugin-marketplaces-comparison.md) for background.
 
 ### `context-profile`
 
@@ -828,14 +926,14 @@ AITOOLS_DATA_DIR=./data \
 AUTH_BACKEND=simple \
 AITOOLS_ADMIN_TOKEN=secret-admin \
 AITOOLS_PUBLISH_TOKEN=secret-publish \
-node dist/index.js
+node packages/server/dist/index.js
 
 # PowerShell
 $env:AITOOLS_DATA_DIR = ".\data"
 $env:AUTH_BACKEND     = "simple"
 $env:AITOOLS_ADMIN_TOKEN   = "secret-admin"
 $env:AITOOLS_PUBLISH_TOKEN = "secret-publish"
-node dist/index.js
+node packages/server/dist/index.js
 ```
 
 | Variable | Required | Description |
@@ -868,13 +966,13 @@ Adds user registration, login, and per-user API tokens stored in a Postgres data
 AITOOLS_DATA_DIR=./data \
 DATABASE_URL=postgresql://user:pass@localhost:5432/ai_tools \
 AITOOLS_ADMIN_TOKEN=secret-admin \
-node dist/index.js
+node packages/server/dist/index.js
 
 # PowerShell
 $env:AITOOLS_DATA_DIR   = ".\data"
 $env:DATABASE_URL         = "postgresql://user:pass@localhost:5432/ai_tools"
 $env:AITOOLS_ADMIN_TOKEN = "secret-admin"
-node dist/index.js
+node packages/server/dist/index.js
 ```
 
 | Variable | Required | Description |
@@ -883,6 +981,7 @@ node dist/index.js
 | `DATABASE_URL` | Yes | Postgres connection string — triggers `AUTH_BACKEND=database` automatically |
 | `REGISTRY_ACCESS` | | `private` (default) — all reads require auth; `public` — reads are open, tools with `"private": true` are hidden |
 | `AITOOLS_ADMIN_TOKEN` | | Bearer token for the `/portal/admin` management UI |
+| `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` | | Create this admin user on startup if it doesn't exist yet (both must be set) |
 | `PORT` | | Port to listen on (default `4873`) |
 | `HOST` | | Host to bind (default `0.0.0.0`) |
 
@@ -914,7 +1013,7 @@ AZURE_STORAGE_CONTAINER=ai-tools \
 OIDC_ISSUER=https://login.microsoftonline.com/<tenant>/v2.0 \
 OIDC_AUDIENCE=api://ai-tools \
 AITOOLS_ADMIN_TOKEN=secret-admin \
-node dist/index.js
+node packages/server/dist/index.js
 ```
 
 ```bash
@@ -925,7 +1024,7 @@ AWS_S3_BUCKET=my-ai-tools-bucket \
 AWS_REGION=us-east-1 \
 OIDC_ISSUER=https://accounts.google.com \
 OIDC_AUDIENCE=my-client-id \
-node dist/index.js
+node packages/server/dist/index.js
 ```
 
 | Variable | Required | Description |
@@ -954,7 +1053,6 @@ These apply to all modes:
 | `REGISTRY_ACCESS` | `private` | `private` — all reads require a valid publisher token. `public` — reads are open; tools marked `"private": true` in their manifest are hidden from unauthenticated callers. |
 | `UPSTREAMS` | | Comma-separated `name=url` upstream registry pairs |
 | `CORS_ORIGINS` | _(deny all)_ | Comma-separated list of allowed CORS origins (e.g. `https://app.example.com`) |
-| `LOG_LEVEL` | `info` | Pino log level: `trace`, `debug`, `info`, `warn`, `error`, `fatal` |
 
 See `.env.example` in the repo root for a full reference with descriptions of every variable.
 
@@ -963,7 +1061,7 @@ See `.env.example` in the repo root for a full reference with descriptions of ev
 ```bash
 AITOOLS_DATA_DIR=/var/lib/ai-tools \
 UPSTREAMS="public=https://registry.aitools.dev" \
-node dist/index.js
+node packages/server/dist/index.js
 ```
 
 ### API Endpoints
@@ -1024,6 +1122,7 @@ ai-tools/
 ├── packages/
 │   ├── core/        # @bitgenetics/aitools-core — shared types, schemas, config cascade, lock utilities
 │   ├── cli/         # @bitgenetics/aitools-cli  — the `aitools` CLI
+│   ├── cursor/      # @bitgenetics/aitools-cursor — `.code-workspace` → Cursor Agent CLI helpers (`aitools cursor`)
 │   ├── server/      # @bitgenetics/aitools-server — self-hosted HTTP registry
 │   └── e2e/         # @bitgenetics/aitools-e2e  — end-to-end tests (HTTP + Gitea git registry)
 ├── tsconfig.base.json
@@ -1038,7 +1137,7 @@ ai-tools/
 # Install dependencies
 npm install
 
-# Build all packages (order matters: core -> cli -> server)
+# Build all packages (order matters: core -> cursor -> cli -> server)
 npm run build
 
 # Run tests
