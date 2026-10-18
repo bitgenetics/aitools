@@ -68,9 +68,10 @@ jobs:
         if: always()
         run: docker compose -f docker-compose.e2e.yml down -v
 
-  # Every green push to main: if CHANGELOG.md [Unreleased] has bullets, bump the workspaces,
-  # promote [Unreleased], and create the release commit + tag through the GitHub API (signed).
-  # That commit triggers its own CI run, whose `ship` job publishes it.
+  # Every green push to main: if the Conventional Commits since the last tag call for a
+  # release, bump the workspaces, promote CHANGELOG.md [Unreleased], and create the release
+  # commit + tag through the GitHub API (signed). That commit triggers its own CI run, whose
+  # `ship` job publishes it; its own `cut` sees no commits past the new tag and stops.
   cut:
     name: Cut release
     if: github.event_name == 'push'
@@ -81,6 +82,8 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -91,10 +94,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Release plan from CHANGELOG.md
+      - name: Release plan from the commits since the last tag
         id: plan
         run: |
-          node scripts/changelog.cjs plan | tee -a "$GITHUB_OUTPUT" > "$RUNNER_TEMP/plan.txt"
+          node scripts/release/plan.cjs | tee -a "$GITHUB_OUTPUT" > "$RUNNER_TEMP/plan.txt"
           printf '### Release plan\n```\n%s\n```\n' "$(cat "$RUNNER_TEMP/plan.txt")" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Mint release token

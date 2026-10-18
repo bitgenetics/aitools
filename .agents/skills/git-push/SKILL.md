@@ -1,9 +1,10 @@
 ---
 name: git-push
 description: >-
-  Ship work on the aitools repo: PR flow, CHANGELOG.md [Unreleased] bullets, and
-  the automatic release pipeline. Use when the user asks to push, open a PR,
-  publish to npm, ship a release, or run version:patch.
+  Ship work on the aitools repo: Conventional Commit messages, CHANGELOG.md
+  [Unreleased] notes, PR flow and the automatic release pipeline. Use when the
+  user asks to commit, push, open a PR, publish to npm, ship a release, or run
+  version:patch.
 metadata:
   project: aitools
 ---
@@ -12,38 +13,45 @@ How work lands and gets released on `bitgenetics/aitools`.
 
 ## The one rule
 
-**Releases are automatic and driven by `CHANGELOG.md`.** You never choose a bump
-level; you describe the change under `## [Unreleased]` and the pipeline derives it:
+**Commit subjects decide the version; `CHANGELOG.md` describes it.** Every commit
+follows Conventional Commits: `<type>(<scope>)!: <description>`. The pipeline takes
+the strongest level among the commits since the last tag (merge commits ignored):
 
-| `[Unreleased]` contains | Release |
+| Commit | Release |
 |---|---|
-| a bullet starting `**Breaking:**` (any subsection) | major |
-| a bullet under `### Added` | minor |
-| any other bullet | patch |
-| no bullets | none (docs-only merges release nothing) |
+| `!` after the type/scope, or a `BREAKING CHANGE: …` footer | major |
+| `feat` | minor |
+| `fix`, `perf`, `revert` | patch |
+| `build`, `chore`, `ci`, `docs`, `refactor`, `style`, `test` | none |
 
-Write bullets in user language (command, flag, file names — not internals) under
-one of `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`. Prefix
-`**Breaking:**` when existing usage would fail without user action.
+Label commits by what they do to users of the published packages, not by effort:
+a new flag is `feat`, a behaviour change users must adapt to is `feat!` or `fix!`
+with a `BREAKING CHANGE:` footer, a bug fix is `fix`, everything else is a
+non-releasing type. Unknown types fail the PR gate.
+
+Whenever a commit is `feat`, `fix` or breaking, also add **one bullet** under
+`## [Unreleased]` in `CHANGELOG.md` (`Added`, `Changed`, `Deprecated`, `Removed`,
+`Fixed` or `Security`) in user language — command, flag and file names, not
+internals. Prefix `**Breaking:**` for breaking changes. A release without notes
+ships with a placeholder line, and the gate warns about it.
 
 ## Normal workflow (PR)
 
 `main` is protected: changes arrive by PR, and the PR needs `Test`, `E2E Tests`
-and `Changelog` green.
+and `Release gate` green.
 
-1. Branch, commit, push the branch, open the PR (`gh pr create`).
-2. If the PR touches `packages/{core,cursor,cli}/src` (tests excluded), it must
-   also add to `[Unreleased]`, or the `Changelog` check fails. Apply the
-   `no-changelog` label only for changes with no user-visible effect.
-3. The `Changelog` job summary shows the version that merging would produce —
-   read it; a forgotten `**Breaking:**` shows up there as a minor.
-4. The user merges. CI then: merge run → `Cut release` (bump, promote,
+1. Branch, commit (conventional subjects), push the branch, open the PR with a
+   conventional title (`gh pr create`); the title becomes the commit on a squash
+   merge, so it must carry the `!` if the PR is breaking.
+2. The `Release gate` job summary shows the version that merging would produce —
+   read it; a forgotten `!` shows up there as a minor.
+3. The user merges. CI then: merge run → `Cut release` (bump, promote,
    signed `chore(release): vX.Y.Z` commit + tag via the release App) → release
    commit's run → `Ship release` (GHCR image, npm core → cursor → cli, GitHub
    Release). Two CI runs per release.
 
 Before pushing, run `npm run verify` (typecheck + unit tests + release-script
-tests) locally.
+tests) locally. `node scripts/release/plan.cjs` prints what the branch would release.
 
 ## Manual release (admin only)
 
@@ -55,7 +63,7 @@ npm run version:patch   # or version:minor / version:major
 
 `scripts/release.cjs` needs a clean tree at the tip of `main`, runs `verify`,
 then bumps and promotes exactly as CI would and pushes branch + tag atomically.
-The level may raise but never lower what `[Unreleased]` implies. CI still ships it.
+The level may raise but never lower what the commits imply. CI still ships it.
 
 ## Git safety
 

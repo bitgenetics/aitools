@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * CHANGELOG.md model (Keep a Changelog): parse, derive the next release level
- * from [Unreleased], promote [Unreleased] to a version, render release notes.
+ * CHANGELOG.md model (Keep a Changelog): parse, validate against the package version,
+ * promote [Unreleased] to a version, render release notes. The release *level* is not
+ * decided here — see scripts/commits.cjs and scripts/release/plan.cjs.
  *
  * Pure functions, plus a small CLI used by CI and the release scripts:
- *   node scripts/changelog.cjs plan                 → level=…, previous=…, next=…
+ *   node scripts/changelog.cjs validate             → top release matches packages/core version
  *   node scripts/changelog.cjs unreleased [file]    → the [Unreleased] body (LF-normalised)
  *   node scripts/changelog.cjs notes <version>      → release notes for that version
  */
@@ -18,11 +19,9 @@ const CHANGELOG_PATH = path.join(__dirname, '..', 'CHANGELOG.md');
 const CORE_PACKAGE_JSON = path.join(__dirname, '..', 'packages', 'core', 'package.json');
 
 const UNRELEASED_LABEL = 'Unreleased';
-/** A bullet starting with this marker makes the next release a major version. */
-const BREAKING_MARKER = '**Breaking:**';
 const SUBSECTIONS = ['Added', 'Changed', 'Deprecated', 'Removed', 'Fixed', 'Security'];
-/** Ordered weakest to strongest; `none` means "nothing to release". */
-const LEVELS = ['none', 'patch', 'minor', 'major'];
+/** Written into a release section when a releasing commit landed without release notes. */
+const NO_NOTES_LINES = ['### Changed', '- No release notes were recorded for this version; see the commit history.'];
 
 const SECTION_HEADING = /^## \[([^\]]+)\](?: - (\d{4}-\d{2}-\d{2}))?\s*$/;
 const SUBSECTION_HEADING = /^### (.+?)\s*$/;
@@ -95,12 +94,8 @@ function bullets(lines) {
   return out;
 }
 
-function deriveLevel(lines) {
-  const items = bullets(lines);
-  if (items.length === 0) return 'none';
-  if (items.some((b) => b.text.startsWith(BREAKING_MARKER))) return 'major';
-  if (items.some((b) => b.subsection === 'Added')) return 'minor';
-  return 'patch';
+function hasBullets(lines) {
+  return bullets(lines).length > 0;
 }
 
 function nextVersion(current, level) {
@@ -119,8 +114,8 @@ function nextVersion(current, level) {
   }
 }
 
-/** What a release would do right now. Throws when the changelog and package versions disagree. */
-function plan(text, packageVersion) {
+/** Parses and checks that the newest released section is the version the packages carry. */
+function validate(text, packageVersion) {
   const parsed = parseChangelog(text);
   const latest = releases(parsed)[0];
   if (!latest || latest.label !== packageVersion) {
@@ -128,8 +123,7 @@ function plan(text, packageVersion) {
       `CHANGELOG.md top release is ${latest ? latest.label : 'missing'} but packages are at ${packageVersion}; they must match before a release.`,
     );
   }
-  const level = deriveLevel(unreleasedSection(parsed).lines);
-  return { level, previous: packageVersion, next: level === 'none' ? null : nextVersion(packageVersion, level) };
+  return parsed;
 }
 
 function trimBlankEdges(lines) {
@@ -144,16 +138,18 @@ function compareUrl(from, to) {
   return `${REPO_URL}/compare/${from}...${to}`;
 }
 
-/** Move the [Unreleased] body under a new "## [version] - date" heading and fix the compare links. */
+/**
+ * Move the [Unreleased] body under a new "## [version] - date" heading and fix the compare
+ * links. An empty [Unreleased] yields a placeholder note, so a release that the commits
+ * require never blocks on missing prose.
+ */
 function promote(text, version, date) {
   const parsed = parseChangelog(text);
   const unreleased = unreleasedSection(parsed);
-  if (deriveLevel(unreleased.lines) === 'none') {
-    throw new Error(`Nothing to promote: [${UNRELEASED_LABEL}] has no bullets.`);
-  }
   const previous = releases(parsed)[0];
   if (!previous) throw new Error('CHANGELOG.md needs at least one released version to link from.');
   if (parsed.sections.some((s) => s.label === version)) throw new Error(`CHANGELOG.md already has a [${version}] section.`);
+  const body = hasBullets(unreleased.lines) ? trimBlankEdges(unreleased.lines) : NO_NOTES_LINES;
 
   const out = [...parsed.head];
   for (const section of parsed.sections) {
@@ -163,7 +159,7 @@ function promote(text, version, date) {
       out.push(...section.lines);
       continue;
     }
-    out.push('', `## [${version}] - ${date}`, '', ...trimBlankEdges(section.lines), '');
+    out.push('', `## [${version}] - ${date}`, '', ...body, '');
   }
 
   const links = parsed.links.map((l) =>
@@ -199,9 +195,10 @@ function readPackageVersion() {
 function cli(argv) {
   const [verb, arg] = argv;
   switch (verb) {
-    case 'plan': {
-      const p = plan(fs.readFileSync(CHANGELOG_PATH, 'utf8'), readPackageVersion());
-      return `level=${p.level}\nprevious=${p.previous}\nnext=${p.next ?? ''}\n`;
+    case 'validate': {
+      const version = readPackageVersion();
+      validate(fs.readFileSync(CHANGELOG_PATH, 'utf8'), version);
+      return `CHANGELOG.md is consistent with version ${version}.\n`;
     }
     case 'unreleased':
       return unreleased(fs.readFileSync(arg ?? CHANGELOG_PATH, 'utf8')) + '\n';
@@ -209,7 +206,7 @@ function cli(argv) {
       if (!arg) throw new Error('Usage: changelog.cjs notes <version>');
       return notes(fs.readFileSync(CHANGELOG_PATH, 'utf8'), arg);
     default:
-      throw new Error('Usage: node scripts/changelog.cjs <plan | unreleased [file] | notes <version>>');
+      throw new Error('Usage: node scripts/changelog.cjs <validate | unreleased [file] | notes <version>>');
   }
 }
 
@@ -226,14 +223,12 @@ module.exports = {
   REPO_URL,
   CHANGELOG_PATH,
   CORE_PACKAGE_JSON,
-  BREAKING_MARKER,
   SUBSECTIONS,
-  LEVELS,
   parseChangelog,
   bullets,
-  deriveLevel,
+  hasBullets,
   nextVersion,
-  plan,
+  validate,
   promote,
   notes,
   unreleased,

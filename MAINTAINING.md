@@ -21,7 +21,7 @@ This document covers ongoing maintenance tasks for contributors and project owne
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml      — Test + E2E on every PR and push to main; on main also cuts and ships releases
-│       ├── changelog-gate.yml — required PR check: CHANGELOG.md parses; source changes need an [Unreleased] bullet
+│       ├── release-gate.yml — required PR check: commits and PR title follow Conventional Commits; CHANGELOG.md parses
 │       └── docker.yml  — PR-only: image builds and runs as non-root (GHCR push lives in ci.yml `ship`)
 ├── scripts/
 │   ├── changelog.cjs   — CHANGELOG.md model: plan / unreleased / notes (used by CI and release scripts)
@@ -273,20 +273,20 @@ Platform packages use the **`aitools-` prefix** under the `@bitgenetics` npm org
 
 ### Release workflow
 
-Releases are automatic. `CHANGELOG.md` is the single source of truth for *whether* and *how much* to release:
+Releases are automatic. The [Conventional Commits](https://www.conventionalcommits.org/) since the last release tag decide *whether* and *how much* to release; `CHANGELOG.md` `[Unreleased]` holds the release notes.
 
-| `[Unreleased]` contains | Next version |
+| Commits since `v<current>` (merge commits ignored) | Next version |
 |---|---|
-| a bullet starting `**Breaking:**` (any subsection) | major |
-| a bullet under `### Added` | minor |
-| any other bullet | patch |
-| no bullets | nothing is released |
+| any with `!` after the type/scope, or a `BREAKING CHANGE:` footer | major |
+| any `feat` | minor |
+| any `fix`, `perf` or `revert` | patch |
+| only `build`, `chore`, `ci`, `docs`, `refactor`, `style`, `test` | nothing is released |
 
-Every PR must keep `[Unreleased]` current — the `Changelog` check fails when `packages/{core,cursor,cli}/src` changes without a new bullet (apply the `no-changelog` label to opt out). The check's job summary shows the version that merging would produce.
+The `Release gate` PR check fails when a commit in the PR, or the PR title (the commit on a squash merge), is not conventional. It also validates `CHANGELOG.md`, prints the version that merging would produce in its job summary, and warns when the merge would release without a change to `[Unreleased]` (the release then carries a placeholder note). Write bullets under `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed` or `Security` in user language; prefix `**Breaking:**` for breaking changes.
 
 On every push to `main` that passes `Test` and `E2E Tests`, `ci.yml` runs two idempotent jobs:
 
-1. **Cut release** — if `[Unreleased]` has bullets: `npm version <next> --workspaces`, promote `[Unreleased]` to `## [<next>] - <date>`, and create the commit `chore(release): v<next>` plus tag `v<next>` through the GitHub API using the `aitools-release` App (so the commit is signed and allowed through the `main` ruleset). That commit triggers its own CI run.
+1. **Cut release** — if the commits since the tag require a release: `npm version <next> --workspaces`, promote `[Unreleased]` to `## [<next>] - <date>`, and create the commit `chore(release): v<next>` plus tag `v<next>` through the GitHub API using the `aitools-release` App (so the commit is signed and allowed through the `main` ruleset). That commit triggers its own CI run, whose `cut` finds no commits past the new tag and stops.
 2. **Release check → Ship release** — if `HEAD` is tagged `v<package version>` and no GitHub Release exists yet: push the registry image to GHCR (`:v<version>`, `:latest`), publish `@bitgenetics/aitools-core` → `-cursor` → `-cli` with provenance (`.github/scripts/publish-npm.sh`, skips versions already on npm), then create the GitHub Release from that version's changelog section. The Release is created last, so a failed run can simply be re-run.
 
 Expect two CI runs per release: the merge commit's run cuts, the release commit's run ships. Docs-only merges release nothing.
@@ -297,7 +297,7 @@ Expect two CI runs per release: the merge commit's run cuts, the release commit'
 npm run version:patch          # or version:minor / version:major
 ```
 
-`scripts/release.cjs` requires a clean tree at the tip of `main`, runs `npm run verify` first, bumps and promotes exactly as CI would, then commits, tags and `git push --atomic`s branch + tag. The requested level may raise but never lower what `[Unreleased]` implies. CI ships it on the pushed commit's run.
+`scripts/release.cjs` requires a clean tree at the tip of `main`, runs `npm run verify` first, bumps and promotes exactly as CI would, then commits, tags and `git push --atomic`s branch + tag. The requested level may raise but never lower what the commits imply. CI ships it on the pushed commit's run.
 
 **Recovery**
 
@@ -305,7 +305,7 @@ npm run version:patch          # or version:minor / version:major
 - Release commit exists but the tag does not (API tag step failed): `gh api -X POST repos/bitgenetics/aitools/git/refs -f ref=refs/tags/vX.Y.Z -f sha=<commit>`, then re-run the commit's CI run.
 - `Cut release` failed because `main` moved: nothing to do — the newer push's run releases everything.
 
-**One-time setup** (done 2026-10-18): GitHub App `aitools-release` (Contents: read & write) installed on this repo; secrets `RELEASE_APP_ID`, `RELEASE_APP_PRIVATE_KEY`, `NPM_TOKEN`; label `no-changelog`; `main` ruleset requires a PR with `Test`, `E2E Tests`, `Changelog` passing, with the App and the admin role as bypass actors.
+**One-time setup** (done 2026-10-18): GitHub App `aitools-release` (Contents: read & write) installed on this repo; secrets `RELEASE_APP_ID`, `RELEASE_APP_PRIVATE_KEY`, `NPM_TOKEN`; `main` ruleset requires a PR with `Test`, `E2E Tests`, `Release gate` passing, with the App and the admin role as bypass actors.
 
 ---
 

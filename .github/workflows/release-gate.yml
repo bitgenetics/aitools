@@ -1,0 +1,55 @@
+name: Release gate
+
+# Required PR check. Commits decide the release level, so every commit in the PR (and the
+# PR title, which becomes the commit on a squash merge) must follow Conventional Commits.
+# CHANGELOG.md must parse and match the package version; it only supplies the notes, so a
+# missing [Unreleased] entry is a warning, not a failure. No `paths:` filter on purpose —
+# a required check that never reports would block the PR forever.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Release gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Commits follow Conventional Commits
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/commits.cjs check "$BASE..HEAD"
+
+      - name: PR title follows Conventional Commits (used on squash merge)
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: node scripts/commits.cjs check-subject "$TITLE"
+
+      - name: Release plan (validates CHANGELOG.md; shows what merging would release)
+        id: plan
+        run: |
+          node scripts/release/plan.cjs | tee -a "$GITHUB_OUTPUT" > "$RUNNER_TEMP/plan.txt"
+          printf '### Release plan after merge\n```\n%s\n```\n' "$(cat "$RUNNER_TEMP/plan.txt")" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Releasing commits should come with release notes
+        if: steps.plan.outputs.level != 'none'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git show "$BASE:CHANGELOG.md" > "$RUNNER_TEMP/base-changelog.md"
+          if cmp -s <(node scripts/changelog.cjs unreleased "$RUNNER_TEMP/base-changelog.md") <(node scripts/changelog.cjs unreleased CHANGELOG.md); then
+            echo "::warning file=CHANGELOG.md::Merging releases ${{ steps.plan.outputs.next }} but [Unreleased] is unchanged; add a bullet (Added/Changed/Deprecated/Removed/Fixed/Security) or the release ships with a placeholder note."
+          else
+            echo "[Unreleased] changed; OK."
+          fi

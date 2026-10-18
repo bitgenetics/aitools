@@ -1050,7 +1050,7 @@ npm run test:coverage
 
 ### Releases
 
-Releases are automatic: add a bullet under `[Unreleased]` in [CHANGELOG.md](CHANGELOG.md) with your change, and once the PR merges and CI is green, a release is cut, published to npm and GHCR, and announced as a GitHub Release. `**Breaking:**` bullets make a major version, `### Added` a minor, anything else a patch. Details in [MAINTAINING.md](MAINTAINING.md#release-workflow).
+Releases are automatic: write [Conventional Commits](https://www.conventionalcommits.org/) (`feat` → minor, `fix` → patch, `!` → major) and describe the change under `[Unreleased]` in [CHANGELOG.md](CHANGELOG.md). Once the PR merges and CI is green, a release is cut, published to npm and GHCR, and announced as a GitHub Release. Details in [MAINTAINING.md](MAINTAINING.md#release-workflow).
 
 ### Unit / integration tests
 

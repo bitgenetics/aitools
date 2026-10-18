@@ -4,7 +4,7 @@
  * then commit, tag and push with local git. Run via `npm run version:<level>` so `verify`
  * runs first. CI ships the release once Test and E2E pass on the pushed commit.
  *
- *   node scripts/release.cjs [patch|minor|major]   (level may raise, never lower, what CHANGELOG.md implies)
+ *   node scripts/release.cjs [patch|minor|major]   (level may raise, never lower, what the commits since the last tag imply)
  */
 'use strict';
 

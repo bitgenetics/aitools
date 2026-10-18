@@ -151,14 +151,14 @@ After adding, **update `index.md`**:
 
 ### 3b. User-visible change → `CHANGELOG.md`
 
-This folder records *why*; the root `CHANGELOG.md` records *what changed for users*, per version, and **drives releases**: a merge to `main` releases automatically, with the level derived from `[Unreleased]` (`**Breaking:**` bullet → major, `### Added` → minor, anything else → patch, no bullets → no release).
+This folder records *why*; the root `CHANGELOG.md` records *what changed for users*, per version. A merge to `main` releases automatically; the **level comes from the Conventional Commit subjects** (`feat` → minor, `fix` → patch, `!` / `BREAKING CHANGE:` → major; see the `git-push` skill), and `[Unreleased]` becomes that version's release notes.
 
 Whenever an entry here describes behaviour a user of the published packages can see (CLI commands/flags, config or lock format, install paths, registry behaviour), also add **one bullet** under `## [Unreleased]` in `CHANGELOG.md`:
 
 - Pick one subsection: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - Write it in user language — command, flag and file names, not module names.
-- Prefix `**Breaking:**` when existing usage or config would fail without user action.
-- The `Changelog` PR check fails when `packages/{core,cursor,cli}/src` changes without a new bullet (label `no-changelog` to opt out).
+- Prefix `**Breaking:**` when existing usage or config would fail without user action, and make sure the commit carries `!`.
+- The `Release gate` PR check warns when the PR's commits would release without a change to `[Unreleased]`; the release then ships with a placeholder note.
 
 ---
 

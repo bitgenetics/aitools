@@ -5,10 +5,11 @@ All notable user-facing changes to the published `@bitgenetics/aitools-core`,
 here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
-Releases are cut automatically from the `[Unreleased]` section: a bullet that starts
-with `**Breaking:**` makes the next release a major version, a non-empty `### Added`
-makes it a minor version, anything else is a patch. Releases before 3.4.0 are
-recorded only as git tags.
+Releases are cut automatically on `main`. The version comes from the
+[Conventional Commits](https://www.conventionalcommits.org/) since the previous
+release (`feat` → minor, `fix` → patch, `!` or `BREAKING CHANGE:` → major); this file
+holds the release notes, with breaking changes prefixed `**Breaking:**`. Releases
+before 3.4.0 are recorded only as git tags.
 
 ## [Unreleased]
 
