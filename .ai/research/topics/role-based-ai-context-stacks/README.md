@@ -27,5 +27,5 @@ Research whether complex / monorepo codebases need the ability to swap or tempor
 - [x] Catalog vendor + community mechanisms (profiles, modes, excludes, overrides)
 - [x] Assess real-world evidence for auditor / bring-your-own-rules workflows
 - [x] Map gaps to AITools product surface (summary)
-- [ ] Optional: design spike for `aitools context` / profile command
-- [ ] Review date: 2026-08-22
+- [x] Design spike for `aitools context` — shipped as quarantine swap (2026-07-22), redesigned as git-style snapshots (`save` / `switch` / `stash` / `merge` / `pull` / `push`) on 2026-10-18; see `docs/design/context-snapshots.md`
+- [ ] Review date: 2027-01-18 — revisit per-mechanism ops and structured MCP/hooks merge (follow-ups in the design doc)

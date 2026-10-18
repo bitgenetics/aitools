@@ -13,88 +13,75 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-/** How a context profile is applied relative to the stay-set. */
-export type ContextSwapMode = 'replace' | 'overlay';
+/** Where a named snapshot lives. Mirrors the settings model: user is the default, project overrides on read. */
+export type ContextScope = 'user' | 'project';
 
-export interface ContextBaselineConfig {
-  /** Optional registry package name for baseline bootstrap/fallback. */
-  package?: string;
-  /** Optional local snapshot id from `context capture`. */
-  snapshotId?: string;
-}
-
-export interface ContextProfileConfig {
-  /** Registry package name (`category: context-profile`). */
-  package: string;
-  mode: ContextSwapMode;
-}
-
-/** Optional `context` block on project `aitools.json`. */
-export interface AiToolsContextConfig {
-  baseline?: ContextBaselineConfig;
-  /** Project-relative globs/paths that must never be quarantined (overlay stay-set). */
-  stay?: string[];
-  profiles?: Record<string, ContextProfileConfig>;
-}
-
-export type AiMechKind =
-  | 'agents-md'
-  | 'claude-md'
-  | 'cursor-rule'
-  | 'cursor-skill'
-  | 'cursor-agent'
-  | 'cursor-command'
-  | 'claude-tree'
-  | 'agents-tree'
-  | 'mcp-config'
+/** Kind of AI mechanism a cataloged path is. `classify()` in catalog.ts is the single authority. */
+export type CatalogKind =
+  | 'instructions'
+  | 'rule'
+  | 'skill'
+  | 'agent'
+  | 'command'
   | 'hooks-config'
-  | 'other';
+  | 'mcp-config'
+  | 'settings'
+  | 'vendor-tree';
 
-export interface AiMechEntry {
+export interface CatalogEntry {
   /** Project-relative POSIX path. */
   path: string;
-  kind: AiMechKind;
-  /** True when path matches authored stay globs. */
-  stay: boolean;
+  kind: CatalogKind;
 }
 
-export interface AiMechInventory {
+/** Deterministic list of managed AI-mech paths under a root, minus `context.ignore` matches. */
+export interface Catalog {
   root: string;
-  generatedAt: string;
-  entries: AiMechEntry[];
+  entries: CatalogEntry[];
+  /** Paths that classified as AI-mech but were excluded by `context.ignore`. Never touched. */
+  ignored: string[];
 }
 
-export interface QuarantineMove {
-  /** Project-relative original path. */
-  from: string;
-  /** Path relative to quarantine dir (mirrors from). */
-  to: string;
+export interface SnapshotFile {
+  path: string;
+  sha256: string;
 }
 
-export interface QuarantineManifest {
-  id: string;
-  createdAt: string;
-  root: string;
-  moves: QuarantineMove[];
-}
-
-export interface ContextLockProfile {
-  name: string;
+/** Registry package a snapshot was imported from. */
+export interface SnapshotOrigin {
   package: string;
   version: string;
-  resolved: string;
-  integrity: string;
-  files: string[];
-  installedAt: string;
+  registry: string;
 }
 
-/** Top-level `context` on `aitools-lock.json` (optional; lockfileVersion stays 1). */
-export interface AiToolsContextLock {
-  activeProfile: string | null;
-  quarantineId?: string;
-  moves?: QuarantineMove[];
-  snapshotId?: string;
-  fileHashes?: Record<string, string>;
-  baselinePackage?: string;
-  profile?: ContextLockProfile;
+/** `manifest.json` inside a snapshot folder. */
+export interface SnapshotManifest {
+  /** Null for stash entries. */
+  label: string | null;
+  createdAt: string;
+  origin?: SnapshotOrigin;
+  files: SnapshotFile[];
+}
+
+/** A resolved snapshot location. */
+export interface SnapshotRef {
+  label: string;
+  scope: ContextScope;
+  dir: string;
+}
+
+/**
+ * Project-local record of what the tool last saved or applied.
+ * `files` is the clean baseline: the working tree is dirty when it differs from these hashes.
+ */
+export interface ContextState {
+  active: string | null;
+  scope: ContextScope | null;
+  files: SnapshotFile[];
+}
+
+/** `context` block on project `aitools.json`. */
+export interface AiToolsContextConfig {
+  /** Globs for paths that are outside the catalog: never read, copied, or deleted. */
+  ignore?: string[];
 }

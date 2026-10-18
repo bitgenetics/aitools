@@ -26,6 +26,7 @@ Think `npm` but for the AI tooling ecosystem. Tools can be scoped to a project (
   - [Enterprise multi-registry](#4-enterprise-multi-registry)
   - [Developing AITools](#5-developing-aitools)
 - [CLI reference](#cli-reference)
+- [Managing AI context](#managing-ai-context)
 - [Publishing tools](#publishing-tools)
 - [Project files](#project-files)
 - [Tool categories & install paths](#tool-categories--install-paths)
@@ -346,6 +347,7 @@ aitools dev-init
 | `aitools publish` | Publish the tool to a registry |
 | `aitools publish --dry-run` | Validate without uploading |
 | `aitools compat` | Audit platform compatibility of a tool package |
+| `aitools context <save\|switch\|stash\|pop\|merge\|…>` | Save and switch snapshots of the project's AI-mech files — see [Managing AI context](#managing-ai-context) |
 
 ### Install options
 
@@ -429,6 +431,42 @@ aitools dev-init
 | `-m, --manifest <path>` | Path to manifest file (default: `./aitools.json`) |
 | `-p, --platform <platform>` | Check a specific platform only |
 | `--fix` | Rewrite the SKILL.md file, stripping frontmatter fields unsupported on the target platform(s) |
+
+---
+
+## Managing AI context
+
+`aitools context` treats the AI-mechanism files in a project (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `.cursor/skills`, `.claude/**`, MCP and hook configs, …) as a unit you can save, switch, stash, and merge, the way git treats source. The IDE still loads whatever is on disk; aitools only moves files.
+
+```bash
+aitools context ls                   # what counts as AI context in this project (the catalog)
+aitools context save dev             # snapshot the current files as "dev" (becomes active)
+aitools context pull @org/auditor    # import a registry context-profile as a snapshot
+aitools context switch auditor       # replace the whole catalog with "auditor"
+aitools context switch dev           # and back — exact bytes
+aitools context status               # active snapshot, unsaved changes, stash depth
+```
+
+| Command | What it does |
+|---|---|
+| `ls` / `status` / `list` / `show <label>` | Read-only: catalog, state, saved snapshots, a snapshot vs working tree. `--json` on each. |
+| `save <label> [--project]` | Snapshot the working tree. Default scope is **user** (`~/.aitools/context/`, usable in any project); `--project` writes `./.aitools/context/` (committable). The label becomes active. |
+| `switch <label>` | **Replace** the whole catalog with the snapshot. Never merges. |
+| `stash` / `pop` | Unlabeled LIFO stack, project-local. `stash` leaves files in place; `pop` replaces the tree and drops the entry. |
+| `clear` | Remove every cataloged file. |
+| `merge <label> [--overwrite]` | Copy a snapshot's files over the working tree. Conflicts (same path, different content) abort unless `--overwrite`. Active snapshot is unchanged. |
+| `drop` / `rename` | Snapshot housekeeping. |
+| `pull <pkg> [--as <label>]` / `push <label> <pkg>` | Registry `context-profile` ⇄ local snapshot. `pull` never switches. |
+
+Rules worth knowing:
+
+- `switch`, `pop`, and `clear` refuse to run when the working tree differs from the last `save`/`stash`/`switch`. Save or stash first, or pass `--discard`. Git is not involved: the check is by file hash, and it works in a directory with no repo.
+- `context.ignore` in `aitools.json` (glob list) takes paths out of the catalog entirely. They are never read, copied, or deleted by any `context` command.
+- A project label shadows a user label of the same name.
+- Every snapshot file must be a known AI-mech path inside the project; a `context-profile` package with a `dest` like `../x` fails the `pull` before anything is written.
+- `--dry-run` on `switch`, `pop`, `clear`, and `merge` prints the plan without touching disk.
+
+Design notes: [docs/design/context-snapshots.md](docs/design/context-snapshots.md).
 
 ---
 
@@ -669,6 +707,10 @@ MCP tools inject a server entry into the platform's `mcp.json` config file.
 Plugin bundles **explode** into normal platform element paths (skills, rules, commands, agents, MCP merge, hooks merge) for the active platform and scope. Plugin-level `scripts/` and `assets/` install under a synthetic skill package. Default explode never writes whole packages to `.cursor/plugins/local/`. Use `aitools install <pkg> --cursor-plugin` for an opaque install into `~/.cursor/plugins/local/` (user scope; tracked in `~/.aitools/`).
 
 `manifest validate` requires every `files[]` entry to have an install home. See [docs/design/plugin-marketplaces-comparison.md](docs/design/plugin-marketplaces-comparison.md).
+
+### `context-profile`
+
+The registry form of an AI context snapshot. Not installed with `aitools install` (it is rejected with a pointer); import it with `aitools context pull <pkg>` and apply with `aitools context switch`. Author one from a working tree with `aitools context save <label>` then `aitools context push <label> <pkg>`. See [Managing AI context](#managing-ai-context).
 
 ---
 

@@ -69,28 +69,23 @@ The hub is for **shared, agent-readable** content — not a catch-all for every 
 
 Single-skill plugins use the same shape: one `skills/<name>/SKILL.md` that is both the anchor and the only skill.
 
-## Context-profile packages (role stacks)
+## Context-profile packages (AI context snapshots)
 
-`category: "context-profile"` packages are **tree overlays** of AI-mech paths (rules, skills, agents, `AGENTS.md`, etc.). They are consumed by `aitools context swap`, not exploded like plugins.
+`category: "context-profile"` packages are the **registry form of an AI context snapshot**: a set of AI-mech files (rules, skills, agents, `AGENTS.md`, etc.). Consumers import one with `aitools context pull <pkg>` (creates a local snapshot; never switches) and apply it with `aitools context switch <label>`. They are not exploded like plugins and `aitools install` rejects them.
 
-- Each `files[]` entry uses a **project-relative** `dest` (e.g. `.cursor/rules/role.mdc`, `AGENTS.md`). Prefer `placementMode: "verbatim"`.
-- Requires a CLI that understands `context-profile` (older CLIs reject the category).
-- Consumer projects author stay/baseline/profiles under optional `aitools.json` → `context`:
+- Each `files[]` entry uses a **project-relative** `dest` that is a known AI-mech path (e.g. `.cursor/rules/role.mdc`, `AGENTS.md`). A `dest` outside the project or outside the catalog fails the pull before anything is written. Prefer `placementMode: "verbatim"`.
+- The easiest way to author one is from a working tree: `aitools context save <label>` then `aitools context push <label> <pkg>`.
+- Consumer projects may exclude paths from snapshot management under optional `aitools.json` → `context.ignore`:
 
 ```json
 {
   "context": {
-    "baseline": { "package": "my-project-baseline" },
-    "stay": ["AGENTS.md", ".cursor/rules/local/**"],
-    "profiles": {
-      "researcher": { "package": "role-researcher", "mode": "overlay" },
-      "ship": { "package": "role-ship", "mode": "replace" }
-    }
+    "ignore": [".cursor/mcp.json", ".cursor/rules/local/**"]
   }
 }
 ```
 
-Overlay stay must be authored (or proposed via `propose-context-stay` then `aitools context accept-stay`). Every swap quarantines displaced files under `.aitools/context-quarantine/` (primary restore).
+Ignored paths are never read, copied, or deleted by any `aitools context` command.
 
 ## Optional fields
 

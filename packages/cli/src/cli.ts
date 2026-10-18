@@ -37,7 +37,10 @@ const program = new Command();
 program
   .name('aitools')
   .description('AITools — package manager for AI skills, rules, commands, agents, hooks, and MCP tools')
-  .version(CLI_VERSION);
+  .version(CLI_VERSION)
+  // Root options are only recognised before the subcommand name, so subcommands can
+  // define their own `--version` (install, context push) without triggering this one.
+  .enablePositionalOptions();
 
 program.addCommand(createInitCommand());
 program.addCommand(createDevInitCommand());

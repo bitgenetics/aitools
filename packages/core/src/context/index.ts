@@ -14,80 +14,91 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 export type {
-  ContextSwapMode,
-  ContextBaselineConfig,
-  ContextProfileConfig,
+  ContextScope,
+  CatalogKind,
+  CatalogEntry,
+  Catalog,
+  SnapshotFile,
+  SnapshotOrigin,
+  SnapshotManifest,
+  SnapshotRef,
+  ContextState,
   AiToolsContextConfig,
-  AiMechKind,
-  AiMechEntry,
-  AiMechInventory,
-  QuarantineMove,
-  QuarantineManifest,
-  ContextLockProfile,
-  AiToolsContextLock,
 } from './types.js';
 
 export {
-  CONTEXT_QUARANTINE_DIR,
-  CONTEXT_SNAPSHOTS_DIR,
-  CONTEXT_INVENTORY_FILE,
-  CONTEXT_STAY_PROPOSAL_FILE,
-  quarantineRoot,
-  quarantineDir,
-  snapshotsRoot,
-  inventoryPath,
-  stayProposalPath,
+  CONTEXT_DIR,
+  STASH_DIR,
+  STATE_FILE,
+  SNAPSHOT_MANIFEST_FILE,
+  contextRoot,
+  snapshotDir,
+  stashRoot,
+  statePath,
+  ensureProjectContextRoot,
 } from './paths.js';
 
-export {
-  toProjectRel,
-  matchStayGlob,
-  isStayPath,
-  normalizeStayList,
-} from './stay.js';
+export { toProjectRel, matchGlob, isIgnored, normalizeGlobList } from './ignore-glob.js';
 
-export { discoverAiMech, swappablePaths } from './discover.js';
-export type { DiscoverOptions } from './discover.js';
+export { classify, buildCatalog } from './catalog.js';
 
 export {
-  quarantineFiles,
-  restoreQuarantine,
-  quarantineExists,
-  ensureQuarantineRoot,
-} from './quarantine.js';
+  hashFile,
+  snapshotExists,
+  snapshotFileAbs,
+  readSnapshotManifest,
+  writeSnapshot,
+  removeSnapshot,
+  SnapshotNotFoundError,
+} from './snapshot.js';
+export type { SnapshotSource, SnapshotMeta } from './snapshot.js';
 
-export { captureContext, readSnapshot, dirtyVsSnapshot } from './capture.js';
-export type { ContextSnapshot } from './capture.js';
-
-export {
-  dirtyTrackedAiMechPaths,
-  assertCleanAiMechTree,
-  DirtyTreeError,
-} from './dirty.js';
+export { EMPTY_STATE, readState, writeState } from './state.js';
 
 export {
-  acceptStayProposal,
-  readStayProposal,
-  writeStayProposal,
-} from './accept-stay.js';
-export type { ContextStayProposal } from './accept-stay.js';
+  hashWorkingTree,
+  diffFiles,
+  dirtyPaths,
+  assertCatalogPath,
+  clearWorkingTree,
+  applySnapshot,
+  OutsideCatalogError,
+} from './working-tree.js';
+export type { FileDiff } from './working-tree.js';
 
 export {
-  installContextProfileTree,
-  removeContextProfileFiles,
-} from './profile-install.js';
-export type { ContextProfileInstallResult } from './profile-install.js';
+  ContextStore,
+  LABEL_PATTERN,
+  assertValidLabel,
+  readContextIgnore,
+  InvalidLabelError,
+  UnknownLabelError,
+  LabelExistsError,
+  ActiveSnapshotError,
+} from './store.js';
+export type { ContextStoreOptions, ListedSnapshot, StashEntry } from './store.js';
 
 export {
-  swapContextProfile,
-  restoreContext,
-  getContextStatus,
-} from './swap.js';
-export type {
-  SwapProfilePackage,
-  ContextSwapOptions,
-  ContextSwapResult,
-  ContextRestoreOptions,
-  ContextRestoreResult,
-  ContextStatus,
-} from './swap.js';
+  save,
+  stash,
+  switchTo,
+  pop,
+  clear,
+  status,
+  partitionApplicable,
+  DirtyWorkingTreeError,
+  EmptyStashError,
+} from './operations.js';
+export type { OverwriteOptions, ApplyResult, ContextStatus } from './operations.js';
+
+export { merge, MergeConflictError } from './merge.js';
+export type { MergeOptions, MergeResult } from './merge.js';
+
+export {
+  CONTEXT_PROFILE_CATEGORY,
+  defaultLabelForPackage,
+  importSnapshotFromPackage,
+  snapshotToPublishPayload,
+  NotContextProfileError,
+} from './registry-bridge.js';
+export type { ImportPackageOptions, PublishPayload, SnapshotPublishMeta } from './registry-bridge.js';

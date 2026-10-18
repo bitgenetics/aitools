@@ -120,7 +120,7 @@ export interface AiToolsManifest {
   tags?: string[];
   platforms?: import('./tool.js').TargetPlatform[];
   private?: boolean;
-  /** Optional AI-mech context swap config (baseline, stay-set, named profiles). */
+  /** Optional AI context config: globs excluded from snapshot management. */
   context?: AiToolsContextConfig;
 }
 

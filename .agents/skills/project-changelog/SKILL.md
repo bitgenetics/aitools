@@ -30,6 +30,8 @@ The folder structure keeps each concern in a separate file so the AI loads **onl
 └── archived.md       ← Superseded entries (history, never delete)
 ```
 
+A section that outgrows its budget becomes a folder (`features/README.md` + `features/<topic>.md`; see *Prune & Maintain*). Treat the folder's `README.md` as the section: read it first, then load only the topic files it lists that match the task. This project's `features/`, `patterns/` and `constraints/` are folders.
+
 **E2e contract rule:** Product behaviour expectations live in the changelog first. E2e suites implement those expectations — they are not the sole source of truth. Plans that change product behaviour must include a changelog update step **before** e2e implementation.
 
 ## When to Use
@@ -90,7 +92,7 @@ git log <last-sha>..HEAD --oneline
 
 If commits exist since the last SHA, tell the user: *"There are N commits since the last changelog update. You may want to record any decisions from that work before we continue."* Then offer to add entries (Step 3).
 
-From the index, identify which section files are relevant to the current task and load only those. Surface relevant entries to the user before touching code.
+From the index, identify which section files are relevant to the current task and load only those. When a section is a folder, read its `README.md` and then only the topic files that match the task. Surface relevant entries to the user before touching code.
 
 If no changelog folder exists, offer to initialize one (Step 2).
 
@@ -157,6 +159,14 @@ Prune when any section file exceeds ~150 lines or entries are stale:
 - **Update** stale `Key files` references after renames
 - **Re-summarise** `index.md` after major pruning
 
+**Split review at 10–25%+ over budget (165+ lines).** Once a section file is 10% or more over the ~150-line budget, pruning alone is not enough: review whether the file should become a folder with a root file and supporting files, e.g. `features.md` → `features/README.md` (the index and the entries most sessions need) plus `features/<topic>.md` per cohesive topic (`features/context-snapshots.md`, `features/plugins.md`). Rules for the split:
+
+- The root file keeps the section's purpose line, a table linking each supporting file with a one-line "load when…" hint, and any entries that do not belong to a single topic.
+- Each supporting file holds one topic's entries, oldest to newest, in the same entry format; the budget applies per file.
+- Update `index.md` so the section table points at the folder root; keep `archived.md` for superseded content as before.
+- Split along topics that are loaded together, not by date — a session working on plugins should load one file, not three.
+- If no topic grouping falls out naturally, do not split; archive instead and note why in `archived.md`.
+
 ---
 
 ## Quality Criteria
@@ -171,7 +181,7 @@ A good entry:
 
 A healthy changelog folder:
 - [ ] `index.md` under 80 lines (always cheap to load)
-- [ ] No file exceeds ~150 lines
+- [ ] No file exceeds ~150 lines; any file at 165+ lines has had a split-into-folder review (see Prune & Maintain)
 - [ ] No entries contradicting each other across files
 - [ ] Reflects current reality, not aspirational state left after ship without updating
 - [ ] `archived.md` holds superseded content rather than deletion

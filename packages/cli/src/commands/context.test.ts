@@ -15,19 +15,17 @@
 import { createContextCommand } from './context.js';
 
 describe('createContextCommand', () => {
-  it('registers discover, swap, restore, status, accept-stay, capture, publish-baseline', () => {
-    const cmd = createContextCommand();
-    const names = cmd.commands.map((c) => c.name());
+  it('registers the git-style snapshot command set', () => {
+    const names = createContextCommand()
+      .commands.map((c) => c.name())
+      .sort();
     expect(names).toEqual(
-      expect.arrayContaining([
-        'discover',
-        'capture',
-        'status',
-        'accept-stay',
-        'swap',
-        'restore',
-        'publish-baseline',
-      ]),
+      ['clear', 'drop', 'list', 'ls', 'merge', 'pop', 'pull', 'push', 'rename', 'save', 'show', 'stash', 'status', 'switch'].sort(),
     );
+  });
+
+  it('does not register the superseded swap commands', () => {
+    const names = createContextCommand().commands.map((c) => c.name());
+    expect(names).not.toEqual(expect.arrayContaining(['swap', 'restore', 'accept-stay', 'discover', 'capture', 'publish-baseline']));
   });
 });

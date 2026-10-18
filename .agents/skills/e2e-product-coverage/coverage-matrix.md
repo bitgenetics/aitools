@@ -7,8 +7,8 @@ Use this table in audit / close-gaps reports. One row per e2e-worthy behaviour (
 
 | Behaviour (changelog) | Source | Suite | `it` / evidence | Status | Priority |
 |----------------------|--------|-------|-----------------|--------|----------|
-| User install tracking under ~/.aitools | features.md → install/uninstall | config-layers.test.ts | writes lock under E2E_HOME/.aitools | covered | — |
-| --cursor-plugin rejects --scope project | features.md → plugin category | plugin-install.test.ts | — | missing | P0 |
+| User install tracking under ~/.aitools | features/cli-and-dev.md → install/uninstall | config-layers.test.ts | writes lock under E2E_HOME/.aitools | covered | — |
+| --cursor-plugin rejects --scope project | features/plugins.md → plugin category | plugin-install.test.ts | — | missing | P0 |
 
 ### Gaps to close
 1. **P0** …
@@ -21,7 +21,7 @@ Use this table in audit / close-gaps reports. One row per e2e-worthy behaviour (
 ## How to name behaviours
 
 - Quote or paraphrase a single observable rule: flag, path, lock location, merge order, reject.
-- Cite source as `features.md → <heading>` or `constraints.md → <heading>`.
+- Cite source as `features/<topic>.md → <heading>` or `constraints/<topic>.md → <heading>` (README.md for entries kept in the folder root).
 - Evidence: `it` title, or a one-line assertion summary if titles are vague.
 
 ## Status quick guide

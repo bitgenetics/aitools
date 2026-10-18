@@ -5,10 +5,10 @@ organize with ai context isolation and understandability in mind.
 ## Testing
 
 ### Product expectations vs e2e
-- **Source of truth for product behaviour** is `.ai/product-changelog/` (especially `features.md` / `constraints.md`), maintained via the `project-changelog` skill.
+- **Source of truth for product behaviour** is `.ai/product-changelog/` (especially the `features/` and `constraints/` folders — start at each folder's `README.md`), maintained via the `project-changelog` skill.
 - E2e suites under `packages/e2e/` **implement** those expectations; they are not a substitute for the changelog.
 - When writing or generating an **implementation plan** that changes product behaviour: include an early todo **Update product changelog** (skill: `project-changelog`) **before** any “add/extend e2e” todo. Record the intended behaviour and name the e2e suite under **Key files**, then write e2e against that entry.
-- See `.ai/product-changelog/patterns.md` → *Changelog-first e2e contracts*.
+- See `.ai/product-changelog/patterns/cli-and-dev.md` → *Changelog-first e2e contracts*.
 
 ### Framework
 Use **Jest** with `ts-jest` for all unit and integration tests.

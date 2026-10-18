@@ -36,7 +36,7 @@
 ### Research Context
 **Phase**: Synthesis  
 **Dependencies**: Local registry / e2e fixtures if prototyping  
-**Connections**: `.ai/product-changelog/features.md` (scenario inventory); `packages/e2e` isolation patterns
+**Connections**: `.ai/product-changelog/features/` (scenario inventory); `packages/e2e` isolation patterns
 
 ---
 

@@ -14,304 +14,342 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
-import fs from 'node:fs';
-import path from 'node:path';
 import {
-  acceptStayProposal,
-  captureContext,
-  discoverAiMech,
-  getContextStatus,
-  inventoryPath,
-  readLockFile,
-  readManifest,
-  restoreContext,
-  swapContextProfile,
-  writeLockFile,
-  writeManifest,
-  type AitoolsJson,
-  type SwapProfilePackage,
+  CONTEXT_PROFILE_CATEGORY,
+  ContextStore,
+  clearContext,
+  contextStatus,
+  diffFiles,
+  hashWorkingTree,
+  importSnapshotFromPackage,
+  mergeContext,
+  popContext,
+  readSnapshotManifest,
+  saveContext,
+  snapshotToPublishPayload,
+  stashContext,
+  switchContext,
+  type ApplyResult,
+  type ContextScope,
   type ToolManifest,
 } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
-import { createRegistryClient } from '../utils/registry-client.js';
+import { createRegistryClient, type RegistryClient } from '../utils/registry-client.js';
 import { CacheManager } from '../utils/cache-manager.js';
 
-interface ForceOption {
-  force?: boolean;
+interface JsonOption {
+  json?: boolean;
 }
 
-async function resolveContextPackage(
+interface ScopeOption {
+  project?: boolean;
+}
+
+interface OverwriteFlags {
+  discard?: boolean;
+  dryRun?: boolean;
+}
+
+const DEFAULT_PUSH_VERSION = '1.0.0';
+
+function scopeOf(options: ScopeOption): ContextScope {
+  return options.project ? 'project' : 'user';
+}
+
+function openStore(): ContextStore {
+  return new ContextStore({ projectRoot: process.cwd() });
+}
+
+function fail(err: unknown): never {
+  console.error(chalk.red((err as Error).message));
+  process.exit(1);
+}
+
+function printJson(value: unknown): void {
+  console.log(JSON.stringify(value, null, 2));
+}
+
+function printApplyResult(verb: string, result: ApplyResult): void {
+  const prefix = result.dryRun ? chalk.yellow('[dry-run] ') : '';
+  const target = result.active ? chalk.green(result.active) : chalk.dim('(none)');
+  console.log(
+    `${prefix}${verb} → ${target}: removed ${result.removed.length}, wrote ${result.written.length}` +
+      (result.skipped.length ? chalk.dim(`, skipped ${result.skipped.length} ignored`) : ''),
+  );
+}
+
+interface ResolvedContextPackage {
+  manifest: ToolManifest;
+  agentsDir: string;
+  registry: string;
+}
+
+async function findManifest(
   configManager: ConfigManager,
   packageName: string,
-): Promise<SwapProfilePackage> {
+): Promise<{ client: RegistryClient; manifest: ToolManifest }> {
   const registries = configManager.getRegistries();
   if (registries.length === 0) {
     throw new Error('No registries configured. Add one with: aitools registry add <url>');
   }
-
-  let manifest: ToolManifest | null = null;
-  let client = null;
   for (const reg of registries) {
     try {
-      const c = createRegistryClient(reg);
-      manifest = await c.getManifest(packageName, 'latest');
-      client = c;
-      break;
+      const client = createRegistryClient(reg);
+      const manifest = await client.getManifest(packageName, 'latest');
+      return { client, manifest };
     } catch {
-      // try next
+      // try next registry
     }
   }
-  if (!manifest || !client) {
-    throw new Error(`Could not find ${packageName} in any configured registry.`);
-  }
-  if (manifest.category !== 'context-profile') {
-    throw new Error(
-      `Package ${packageName} has category "${manifest.category}"; expected "context-profile".`,
-    );
-  }
-
-  const cache = new CacheManager();
-  let agentsDir: string;
-  let integrity: string;
-  if (cache.has(manifest.name, manifest.version)) {
-    agentsDir = cache.agentsDir(manifest.name, manifest.version);
-    integrity = cache.getMetadata(manifest.name, manifest.version).integrity;
-  } else {
-    const { data, integrity: serverIntegrity } = await client.download(manifest.name, manifest.version);
-    const entry = cache.store(manifest.name, manifest.version, data, manifest, serverIntegrity);
-    agentsDir = entry.agentsDir;
-    integrity = entry.integrity;
-  }
-
-  return {
-    manifest,
-    agentsDir,
-    integrity,
-    resolved: client.config.url,
-  };
+  throw new Error(`Could not find ${packageName} in any configured registry.`);
 }
 
-/**
- * aitools context — hot-swap project AI-mech trees via registry profiles.
- */
-export function createContextCommand(): Command {
-  const cmd = new Command('context')
-    .description('Discover, swap, and restore project AI-mechanism context (role profiles)');
+async function resolveContextPackage(configManager: ConfigManager, packageName: string): Promise<ResolvedContextPackage> {
+  const { client, manifest } = await findManifest(configManager, packageName);
+  if (manifest.category !== CONTEXT_PROFILE_CATEGORY) {
+    throw new Error(`Package ${packageName} has category "${manifest.category}"; expected "${CONTEXT_PROFILE_CATEGORY}".`);
+  }
+  const cache = new CacheManager();
+  if (!cache.has(manifest.name, manifest.version)) {
+    const { data, integrity } = await client.download(manifest.name, manifest.version);
+    cache.store(manifest.name, manifest.version, data, manifest, integrity);
+  }
+  return { manifest, agentsDir: cache.agentsDir(manifest.name, manifest.version), registry: client.config.url };
+}
 
+function addReadCommands(cmd: Command): void {
   cmd
-    .command('discover')
-    .description('Catalog AI-mech files (deterministic) → stdout and .aitools/context-inventory.json')
-    .option('--json', 'Print inventory JSON only')
-    .action((options: { json?: boolean }) => {
-      const cwd = process.cwd();
-      const manifest = (readManifest(cwd) ?? {}) as AitoolsJson;
-      const inventory = discoverAiMech(cwd, { stay: manifest.context?.stay });
-      const out = inventoryPath(cwd);
-      fs.mkdirSync(path.dirname(out), { recursive: true });
-      fs.writeFileSync(out, JSON.stringify(inventory, null, 2) + '\n', 'utf8');
-      if (options.json) {
-        console.log(JSON.stringify(inventory, null, 2));
-        return;
-      }
-      console.log(chalk.bold(`\nAI-mech inventory (${inventory.entries.length} file(s))\n`));
-      for (const e of inventory.entries) {
-        const stay = e.stay ? chalk.cyan(' [stay]') : '';
-        console.log(`  ${e.path}${stay}  ${chalk.dim(e.kind)}`);
-      }
-      console.log(chalk.dim(`\nWrote ${out}\n`));
-    });
-
-  cmd
-    .command('capture')
-    .description('Record hashes (and optional file copies) of the current AI-mech tree')
-    .option('--copy', 'Also copy files under .aitools/context-snapshots/<id>/')
-    .action((options: { copy?: boolean }) => {
-      const cwd = process.cwd();
-      const manifest = (readManifest(cwd) ?? {}) as AitoolsJson;
-      const inventory = discoverAiMech(cwd, { stay: manifest.context?.stay });
-      const snapshot = captureContext(cwd, inventory, { copyFiles: options.copy === true });
-      const lock = readLockFile(cwd);
-      writeLockFile(cwd, {
-        ...lock,
-        context: {
-          ...(lock.context ?? { activeProfile: null }),
-          activeProfile: lock.context?.activeProfile ?? null,
-          snapshotId: snapshot.id,
-          fileHashes: snapshot.fileHashes,
-          baselinePackage: lock.context?.baselinePackage ?? manifest.context?.baseline?.package,
-        },
-      });
-      console.log(chalk.green(`Captured snapshot ${snapshot.id} (${Object.keys(snapshot.fileHashes).length} file(s))`));
+    .command('ls')
+    .description('List managed AI-mech paths in this project (the catalog)')
+    .option('--json', 'Print JSON')
+    .action((options: JsonOption) => {
+      const catalog = openStore().catalog();
+      if (options.json) return printJson(catalog);
+      console.log(chalk.bold(`\nAI context catalog (${catalog.entries.length} file(s))\n`));
+      for (const e of catalog.entries) console.log(`  ${e.path}  ${chalk.dim(e.kind)}`);
+      if (catalog.ignored.length) console.log(chalk.dim(`\n  ${catalog.ignored.length} path(s) excluded by context.ignore`));
+      console.log();
     });
 
   cmd
     .command('status')
-    .description('Show active profile, stay count, quarantine id, and dirty-vs-snapshot hints')
-    .option('--json', 'Print status JSON')
-    .action((options: { json?: boolean }) => {
-      const cwd = process.cwd();
-      const status = getContextStatus(cwd);
-      if (options.json) {
-        console.log(JSON.stringify(status, null, 2));
-        return;
-      }
-      console.log(chalk.bold('\nContext status\n'));
-      console.log(`  active profile:  ${status.activeProfile ?? chalk.dim('(baseline)')}`);
-      console.log(`  stay count:      ${status.stayCount}`);
-      console.log(
-        `  quarantine:      ${status.quarantineId ?? chalk.dim('(none)')}` +
-          (status.quarantineId
-            ? status.quarantinePresent
-              ? chalk.green(' (present)')
-              : chalk.yellow(' (missing)')
-            : ''),
-      );
-      console.log(`  baseline pkg:    ${status.baselinePackage ?? chalk.dim('(none)')}`);
-      console.log(`  snapshot:        ${status.snapshotId ?? chalk.dim('(none)')}`);
-      if (status.profilePackage) {
-        console.log(`  profile package: ${status.profilePackage} (${status.profileFiles ?? 0} files)`);
+    .description('Show active snapshot, unsaved changes, and stash depth')
+    .option('--json', 'Print JSON')
+    .action((options: JsonOption) => {
+      const status = contextStatus(openStore());
+      if (options.json) return printJson(status);
+      console.log(chalk.bold('\nAI context status\n'));
+      console.log(`  active:   ${status.active ? `${chalk.green(status.active)} ${chalk.dim(`[${status.scope}]`)}` : chalk.dim('(none)')}`);
+      console.log(`  catalog:  ${status.catalogCount} file(s)` + (status.ignoredCount ? chalk.dim(`, ${status.ignoredCount} ignored`) : ''));
+      console.log(`  stash:    ${status.stashDepth} entr${status.stashDepth === 1 ? 'y' : 'ies'}`);
+      if (status.dirty.length === 0) {
+        console.log(`  changes:  ${chalk.green('none')}`);
+      } else {
+        console.log(`  changes:  ${chalk.yellow(`${status.dirty.length} unsaved`)}`);
+        for (const p of status.dirty) console.log(chalk.dim(`    ${p}`));
       }
       console.log();
     });
 
   cmd
-    .command('accept-stay')
-    .description('Merge .aitools/context-stay-proposal.json into authored context.stay')
+    .command('list')
+    .description('List saved snapshots in project and user scope')
+    .option('--json', 'Print JSON')
+    .action((options: JsonOption) => {
+      const store = openStore();
+      const items = store.list();
+      const active = store.readState().active;
+      if (options.json) return printJson(items.map((i) => ({ ...i.ref, active: i.ref.label === active, files: i.manifest.files.length, origin: i.manifest.origin })));
+      if (items.length === 0) return console.log(chalk.dim('No snapshots. Save one with: aitools context save <label>'));
+      for (const i of items) {
+        const mark = i.ref.label === active ? chalk.green('* ') : '  ';
+        const origin = i.manifest.origin ? chalk.dim(`  ← ${i.manifest.origin.package}@${i.manifest.origin.version}`) : '';
+        console.log(`${mark}${i.ref.label}  ${chalk.dim(`[${i.ref.scope}] ${i.manifest.files.length} file(s)`)}${origin}`);
+      }
+    });
+
+  cmd
+    .command('show')
+    .description('Show a snapshot and how it differs from the working tree')
+    .argument('<label>')
+    .option('--json', 'Print JSON')
+    .action((label: string, options: JsonOption) => {
+      try {
+        const store = openStore();
+        const ref = store.require(label);
+        const manifest = readSnapshotManifest(ref.dir);
+        const diff = diffFiles(manifest.files, hashWorkingTree(store.catalog()));
+        if (options.json) return printJson({ ...ref, manifest, diff });
+        console.log(chalk.bold(`\n${ref.label} ${chalk.dim(`[${ref.scope}]`)} — ${manifest.files.length} file(s)\n`));
+        for (const f of manifest.files) console.log(`  ${f.path}`);
+        console.log(chalk.bold('\nWorking tree vs snapshot'));
+        console.log(`  changed: ${diff.changed.length}  only in working: ${diff.added.length}  only in snapshot: ${diff.removed.length}\n`);
+      } catch (err) {
+        fail(err);
+      }
+    });
+}
+
+function addWriteCommands(cmd: Command): void {
+  cmd
+    .command('save')
+    .description('Snapshot the working tree under a label (becomes active)')
+    .argument('<label>')
+    .option('--project', 'Save under ./.aitools/context (committable) instead of ~/.aitools/context')
+    .action((label: string, options: ScopeOption) => {
+      try {
+        const saved = saveContext(openStore(), label, scopeOf(options));
+        console.log(chalk.green(`Saved ${saved.ref.label}`) + chalk.dim(` [${saved.ref.scope}] ${saved.manifest.files.length} file(s)`));
+      } catch (err) {
+        fail(err);
+      }
+    });
+
+  cmd
+    .command('switch')
+    .description('Replace the working tree with a snapshot')
+    .argument('<label>')
+    .option('--discard', 'Proceed even if there are unsaved changes')
+    .option('--dry-run', 'Show what would change without writing')
+    .action((label: string, options: OverwriteFlags) => {
+      try {
+        printApplyResult('switch', switchContext(openStore(), label, options));
+      } catch (err) {
+        fail(err);
+      }
+    });
+
+  cmd
+    .command('stash')
+    .description('Push the working tree onto the stash (files stay in place)')
     .action(() => {
-      const cwd = process.cwd();
       try {
-        const stay = acceptStayProposal(cwd);
-        console.log(chalk.green(`Pinned ${stay.length} stay path(s) into aitools.json`));
-        for (const p of stay) console.log(chalk.dim(`  ${p}`));
+        const entry = stashContext(openStore());
+        console.log(chalk.green(`Stashed ${entry.manifest.files.length} file(s)`));
       } catch (err) {
-        console.error(chalk.red((err as Error).message));
-        process.exit(1);
+        fail(err);
       }
     });
 
   cmd
-    .command('swap')
-    .description('Quarantine swappable AI-mech files, then install a named context profile')
-    .argument('<profile>', 'Profile name from aitools.json context.profiles')
-    .option('--force', 'Allow swap when tracked AI-mech paths are dirty')
-    .action(async (profileName: string, options: ForceOption) => {
-      const cwd = process.cwd();
-      const configManager = new ConfigManager(cwd);
-      const spinner = ora(`Swapping to profile ${chalk.cyan(profileName)}...`).start();
+    .command('pop')
+    .description('Replace the working tree with the top stash entry and drop it')
+    .option('--discard', 'Proceed even if there are unsaved changes')
+    .option('--dry-run', 'Show what would change without writing')
+    .action((options: OverwriteFlags) => {
       try {
-        const result = await swapContextProfile(cwd, profileName, {
-          force: options.force === true,
-          resolveProfile: (pkg) => resolveContextPackage(configManager, pkg),
-        });
-        spinner.succeed(
-          `Swapped to ${chalk.green(result.profileName)} (${result.mode}); ` +
-            `quarantined ${result.quarantine.moves.length} file(s); ` +
-            `installed ${result.installed.files.length} profile file(s)`,
+        printApplyResult('pop', popContext(openStore(), options));
+      } catch (err) {
+        fail(err);
+      }
+    });
+
+  cmd
+    .command('clear')
+    .description('Remove every cataloged AI-mech file')
+    .option('--discard', 'Proceed even if there are unsaved changes')
+    .option('--dry-run', 'Show what would change without writing')
+    .action((options: OverwriteFlags) => {
+      try {
+        printApplyResult('clear', clearContext(openStore(), options));
+      } catch (err) {
+        fail(err);
+      }
+    });
+
+  cmd
+    .command('merge')
+    .description("Copy a snapshot's files over the working tree (active snapshot unchanged)")
+    .argument('<label>')
+    .option('--overwrite', "Take the snapshot's version of conflicting files")
+    .option('--dry-run', 'Show what would change without writing')
+    .action((label: string, options: { overwrite?: boolean; dryRun?: boolean }) => {
+      try {
+        const r = mergeContext(openStore(), label, options);
+        const prefix = r.dryRun ? chalk.yellow('[dry-run] ') : '';
+        console.log(`${prefix}merge ${chalk.green(r.label)}: wrote ${r.written.length}, unchanged ${r.unchanged.length}, overwrote ${r.conflicts.length}`);
+      } catch (err) {
+        fail(err);
+      }
+    });
+
+  cmd
+    .command('drop')
+    .description('Delete a snapshot')
+    .argument('<label>')
+    .option('--force', 'Allow dropping the active snapshot')
+    .action((label: string, options: { force?: boolean }) => {
+      try {
+        const ref = openStore().drop(label, options);
+        console.log(chalk.green(`Dropped ${ref.label}`) + chalk.dim(` [${ref.scope}]`));
+      } catch (err) {
+        fail(err);
+      }
+    });
+
+  cmd
+    .command('rename')
+    .description('Rename a snapshot')
+    .argument('<old>')
+    .argument('<new>')
+    .action((from: string, to: string) => {
+      try {
+        const ref = openStore().rename(from, to);
+        console.log(chalk.green(`Renamed to ${ref.label}`) + chalk.dim(` [${ref.scope}]`));
+      } catch (err) {
+        fail(err);
+      }
+    });
+}
+
+function addRegistryCommands(cmd: Command): void {
+  cmd
+    .command('pull')
+    .description('Import a registry context-profile as a local snapshot (does not switch)')
+    .argument('<package>')
+    .option('--as <label>', 'Snapshot label (default: package name without scope)')
+    .option('--project', 'Save under ./.aitools/context instead of ~/.aitools/context')
+    .action(async (packageName: string, options: ScopeOption & { as?: string }) => {
+      try {
+        const store = openStore();
+        const pkg = await resolveContextPackage(new ConfigManager(store.projectRoot), packageName);
+        const imported = importSnapshotFromPackage(store, { ...pkg, label: options.as, scope: scopeOf(options) });
+        console.log(
+          chalk.green(`Pulled ${pkg.manifest.name}@${pkg.manifest.version} → ${imported.ref.label}`) +
+            chalk.dim(` [${imported.ref.scope}] ${imported.manifest.files.length} file(s)`),
         );
-        console.log(chalk.dim(`  quarantine id: ${result.quarantine.id}`));
       } catch (err) {
-        spinner.fail((err as Error).message);
-        process.exit(1);
+        fail(err);
       }
     });
 
   cmd
-    .command('restore')
-    .description('Remove profile overlay and restore from local quarantine (or baseline fallback)')
-    .option('--force', 'Allow restore when tracked AI-mech paths are dirty')
-    .action(async (options: ForceOption) => {
-      const cwd = process.cwd();
-      const configManager = new ConfigManager(cwd);
-      const spinner = ora('Restoring AI-mech context...').start();
+    .command('push')
+    .description('Publish a snapshot to the registry as a context-profile package')
+    .argument('<label>')
+    .argument('<package>')
+    .option('--version <version>', 'Package version', DEFAULT_PUSH_VERSION)
+    .option('--dry-run', 'Print the package payload without publishing')
+    .action(async (label: string, packageName: string, options: { version: string; dryRun?: boolean }) => {
       try {
-        const result = await restoreContext(cwd, {
-          force: options.force === true,
-          resolveBaseline: (pkg) => resolveContextPackage(configManager, pkg),
-        });
-        spinner.succeed(`Restored from ${chalk.green(result.restoredFrom)}`);
-        if (result.quarantineId) console.log(chalk.dim(`  quarantine id: ${result.quarantineId}`));
-        if (result.baselinePackage && result.restoredFrom === 'baseline') {
-          console.log(chalk.dim(`  baseline: ${result.baselinePackage}`));
-        }
+        const store = openStore();
+        const payload = snapshotToPublishPayload(store, label, { name: packageName, version: options.version });
+        if (options.dryRun) return printJson({ manifest: payload.manifest, fileCount: Object.keys(payload.files).length });
+        const registries = new ConfigManager(store.projectRoot).getRegistries();
+        if (registries.length === 0) throw new Error('No registries configured. Add one with: aitools registry add <url>');
+        const result = await createRegistryClient(registries[0]!).publish(payload.manifest, payload.files);
+        console.log(chalk.green(`Pushed ${label} → ${result.name}@${options.version}`));
       } catch (err) {
-        spinner.fail((err as Error).message);
-        process.exit(1);
+        fail(err);
       }
     });
+}
 
-  cmd
-    .command('publish-baseline')
-    .description('Pack current AI-mech tree as a context-profile and publish to the registry')
-    .option('--name <name>', 'Package name (default: <project>-baseline)')
-    .option('--version <version>', 'Package version', '1.0.0')
-    .option('--dry-run', 'Build package payload without publishing')
-    .action(async (options: { name?: string; version?: string; dryRun?: boolean }) => {
-      const cwd = process.cwd();
-      const configManager = new ConfigManager(cwd);
-      const project = (readManifest(cwd) ?? {}) as AitoolsJson;
-      const inventory = discoverAiMech(cwd, { stay: project.context?.stay });
-      if (inventory.entries.length === 0) {
-        console.error(chalk.red('No AI-mech files to publish as baseline.'));
-        process.exit(1);
-      }
-
-      const pkgName =
-        options.name ??
-        (project.name ? `${project.name.replace(/^@/, '').replace(/\//g, '-')}-baseline` : 'project-baseline');
-      const version = options.version ?? '1.0.0';
-
-      const files: Record<string, string> = {};
-      const fileEntries: ToolManifest['files'] = [];
-      for (const entry of inventory.entries) {
-        const abs = path.join(cwd, ...entry.path.split('/'));
-        if (!fs.existsSync(abs)) continue;
-        files[entry.path] = fs.readFileSync(abs, 'utf8');
-        fileEntries.push({ src: entry.path, dest: entry.path, placementMode: 'verbatim' });
-      }
-
-      const manifest: ToolManifest = {
-        name: pkgName,
-        version,
-        description: `AI-mech baseline context for ${project.name ?? path.basename(cwd)}`,
-        category: 'context-profile',
-        files: fileEntries,
-      };
-
-      if (options.dryRun) {
-        console.log(JSON.stringify({ manifest, fileCount: Object.keys(files).length }, null, 2));
-        return;
-      }
-
-      const registries = configManager.getRegistries();
-      if (registries.length === 0) {
-        console.error(chalk.red('No registries configured. Add one with: aitools registry add <url>'));
-        process.exit(1);
-      }
-
-      const spinner = ora(`Publishing baseline ${chalk.cyan(pkgName)}@${version}...`).start();
-      try {
-        const client = createRegistryClient(registries[0]!);
-        const result = await client.publish(manifest, files);
-        spinner.succeed(`Published ${chalk.green(result.name)}@${version}`);
-
-        const next: AitoolsJson = {
-          ...project,
-          context: {
-            ...project.context,
-            baseline: {
-              ...project.context?.baseline,
-              package: pkgName,
-            },
-          },
-        };
-        writeManifest(cwd, next);
-        console.log(chalk.dim('  Updated aitools.json context.baseline.package'));
-      } catch (err) {
-        spinner.fail((err as Error).message);
-        process.exit(1);
-      }
-    });
-
+/** `aitools context` — git-style save / switch / stash of on-disk AI-mech files. */
+export function createContextCommand(): Command {
+  const cmd = new Command('context').description('Save, switch, stash, and merge snapshots of project AI-mechanism files');
+  addReadCommands(cmd);
+  addWriteCommands(cmd);
+  addRegistryCommands(cmd);
   return cmd;
 }

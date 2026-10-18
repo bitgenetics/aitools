@@ -13,14 +13,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-/** Normalize to project-relative POSIX path without leading ./ */
+/** Normalize to a project-relative POSIX path without leading `./` or trailing `/`. */
 export function toProjectRel(p: string): string {
   return p.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '');
 }
 
-// Match a project-relative path against a simple stay glob.
-// Supports exact paths, *, **, dir/** style prefixes, and **/name style globs.
-export function matchStayGlob(pattern: string, filePath: string): boolean {
+// Supports exact paths, `*`, `?`, `**`, and `dir/**` prefixes.
+export function matchGlob(pattern: string, filePath: string): boolean {
   const pat = toProjectRel(pattern);
   const file = toProjectRel(filePath);
   if (pat === file) return true;
@@ -29,8 +28,7 @@ export function matchStayGlob(pattern: string, filePath: string): boolean {
     if (prefix === '') return true;
     return file === prefix || file.startsWith(prefix + '/');
   }
-  const regex = globToRegExp(pat);
-  return regex.test(file);
+  return globToRegExp(pat).test(file);
 }
 
 function globToRegExp(pattern: string): RegExp {
@@ -62,17 +60,17 @@ function globToRegExp(pattern: string): RegExp {
   return new RegExp(out);
 }
 
-/** True when any stay pattern matches the path. */
-export function isStayPath(filePath: string, stay: string[] | undefined): boolean {
-  if (!stay || stay.length === 0) return false;
-  return stay.some((g) => matchStayGlob(g, filePath));
+/** True when any `context.ignore` glob matches the path. */
+export function isIgnored(filePath: string, ignore: readonly string[] | undefined): boolean {
+  if (!ignore || ignore.length === 0) return false;
+  return ignore.some((g) => matchGlob(g, filePath));
 }
 
-/** Deduplicate and normalize stay globs for authored config. */
-export function normalizeStayList(stay: string[]): string[] {
+/** Deduplicate and normalize an authored glob list. */
+export function normalizeGlobList(globs: readonly string[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const raw of stay) {
+  for (const raw of globs) {
     const n = toProjectRel(raw);
     if (!n || seen.has(n)) continue;
     seen.add(n);

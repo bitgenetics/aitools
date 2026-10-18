@@ -4,11 +4,11 @@
 
 ---
 
-### AI-mech context coordinator (not vendor loader) — 2026-07-22 `304ed2d`
-**What**: Context swap lives in `@bitgenetics/aitools-core` (`packages/core/src/context/`) with a thin `aitools context` CLI. AITools only mutates on-disk AI-mech trees; Cursor/Claude/etc. remain the prompt loaders. New package category `context-profile` installs as a project-relative tree overlay (not plugin explode). Local quarantine under `.aitools/context-quarantine/` is the authoritative undo buffer; registry supplies profiles and optional baseline fallback.  
-**Why**: Role-based stacks need reproducible filesystem coordination without owning vendor injection surfaces; quarantine keeps undo exact even when profiles are registry-backed.  
-**Impact**: Additive `context` on `aitools.json` / lock (`lockfileVersion` stays 1). Overlay stay is authored-only; assist skill writes proposals only.  
-**Key files**: `packages/core/src/context/`, `packages/cli/src/commands/context.ts`, `packages/cli/src/utils/installer.ts`
+### AI context as a snapshot store, not a quarantine — 2026-10-17 (implemented 2026-10-18, uncommitted; supersedes `304ed2d`)
+**What**: `packages/core/src/context/` becomes a snapshot store: one **catalog** table (managed path patterns + kinds; the single authority for "what is an AI mechanism"), one **snapshot** folder format (`<root>/.aitools/context/<label>/` mirroring files + `manifest.json` with hashes and origin), a project-local **state** file (active label + hashes), and a **stash** stack (`stash/<timestamp>/`, same folder format). Registry `context-profile` packages are the remote form of a snapshot (`pull` / `push`). AITools still only moves files; IDEs remain the loaders.  
+**Why**: The quarantine model had two kinds of state (named package vs unnamed tree), two install paths (`install` vs `swap`) with different safety rules, and derived "active" from a backup folder's presence. Confirmed data loss on failed download, double swap, and stay-path collision. One snapshot type makes every transition the same operation, and the git mental model is one users already hold.  
+**Impact**: `Installer.installContextProfile` is removed; `aitools install <context-profile>` errors with a pointer to `context pull`. `lock.context` and `aitools.json` `context.{stay,profiles,baseline}` are removed from the schema (`context.ignore` only). Scope reuses `trackingRoot` / `userToolsRoot`.  
+**Key files**: `packages/core/src/context/`, `packages/cli/src/commands/context.ts`, `docs/design/context-snapshots.md`
 
 ---
 

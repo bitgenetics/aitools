@@ -3,7 +3,7 @@ name: e2e-product-coverage
 description: >-
   Reviews product behaviours in .ai/product-changelog/ and engineers e2e tests
   under packages/e2e/ so suites validate those behaviours. Use when auditing
-  e2e coverage, closing gaps against features.md/constraints.md, mapping
+  e2e coverage, closing gaps against the features/ and constraints/ changelog folders, mapping
   changelog entries to tests, writing or extending e2e after a changelog
   update, or when asked to "review e2e coverage", "align e2e with product",
   "changelog vs e2e", or "engineer e2e for behaviours".
@@ -14,10 +14,10 @@ argument-hint: "audit | close-gaps | map <feature> | suite <file>"
 
 Maps **product expectations** (changelog) → **e2e validation** (`packages/e2e/`). Changelog is the contract; e2e implements it.
 
-**Depends on:** `project-changelog` (read/update `.ai/product-changelog/`). Pattern: *Changelog-first e2e contracts* in `patterns.md`.
+**Depends on:** `project-changelog` (read/update `.ai/product-changelog/`). Pattern: *Changelog-first e2e contracts* in `patterns/cli-and-dev.md`.
 
 ```
-.ai/product-changelog/features.md (+ constraints.md, Impact lines)
+.ai/product-changelog/features/*.md (+ constraints/*.md, Impact lines; start at each README.md)
         ↓ contract
 packages/e2e/src/*.test.ts  (via test-env.ts helpers)
 ```
@@ -63,8 +63,8 @@ Coverage progress:
 Read in order:
 
 1. `.ai/product-changelog/index.md` (section map)
-2. `features.md` — extract each `###` entry: **What**, **Impact** (e2e-relevant), **Key files** listing `packages/e2e/...`
-3. `constraints.md` — entries with user-visible or install/config behavioural limits
+2. `features/README.md` and its topic files — extract each `###` entry: **What**, **Impact** (e2e-relevant), **Key files** listing `packages/e2e/...`
+3. `constraints/README.md` and its topic files — entries with user-visible or install/config behavioural limits
 4. Skip pure docs (e.g. README-only) unless they claim runtime behaviour
 
 Treat **Impact** / **What** bullets that mention locks, scopes, paths, flags, or reject cases as **e2e-worthy behaviours**.
@@ -114,7 +114,7 @@ Prioritize:
 
 If a desired test encodes behaviour **not** in the changelog:
 
-1. Stop and update `features.md` / `constraints.md` via `project-changelog` **first**
+1. Stop and update the `features/` / `constraints/` topic file via `project-changelog` **first**
 2. Name the target suite under **Key files**
 3. Then write e2e against that text
 

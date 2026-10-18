@@ -15,7 +15,6 @@
 import type { InstalledTool } from './tool.js';
 import type { TargetPlatform, ToolCategory, InstallScope } from './tool.js';
 import type { ReferenceLockEntry } from './reference.js';
-import type { AiToolsContextLock } from '../context/types.js';
 
 /**
  * aitools-lock.json — exact resolved versions and file locations.
@@ -25,8 +24,6 @@ export interface AiToolsLock {
   lockfileVersion: 1;
   /** Map of tool name → lock entry. */
   tools: Record<string, LockEntry>;
-  /** Optional AI-mech context swap state (active profile + quarantine). */
-  context?: AiToolsContextLock;
 }
 
 /**

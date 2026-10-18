@@ -12,30 +12,41 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
+import fs from 'node:fs';
 import path from 'node:path';
 
-export const CONTEXT_QUARANTINE_DIR = '.aitools/context-quarantine';
-export const CONTEXT_SNAPSHOTS_DIR = '.aitools/context-snapshots';
-export const CONTEXT_INVENTORY_FILE = '.aitools/context-inventory.json';
-export const CONTEXT_STAY_PROPOSAL_FILE = '.aitools/context-stay-proposal.json';
-export const QUARANTINE_MANIFEST_FILE = 'manifest.json';
+/** Snapshot store directory, relative to a project root or the user tools root (`~/.aitools`). */
+export const CONTEXT_DIR = '.aitools/context';
+export const STASH_DIR = 'stash';
+export const STATE_FILE = 'state.json';
+export const SNAPSHOT_MANIFEST_FILE = 'manifest.json';
 
-export function quarantineRoot(projectRoot: string): string {
-  return path.join(projectRoot, ...CONTEXT_QUARANTINE_DIR.split('/'));
+/** Stash and active state describe one working tree, so they never belong in version control. */
+const PROJECT_CONTEXT_GITIGNORE = `${STASH_DIR}/\n${STATE_FILE}\n`;
+
+export function contextRoot(base: string): string {
+  return path.join(path.resolve(base), ...CONTEXT_DIR.split('/'));
 }
 
-export function quarantineDir(projectRoot: string, id: string): string {
-  return path.join(quarantineRoot(projectRoot), id);
+export function snapshotDir(base: string, label: string): string {
+  return path.join(contextRoot(base), label);
 }
 
-export function snapshotsRoot(projectRoot: string): string {
-  return path.join(projectRoot, ...CONTEXT_SNAPSHOTS_DIR.split('/'));
+export function stashRoot(projectRoot: string): string {
+  return path.join(contextRoot(projectRoot), STASH_DIR);
 }
 
-export function inventoryPath(projectRoot: string): string {
-  return path.join(projectRoot, ...CONTEXT_INVENTORY_FILE.split('/'));
+export function statePath(projectRoot: string): string {
+  return path.join(contextRoot(projectRoot), STATE_FILE);
 }
 
-export function stayProposalPath(projectRoot: string): string {
-  return path.join(projectRoot, ...CONTEXT_STAY_PROPOSAL_FILE.split('/'));
+/** Create the project store root and its `.gitignore` on first write. */
+export function ensureProjectContextRoot(projectRoot: string): string {
+  const root = contextRoot(projectRoot);
+  fs.mkdirSync(root, { recursive: true });
+  const gitignore = path.join(root, '.gitignore');
+  if (!fs.existsSync(gitignore)) {
+    fs.writeFileSync(gitignore, PROJECT_CONTEXT_GITIGNORE, 'utf8');
+  }
+  return root;
 }

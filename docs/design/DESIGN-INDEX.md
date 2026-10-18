@@ -1,7 +1,7 @@
 # AITools Design Documentation Index
 
-**Last Updated**: July 2026  
-**Version**: 1.2.0
+**Last Updated**: October 2026  
+**Version**: 1.3.0
 
 ---
 
@@ -31,6 +31,7 @@ This folder contains comprehensive design documentation for the **ai-tools** eco
 | [Platform Adapter](platform-adapter.md) | Platform path resolution and compat auditing | 15 min |
 | [Shared References](shared-references.md) | Registry reference packages, vendoring, plugins, lock provenance | 20 min |
 | [Plugin Marketplaces Comparison](plugin-marketplaces-comparison.md) | aitools explode vs Cursor marketplace install | 10 min |
+| [Context Snapshots](context-snapshots.md) | Git-style save / switch / stash of on-disk AI-mech files; implementation plan (planned) | 15 min |
 | [Key Flows](flows.md) | Sequence diagrams for install, publish, search | 15 min |
 | [Deployment Design](deployment-design.md) | Deployment strategies, Kubernetes, operations | 30 min |
 
@@ -284,6 +285,7 @@ aitools list
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.3.0 | October 2026 | Added context snapshots design + implementation plan (supersedes quarantine swap) |
 | 1.2.0 | July 2026 | Added shared references design doc and plugin marketplaces index entry |
 | 1.1.0 | June 13, 2026 | Aligned docs with implemented API, storage, auth, and CLI |
 | 1.0.0 | May 14, 2026 | Initial design documentation |

@@ -16,26 +16,29 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  acceptStayProposal,
-  dirtyTrackedAiMechPaths,
-  discoverAiMech,
-  getContextStatus,
-  installContextProfileTree,
-  isStayPath,
-  matchStayGlob,
-  quarantineExists,
-  quarantineFiles,
-  restoreContext,
-  restoreQuarantine,
-  swappablePaths,
-  swapContextProfile,
-  writeManifest,
-  writeStayProposal,
+  ActiveSnapshotError,
+  ContextStore,
+  DirtyWorkingTreeError,
+  MergeConflictError,
+  OutsideCatalogError,
+  assertCatalogPath,
+  buildCatalog,
+  classify,
+  clearContext,
+  contextStatus,
+  importSnapshotFromPackage,
+  matchGlob,
+  mergeContext,
+  popContext,
+  saveContext,
+  snapshotExists,
+  stashContext,
+  switchContext,
   type ToolManifest,
 } from '../index.js';
 
-function makeProject(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-context-'));
+function tmpDir(prefix: string): string {
+  return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
 function writeTree(root: string, files: Record<string, string>): void {
@@ -46,226 +49,284 @@ function writeTree(root: string, files: Record<string, string>): void {
   }
 }
 
-describe('matchStayGlob / isStayPath', () => {
+function readRel(root: string, rel: string): string | null {
+  const abs = path.join(root, ...rel.split('/'));
+  return fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8') : null;
+}
+
+const BASE_TREE = {
+  'AGENTS.md': '# base agents\n',
+  '.cursor/rules/base.mdc': 'base-rule\n',
+  '.cursor/skills/base/SKILL.md': 'base-skill\n',
+};
+
+function makeStore(ignore: string[] = []): { store: ContextStore; project: string; user: string } {
+  const project = tmpDir('aitools-ctx-project-');
+  const user = tmpDir('aitools-ctx-user-');
+  writeTree(project, BASE_TREE);
+  return { store: new ContextStore({ projectRoot: project, userRoot: user, ignore }), project, user };
+}
+
+describe('matchGlob', () => {
   it('matches exact paths', () => {
-    expect(matchStayGlob('AGENTS.md', 'AGENTS.md')).toBe(true);
+    expect(matchGlob('AGENTS.md', 'AGENTS.md')).toBe(true);
   });
 
-  it('matches trailing /** prefixes', () => {
-    expect(matchStayGlob('.cursor/rules/**', '.cursor/rules/a.mdc')).toBe(true);
-    expect(matchStayGlob('.cursor/rules/**', '.cursor/skills/x/SKILL.md')).toBe(false);
+  it('matches dir/** prefixes', () => {
+    expect(matchGlob('.cursor/rules/**', '.cursor/rules/a/b.mdc')).toBe(true);
   });
 
-  it('matches single-segment wildcards', () => {
-    expect(matchStayGlob('.cursor/rules/*.mdc', '.cursor/rules/local.mdc')).toBe(true);
-  });
-
-  it('isStayPath returns true when any glob matches', () => {
-    expect(isStayPath('AGENTS.md', ['CLAUDE.md', 'AGENTS.md'])).toBe(true);
-    expect(isStayPath('other.md', ['AGENTS.md'])).toBe(false);
+  it('does not let * cross a slash', () => {
+    expect(matchGlob('.cursor/*.json', '.cursor/x/y.json')).toBe(false);
   });
 });
 
-describe('discoverAiMech', () => {
-  let root: string;
-
-  beforeEach(() => {
-    root = makeProject();
+describe('classify', () => {
+  it('classifies instruction files at any depth', () => {
+    expect(classify('packages/a/b/AGENTS.md')).toBe('instructions');
   });
 
-  afterEach(() => {
-    fs.rmSync(root, { recursive: true, force: true });
+  it('classifies vendor-specific instruction files', () => {
+    expect(classify('.github/copilot-instructions.md')).toBe('instructions');
   });
 
-  it('catalogs known AI-mech paths and marks stay', () => {
+  it('classifies claude settings separately from the vendor tree', () => {
+    expect(classify('.claude/settings.local.json')).toBe('settings');
+  });
+
+  it('returns null for ordinary project files', () => {
+    expect(classify('src/index.ts')).toBeNull();
+  });
+});
+
+describe('buildCatalog', () => {
+  it('finds nested instruction files but skips node_modules and unknown dot-dirs', () => {
+    const root = tmpDir('aitools-ctx-catalog-');
     writeTree(root, {
-      'AGENTS.md': '# agents',
-      '.cursor/rules/ship.mdc': 'rule',
-      '.cursor/skills/foo/SKILL.md': 'skill',
-      'src/index.ts': 'not mech',
+      'packages/a/AGENTS.md': 'x',
+      'node_modules/pkg/AGENTS.md': 'x',
+      '.vscode/AGENTS.md': 'x',
+      '.cursorrules': 'x',
+      '.cursor/hooks.json': '{}',
     });
-    const inv = discoverAiMech(root, { stay: ['AGENTS.md'] });
-    const paths = inv.entries.map((e) => e.path);
-    expect(paths).toEqual(
-      expect.arrayContaining(['AGENTS.md', '.cursor/rules/ship.mdc', '.cursor/skills/foo/SKILL.md']),
-    );
-    expect(paths).not.toContain('src/index.ts');
-    expect(inv.entries.find((e) => e.path === 'AGENTS.md')?.stay).toBe(true);
-    expect(inv.entries.find((e) => e.path === '.cursor/rules/ship.mdc')?.stay).toBe(false);
+    const paths = buildCatalog(root).entries.map((e) => e.path);
+    expect(paths).toEqual(['.cursor/hooks.json', '.cursorrules', 'packages/a/AGENTS.md']);
   });
 
-  it('swappablePaths excludes stay in overlay mode', () => {
-    writeTree(root, {
-      'AGENTS.md': 'a',
-      '.cursor/rules/x.mdc': 'r',
-    });
-    const inv = discoverAiMech(root, { stay: ['AGENTS.md'] });
-    expect(swappablePaths(inv, 'overlay')).toEqual(['.cursor/rules/x.mdc']);
-    expect(swappablePaths(inv, 'replace').sort()).toEqual(['.cursor/rules/x.mdc', 'AGENTS.md'].sort());
+  it('moves ignored paths out of entries and into ignored', () => {
+    const root = tmpDir('aitools-ctx-catalog-');
+    writeTree(root, BASE_TREE);
+    const catalog = buildCatalog(root, ['AGENTS.md']);
+    expect(catalog.ignored).toEqual(['AGENTS.md']);
   });
 });
 
-describe('quarantine round-trip', () => {
-  let root: string;
-
-  beforeEach(() => {
-    root = makeProject();
+describe('assertCatalogPath', () => {
+  it('rejects paths that escape the root', () => {
+    expect(() => assertCatalogPath('/proj', '../AGENTS.md')).toThrow(OutsideCatalogError);
   });
 
-  afterEach(() => {
-    fs.rmSync(root, { recursive: true, force: true });
-  });
-
-  it('moves files out and restores exact bytes', () => {
-    writeTree(root, {
-      'AGENTS.md': 'baseline agents',
-      '.cursor/rules/a.mdc': 'rule-a',
-    });
-    const manifest = quarantineFiles(root, ['AGENTS.md', '.cursor/rules/a.mdc']);
-    expect(fs.existsSync(path.join(root, 'AGENTS.md'))).toBe(false);
-    expect(quarantineExists(root, manifest.id)).toBe(true);
-    restoreQuarantine(root, manifest.id);
-    expect(fs.readFileSync(path.join(root, 'AGENTS.md'), 'utf8')).toBe('baseline agents');
-    expect(fs.readFileSync(path.join(root, '.cursor/rules/a.mdc'), 'utf8')).toBe('rule-a');
-    expect(quarantineExists(root, manifest.id)).toBe(false);
+  it('rejects paths that are not AI mechanisms', () => {
+    expect(() => assertCatalogPath('/proj', 'src/index.ts')).toThrow(OutsideCatalogError);
   });
 });
 
-describe('swapContextProfile / restoreContext', () => {
-  let root: string;
-  let agentsDir: string;
+describe('save / switch', () => {
+  it('switching between two saved labels restores exact bytes', () => {
+    const { store, project } = makeStore();
+    saveContext(store, 'base', 'project');
+    writeTree(project, { '.cursor/rules/base.mdc': 'audit-rule\n', '.cursor/rules/extra.mdc': 'extra\n' });
+    saveContext(store, 'audit', 'project');
 
-  beforeEach(() => {
-    root = makeProject();
-    agentsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-profile-'));
-    writeTree(root, {
-      'AGENTS.md': 'stay-me',
-      '.cursor/rules/old.mdc': 'old-rule',
-      '.cursor/skills/old/SKILL.md': 'old-skill',
-    });
-    writeTree(agentsDir, {
-      '.cursor/rules/role.mdc': 'role-rule',
-      '.cursor/skills/role/SKILL.md': 'role-skill',
-    });
-    writeManifest(root, {
-      name: 'demo',
-      context: {
-        stay: ['AGENTS.md'],
-        profiles: {
-          researcher: { package: 'role-researcher', mode: 'overlay' },
-        },
-      },
-    });
+    switchContext(store, 'base');
+    expect(readRel(project, '.cursor/rules/base.mdc')).toBe('base-rule\n');
+    expect(readRel(project, '.cursor/rules/extra.mdc')).toBeNull();
+
+    switchContext(store, 'audit');
+    expect(readRel(project, '.cursor/rules/extra.mdc')).toBe('extra\n');
   });
 
-  afterEach(() => {
-    fs.rmSync(root, { recursive: true, force: true });
-    fs.rmSync(agentsDir, { recursive: true, force: true });
+  it('save makes the label active and the tree clean', () => {
+    const { store } = makeStore();
+    saveContext(store, 'base', 'user');
+    const s = contextStatus(store);
+    expect([s.active, s.scope, s.dirty]).toEqual(['base', 'user', []]);
   });
 
-  it('quarantines non-stay, installs profile, restores from quarantine', async () => {
-    const profileManifest: ToolManifest = {
-      name: 'role-researcher',
-      version: '1.0.0',
-      description: 'test profile',
-      category: 'context-profile',
-      files: [
-        { src: '.cursor/rules/role.mdc', dest: '.cursor/rules/role.mdc' },
-        { src: '.cursor/skills/role/SKILL.md', dest: '.cursor/skills/role/SKILL.md' },
-      ],
-    };
-
-    const swap = await swapContextProfile(root, 'researcher', {
-      force: true,
-      resolveProfile: async () => ({
-        manifest: profileManifest,
-        agentsDir,
-        integrity: 'test-integrity',
-        resolved: 'http://registry.test',
-      }),
-    });
-
-    expect(swap.quarantine.moves.map((m) => m.from).sort()).toEqual(
-      ['.cursor/rules/old.mdc', '.cursor/skills/old/SKILL.md'].sort(),
-    );
-    expect(fs.readFileSync(path.join(root, 'AGENTS.md'), 'utf8')).toBe('stay-me');
-    expect(fs.existsSync(path.join(root, '.cursor/rules/old.mdc'))).toBe(false);
-    expect(fs.readFileSync(path.join(root, '.cursor/rules/role.mdc'), 'utf8')).toBe('role-rule');
-
-    const status = getContextStatus(root);
-    expect(status.activeProfile).toBe('researcher');
-    expect(status.quarantinePresent).toBe(true);
-
-    const restored = await restoreContext(root, { force: true });
-    expect(restored.restoredFrom).toBe('quarantine');
-    expect(fs.readFileSync(path.join(root, '.cursor/rules/old.mdc'), 'utf8')).toBe('old-rule');
-    expect(fs.existsSync(path.join(root, '.cursor/rules/role.mdc'))).toBe(false);
-    expect(getContextStatus(root).activeProfile).toBeNull();
+  it('refuses to switch when the working tree has unsaved changes', () => {
+    const { store, project } = makeStore();
+    saveContext(store, 'base', 'project');
+    writeTree(project, { 'AGENTS.md': 'edited\n' });
+    expect(() => switchContext(store, 'base')).toThrow(DirtyWorkingTreeError);
   });
 
-  it('refuses overlay swap without authored stay', async () => {
-    writeManifest(root, {
-      context: {
-        profiles: { researcher: { package: 'role-researcher', mode: 'overlay' } },
-      },
-    });
-    await expect(
-      swapContextProfile(root, 'researcher', {
-        force: true,
-        resolveProfile: async () => {
-          throw new Error('should not resolve');
-        },
-      }),
-    ).rejects.toThrow(/authored context\.stay/);
+  it('refuses to switch before anything was ever saved', () => {
+    const { store } = makeStore();
+    saveContext(store, 'base', 'user');
+    const fresh = new ContextStore({ projectRoot: tmpDir('aitools-ctx-fresh-'), userRoot: store.userRoot, ignore: [] });
+    writeTree(fresh.projectRoot, { 'CLAUDE.md': 'unsaved\n' });
+    expect(() => switchContext(fresh, 'base')).toThrow(DirtyWorkingTreeError);
+  });
+
+  it('--discard overwrites unsaved changes', () => {
+    const { store, project } = makeStore();
+    saveContext(store, 'base', 'project');
+    writeTree(project, { 'AGENTS.md': 'edited\n' });
+    switchContext(store, 'base', { discard: true });
+    expect(readRel(project, 'AGENTS.md')).toBe('# base agents\n');
+  });
+
+  it('dry run reports the plan without touching disk', () => {
+    const { store, project } = makeStore();
+    saveContext(store, 'base', 'project');
+    writeTree(project, { '.cursor/rules/base.mdc': 'other\n' });
+    saveContext(store, 'other', 'project');
+    const plan = switchContext(store, 'base', { dryRun: true });
+    expect([plan.dryRun, readRel(project, '.cursor/rules/base.mdc')]).toEqual([true, 'other\n']);
+  });
+
+  it('never touches ignored paths and reports skipped snapshot files', () => {
+    const { store, project } = makeStore();
+    saveContext(store, 'with-agents', 'project');
+    const ignoring = new ContextStore({ projectRoot: project, userRoot: store.userRoot, ignore: ['AGENTS.md'] });
+    writeTree(project, { 'AGENTS.md': 'local-only\n' });
+    const result = switchContext(ignoring, 'with-agents', { discard: true });
+    expect([result.skipped, readRel(project, 'AGENTS.md')]).toEqual([['AGENTS.md'], 'local-only\n']);
+  });
+
+  it('a crash after the state write is repaired by switching again with --discard', () => {
+    const { store, project } = makeStore();
+    saveContext(store, 'base', 'project');
+    // Simulate: state says "base" but the tree was never rewritten.
+    writeTree(project, { 'AGENTS.md': 'half-applied\n' });
+    expect(contextStatus(store).dirty).toEqual(['AGENTS.md']);
+    switchContext(store, 'base', { discard: true });
+    expect(contextStatus(store).dirty).toEqual([]);
   });
 });
 
-describe('acceptStayProposal', () => {
-  let root: string;
-
-  beforeEach(() => {
-    root = makeProject();
-    writeManifest(root, { name: 'demo', context: { stay: ['AGENTS.md'] } });
+describe('scope resolution', () => {
+  it('saves to user scope under the user root', () => {
+    const { store, user } = makeStore();
+    const saved = saveContext(store, 'role', 'user');
+    expect(saved.ref.dir.startsWith(user)).toBe(true);
   });
 
-  afterEach(() => {
-    fs.rmSync(root, { recursive: true, force: true });
+  it('a project label shadows a user label of the same name', () => {
+    const { store, project } = makeStore();
+    saveContext(store, 'role', 'user');
+    writeTree(project, { 'AGENTS.md': '# project version\n' });
+    saveContext(store, 'role', 'project');
+    expect(store.resolve('role')?.scope).toBe('project');
   });
 
-  it('merges proposal into authored stay', () => {
-    writeStayProposal(root, {
-      generatedAt: new Date().toISOString(),
-      targetProfile: 'researcher',
-      stay: ['.cursor/rules/local.mdc', 'AGENTS.md'],
-    });
-    const stay = acceptStayProposal(root);
-    expect(stay).toEqual(['AGENTS.md', '.cursor/rules/local.mdc']);
+  it('writes a gitignore for stash and state in the project store', () => {
+    const { store, project } = makeStore();
+    saveContext(store, 'role', 'project');
+    expect(readRel(project, '.aitools/context/.gitignore')).toBe('stash/\nstate.json\n');
   });
 });
 
-describe('installContextProfileTree', () => {
-  it('rejects non context-profile category', () => {
-    const root = makeProject();
-    try {
-      expect(() =>
-        installContextProfileTree(root, root, {
-          name: 'x',
-          version: '1.0.0',
-          description: 'x',
-          category: 'skill',
-          files: [{ src: 'a.md', dest: 'a.md' }],
-        }, { integrity: 'i', resolved: 'r' }),
-      ).toThrow(/context-profile/);
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true });
+describe('stash / clear / pop', () => {
+  it('stash → clear → pop round-trips the working tree', () => {
+    const { store, project } = makeStore();
+    stashContext(store);
+    clearContext(store);
+    expect(readRel(project, '.cursor/rules/base.mdc')).toBeNull();
+    popContext(store);
+    expect(readRel(project, '.cursor/rules/base.mdc')).toBe('base-rule\n');
+  });
+
+  it('pop drops the entry only after a successful apply', () => {
+    const { store } = makeStore();
+    stashContext(store);
+    popContext(store, { dryRun: true });
+    expect(contextStatus(store).stashDepth).toBe(1);
+  });
+
+  it('clear leaves no active snapshot', () => {
+    const { store } = makeStore();
+    stashContext(store);
+    clearContext(store);
+    expect(contextStatus(store).active).toBeNull();
+  });
+});
+
+describe('merge', () => {
+  it('aborts on conflicting files and lists them', () => {
+    const { store, project } = makeStore();
+    saveContext(store, 'base', 'project');
+    writeTree(project, { '.cursor/rules/base.mdc': 'changed\n' });
+    saveContext(store, 'changed', 'project');
+    switchContext(store, 'base');
+    expect(() => mergeContext(store, 'changed')).toThrow(MergeConflictError);
+  });
+
+  it('--overwrite applies conflicts and leaves active unchanged', () => {
+    const { store, project } = makeStore();
+    saveContext(store, 'base', 'project');
+    writeTree(project, { '.cursor/rules/base.mdc': 'changed\n', '.cursor/rules/new.mdc': 'new\n' });
+    saveContext(store, 'changed', 'project');
+    switchContext(store, 'base');
+    const result = mergeContext(store, 'changed', { overwrite: true });
+    const s = contextStatus(store);
+    expect([result.conflicts, s.active, s.dirty.sort()]).toEqual([
+      ['.cursor/rules/base.mdc'],
+      'base',
+      ['.cursor/rules/base.mdc', '.cursor/rules/new.mdc'],
+    ]);
+  });
+});
+
+describe('store maintenance', () => {
+  it('refuses to drop the active snapshot without force', () => {
+    const { store } = makeStore();
+    saveContext(store, 'base', 'project');
+    expect(() => store.drop('base')).toThrow(ActiveSnapshotError);
+  });
+
+  it('rename keeps the active pointer in step', () => {
+    const { store } = makeStore();
+    saveContext(store, 'base', 'project');
+    store.rename('base', 'baseline');
+    expect([store.readState().active, store.resolve('base')]).toEqual(['baseline', null]);
+  });
+});
+
+describe('importSnapshotFromPackage', () => {
+  function packageDir(files: Record<string, string>): { agentsDir: string; manifest: ToolManifest } {
+    const agentsDir = tmpDir('aitools-ctx-pkg-');
+    const manifestFiles: ToolManifest['files'] = [];
+    for (const [dest, body] of Object.entries(files)) {
+      const src = dest.replace(/[/.]/g, '_');
+      fs.writeFileSync(path.join(agentsDir, src), body);
+      manifestFiles.push({ src, dest });
     }
-  });
-});
+    return {
+      agentsDir,
+      manifest: {
+        name: '@org/auditor',
+        version: '1.0.0',
+        description: 'test profile',
+        category: 'context-profile',
+        files: manifestFiles,
+      },
+    };
+  }
 
-describe('dirtyTrackedAiMechPaths', () => {
-  it('ignores untracked paths in porcelain output', () => {
-    // Pure parsing behaviour is covered via assertClean after a real git repo in e2e;
-    // here we only assert the exported helper returns [] for empty input.
-    expect(dirtyTrackedAiMechPaths(os.tmpdir(), [])).toEqual([]);
+  it('imports a context-profile as a user snapshot named after the package', () => {
+    const { store } = makeStore();
+    const pkg = packageDir({ '.cursor/rules/audit.mdc': 'audit\n' });
+    const imported = importSnapshotFromPackage(store, { ...pkg, registry: 'http://r', scope: 'user' });
+    expect([imported.ref.label, snapshotExists(imported.ref.dir)]).toEqual(['auditor', true]);
+  });
+
+  it('rejects a package with an escaping dest before writing anything', () => {
+    const { store } = makeStore();
+    const pkg = packageDir({ '.cursor/rules/ok.mdc': 'ok\n', '../escape.md': 'bad\n' });
+    expect(() => importSnapshotFromPackage(store, { ...pkg, registry: 'http://r', scope: 'user' })).toThrow(
+      OutsideCatalogError,
+    );
+    expect(store.list()).toEqual([]);
   });
 });

@@ -4,10 +4,10 @@
 
 ---
 
-### `aitools context` (cli) ↔ core context module ↔ registry `context-profile` — 2026-07-22 `304ed2d`
-**How they connect**: CLI `packages/cli/src/commands/context.ts` resolves profile/baseline packages via `RegistryClient` + `CacheManager`, then calls core `swapContextProfile` / `restoreContext` / `discoverAiMech`. Core quarantines AI-mech paths and installs overlays via `installContextProfileTree`. Direct `aitools install` of `category: context-profile` uses `Installer.installContextProfile` (same tree-overlay semantics). Lock state lives in `aitools-lock.json` → `context` (active profile, quarantine id/moves, optional baseline).  
-**Key files**: `packages/cli/src/commands/context.ts`, `packages/core/src/context/swap.ts`, `packages/cli/src/utils/installer.ts`  
-**Gotchas**: Overlay mode requires authored `context.stay` before swap. Restore prefers quarantine; baseline package is only used when quarantine is missing. Stay proposals (`.aitools/context-stay-proposal.json`) never apply until `context accept-stay`.
+### `aitools context` (cli) ↔ core snapshot store ↔ registry `context-profile` — 2026-10-17 (implemented 2026-10-18, uncommitted)
+**How they connect**: CLI parses scope (`--project` vs default user) and opens a core `ContextStore` on `{ projectRoot, userRoot }`. Core resolves a label project-first then user. `pull` / `push` are the only registry touch points: CLI resolves the package via `RegistryClient` + `CacheManager` (same as install) and hands core an unpacked directory; core imports it as a snapshot after validating every `dest` against the catalog. `push` is `RegistryClient.publish` of a snapshot's manifest with `category: context-profile`. No other `context` command touches the network.  
+**Key files**: `packages/cli/src/commands/context.ts`, `packages/core/src/context/store.ts`, `packages/core/src/context/registry-bridge.ts`, `packages/cli/src/utils/registry-client.ts`  
+**Gotchas**: `aitools install <context-profile>` is rejected with a pointer to `context pull` (single path). Stash and `state.json` are project-local even when the snapshot scope is user.
 
 ---
 
@@ -56,7 +56,7 @@
 ### `Installer` (cli) ↔ `CacheManager` + `RegistryClient`
 **How they connect**: `Installer.installFiles(client, manifest, scope)` first checks `CacheManager.get(name, version)`. On cache miss it calls `client.download(name, version)` → `CacheManager.set(name, version, tarball, manifest)` → copies files from `cacheEntry.agentsDir` to the resolved install path. On cache hit it skips the download entirely.  
 **Key files**: `packages/cli/src/utils/installer.ts`, `packages/cli/src/utils/cache-manager.ts`, `packages/cli/src/utils/registry-client.ts`  
-**Gotchas**: `installFiles` strips the install-base prefix from `file.dest` before resolving — see `constraints.md`. The cache stores files under a universal `.agents/` layout; the adapter path is applied only at copy-time.
+**Gotchas**: `installFiles` strips the install-base prefix from `file.dest` before resolving — see `archived.md` "Double-nested install path". The cache stores files under a universal `.agents/` layout; the adapter path is applied only at copy-time.
 
 ---
 
