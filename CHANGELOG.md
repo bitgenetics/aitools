@@ -13,6 +13,8 @@ before 3.4.0 are recorded only as git tags.
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-10-18
+
 ### Added
 - `aitools context` snapshots: `save`, `switch`, `stash`, `pop`, `clear`, `merge`, `drop`, `rename`, `pull` and `push` treat a project's AI-mechanism files (`AGENTS.md`, `.cursor/rules`, `.claude/**`, MCP and hook configs) as named git-style snapshots. Snapshots are stored at user scope by default; `--project` writes a committable `./.aitools/context/`.
 - `context.ignore` glob list in `aitools.json` removes paths from the context catalog.
@@ -76,7 +78,9 @@ before 3.4.0 are recorded only as git tags.
 ### Added
 - `aitools cursor worker` maps `.code-workspace` folders to `agent worker --worker-dir` for multi-root self-hosted workers.
 
-[Unreleased]: https://github.com/bitgenetics/aitools/compare/v3.6.5...HEAD
+
+[Unreleased]: https://github.com/bitgenetics/aitools/compare/v4.0.0...HEAD
+[4.0.0]: https://github.com/bitgenetics/aitools/compare/v3.6.5...v4.0.0
 [3.6.5]: https://github.com/bitgenetics/aitools/compare/v3.6.4...v3.6.5
 [3.6.4]: https://github.com/bitgenetics/aitools/compare/v3.6.3...v3.6.4
 [3.6.3]: https://github.com/bitgenetics/aitools/compare/v3.6.2...v3.6.3
