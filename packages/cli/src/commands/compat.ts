@@ -29,6 +29,7 @@ import {
   renderSkillMap,
   upsertSkillMapSection,
   parseCursorPluginJson,
+  parseFrontmatter,
 } from '@bitgenetics/aitools-core';
 import type { PlatformSpec, FieldSupport, ToolManifest, PluginPortabilityResult, CursorPluginJsonPaths } from '@bitgenetics/aitools-core';
 import type { TargetPlatform } from '@bitgenetics/aitools-core';
@@ -41,27 +42,6 @@ interface CompatOptions {
   platform?: string;
   manifest?: string;
   fix?: boolean;
-}
-
-// -- Minimal YAML frontmatter parser ---------------------------------------
-// Supports scalar string and boolean values only � sufficient for SKILL.md.
-
-export function parseSkillFrontmatter(content: string): Record<string, string | boolean> | null {
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  if (!match) return null;
-  const result: Record<string, string | boolean> = {};
-  for (const line of (match[1]!).split('\n')) {
-    if (/^\s/.test(line)) continue;
-    const colonIdx = line.indexOf(':');
-    if (colonIdx === -1) continue;
-    const key = line.slice(0, colonIdx).trim();
-    const raw = line.slice(colonIdx + 1).trim();
-    if (raw === 'true') result[key] = true;
-    else if (raw === 'false') result[key] = false;
-    else if (raw.startsWith('>-') || raw === '') continue; // multi-line � skip for now
-    else result[key] = raw.replace(/^['"]|['"]$/g, '');
-  }
-  return result;
 }
 
 /**
@@ -105,7 +85,7 @@ export interface PlatformResult {
 }
 
 export function analyzeCompat(
-  skillFields: Record<string, string | boolean>,
+  skillFields: Record<string, unknown>,
   category: string,
   targetPlatforms: TargetPlatform[],
   nativeFor?: TargetPlatform,
@@ -284,14 +264,14 @@ export function createCompatCommand(): Command {
       const manifestDir = source.manifestDir;
 
       // Read SKILL.md frontmatter when category is skill
-      let skillFields: Record<string, string | boolean> = {};
+      let skillFields: Record<string, unknown> = {};
       if (manifest.category === 'skill') {
         const skillFile = manifest.files.find((f) => f.src.endsWith('SKILL.md'));
         if (skillFile) {
           const skillPath = path.resolve(manifestDir, skillFile.src);
           if (fs.existsSync(skillPath)) {
             const content = fs.readFileSync(skillPath, 'utf8');
-            skillFields = parseSkillFrontmatter(content) ?? {};
+            skillFields = parseFrontmatter(content).fields;
           }
         }
       }

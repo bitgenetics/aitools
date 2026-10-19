@@ -228,7 +228,7 @@ describe('transformHook', () => {
 
   it('drops http hooks when targeting windsurf', () => {
     const input = JSON.stringify({
-      preToolUse: [{ type: 'http', url: 'https://example.com/hook' }],
+      beforeShellExecution: [{ type: 'http', url: 'https://example.com/hook' }],
     });
     const result = transformHook(input, 'cursor', 'windsurf');
     expect(result.warnings.some((w) => w.includes('http-type'))).toBe(true);
@@ -236,19 +236,26 @@ describe('transformHook', () => {
 
   it('drops mcp_tool hooks during transformation', () => {
     const input = JSON.stringify({
-      preToolUse: [{ type: 'mcp_tool', tool: 'search' }],
+      beforeShellExecution: [{ type: 'mcp_tool', tool: 'search' }],
     });
     const result = transformHook(input, 'cursor', 'windsurf');
     expect(result.warnings.some((w) => w.includes('mcp_tool'))).toBe(true);
   });
 
-  it('maps events to snake_case for windsurf', () => {
+  it('writes the windsurf hooks file for a cursor shell hook with high confidence', () => {
+    const input = JSON.stringify({
+      beforeShellExecution: [{ type: 'command', command: 'echo hi' }],
+    });
+    const result = transformHook(input, 'cursor', 'windsurf');
+    expect(JSON.parse(result.content)).toEqual({ hooks: { pre_run_command: [{ command: 'echo hi' }] } });
+    expect(result.confidence).toBe('high');
+  });
+
+  it('has no windsurf target for the generic cursor tool events', () => {
     const input = JSON.stringify({
       preToolUse: [{ type: 'command', command: 'echo hi' }],
     });
-    const result = transformHook(input, 'cursor', 'windsurf');
-    expect(result.content).toContain('pre_tool_use');
-    expect(result.confidence).toBe('low');
+    expect(transformHook(input, 'cursor', 'windsurf').confidence).toBe('unsupported');
   });
 
   it('returns unsupported when no portable events remain', () => {
@@ -278,10 +285,10 @@ describe('transformHook', () => {
 
   it('transforms claude hook config wrapped in settings.json', () => {
     const input = JSON.stringify({
-      hooks: { PreToolUse: [{ type: 'command', command: 'echo hi' }] },
+      hooks: { UserPromptSubmit: [{ type: 'command', command: 'echo hi' }] },
     });
     const result = transformHook(input, 'claude', 'windsurf');
-    expect(result.content).toContain('pre_tool_use');
+    expect(result.content).toContain('pre_user_prompt');
   });
 
   it('groups command hooks the claude way when transforming cursor to claude', () => {

@@ -28,11 +28,12 @@ import {
   parseCursorPluginJson,
   normalizeCategory,
   detectVendorFrontmatter,
+  parseFrontmatter,
 } from '@bitgenetics/aitools-core';
 import type { ToolManifest, CursorPluginJsonPaths, VendorField } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { createRegistryClient } from '../utils/registry-client.js';
-import { parseSkillFrontmatter, analyzeCompat, printPortabilityGrade } from './compat.js';
+import { analyzeCompat, printPortabilityGrade } from './compat.js';
 import { PLATFORM_SPECS } from '@bitgenetics/aitools-core';
 import type { TargetPlatform } from '@bitgenetics/aitools-core';
 
@@ -214,7 +215,7 @@ export function createPublishCommand(): Command {
         if (skillFile) {
           const skillPath = resolveStoredPath(manifestDir, skillFile.src);
           if (fs.existsSync(skillPath)) {
-            const skillFields = parseSkillFrontmatter(fs.readFileSync(skillPath, 'utf8')) ?? {};
+            const skillFields = parseFrontmatter(fs.readFileSync(skillPath, 'utf8')).fields;
             const allPlatforms = Object.keys(PLATFORM_SPECS) as TargetPlatform[];
             const compatResults = analyzeCompat(skillFields, 'skill', allPlatforms);
             const compatIssues = compatResults.filter((r) =>

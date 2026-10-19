@@ -12,9 +12,9 @@
 
 ### Platform adapter interface for path resolution
 **Used for**: Resolving where tool files should be installed for each IDE.  
-**How**: Implement `PlatformAdapter` (`resolveDir(category, scope, cwd)`, `resolveMcpConfig(scope, cwd)`, `resolveHooksConfig(scope, cwd)` for hook category). Register in `ADAPTERS` map in `packages/cli/src/adapters/index.ts`. Add a `PlatformSpec` entry in `packages/core/src/platforms/`.  
+**How**: Add a `PlatformSpec` entry in `packages/core/src/platforms/` with `installPaths` (project and `~/`-prefixed user paths, `mcpConfig`, `hookConfig`); then `export class XAdapter extends SpecAdapter { constructor() { super(xSpec); } }` in `packages/cli/src/adapters/` and register it in the `ADAPTERS` map. `SpecAdapter` (`spec-adapter.ts`) resolves every path from the spec; override a method only for a path the spec cannot express (VS Code's per-OS user MCP file).  
 **Example**: `packages/cli/src/adapters/vscode.ts`  
-**Do not**: Branch on platform name inside `Installer` or command handlers — always go through the adapter.
+**Do not**: Write an install path in an adapter class, or branch on platform name inside `Installer` or command handlers — the spec is the one place a path lives, and callers go through the adapter.
 
 ---
 

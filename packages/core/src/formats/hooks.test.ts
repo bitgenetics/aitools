@@ -17,6 +17,7 @@ import {
   hookEventName,
   neutralHookEvent,
   readHooksFile,
+  vendorHookEvents,
   writeHooksFile,
   NO_PORTABLE_HOOKS_WARNING,
 } from './hooks.js';
@@ -77,8 +78,10 @@ describe('writeHooksFile', () => {
     });
   });
 
-  it('writes windsurf hooks flat', () => {
-    expect(JSON.parse(writeHooksFile({ pre_tool_use: [CMD] }, 'windsurf'))).toEqual({ pre_tool_use: [CMD] });
+  it('writes windsurf hooks under the hooks key', () => {
+    expect(JSON.parse(writeHooksFile({ pre_run_command: [{ command: 'echo hi' }] }, 'windsurf'))).toEqual({
+      hooks: { pre_run_command: [{ command: 'echo hi' }] },
+    });
   });
 });
 
@@ -113,9 +116,38 @@ describe('convertHookEvents', () => {
     expect(result.unsupported).toBe(true);
   });
 
-  it('warns that the windsurf format is unverified', () => {
+  it('maps the cursor shell event to windsurf with a command-only handler', () => {
+    const result = convertHookEvents({ beforeShellExecution: [{ ...CMD, timeout: 5 }] }, 'cursor', 'windsurf');
+    expect(result.events).toEqual({ pre_run_command: [{ command: 'echo hi' }] });
+  });
+
+  it('has no windsurf equivalent for the generic tool events', () => {
     const result = convertHookEvents({ preToolUse: [CMD] }, 'cursor', 'windsurf');
-    expect(result.warnings).toEqual([expect.stringContaining('unverified')]);
+    expect(result.unsupported).toBe(true);
+  });
+
+  it('reads a windsurf handler back into the typed command shape', () => {
+    const handler = { command: 'echo hi', powershell: 'Write-Host hi', show_output: true };
+    const result = convertHookEvents({ post_write_code: [handler] }, 'windsurf', 'cursor');
+    expect(result.events).toEqual({ afterFileEdit: [CMD] });
+  });
+
+  it('drops a windsurf handler that has only a powershell command', () => {
+    const result = convertHookEvents({ pre_user_prompt: [{ powershell: 'Write-Host hi' }] }, 'windsurf', 'claude');
+    expect(result.warnings).toEqual([expect.stringContaining('powershell'), NO_PORTABLE_HOOKS_WARNING]);
+  });
+
+  it('lists every shared event a vendor has in its own spelling', () => {
+    expect(vendorHookEvents('windsurf')).toEqual([
+      'pre_user_prompt',
+      'pre_run_command',
+      'post_run_command',
+      'pre_mcp_tool_use',
+      'post_mcp_tool_use',
+      'pre_read_code',
+      'post_write_code',
+      'post_cascade_response',
+    ]);
   });
 
   it('drops prompt handlers', () => {

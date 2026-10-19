@@ -305,6 +305,6 @@ export {
   nonEmptyHookEvents,
   convertHookEvents,
   NO_PORTABLE_HOOKS_WARNING,
-  WINDSURF_HOOKS_UNVERIFIED_WARNING,
+  vendorHookEvents,
   detectVendorFrontmatter,
 } from './formats/index.js';

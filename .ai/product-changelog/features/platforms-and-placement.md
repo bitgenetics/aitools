@@ -2,6 +2,19 @@
 
 > Platform adapters, transforms, placementMode, install paths, user-scope roots. Part of [features/](./README.md).
 
+### Windsurf hooks verified; adapters and frontmatter reads have one source each — 2026-10-19
+**What**:
+1. **Windsurf hooks match the vendor docs.** The file is `.devin/hooks.json` (user scope `~/.codeium/windsurf/hooks.json`) with a top-level `hooks` key; events are per tool kind (`pre_run_command`, `post_write_code`, `pre_user_prompt`, …); handlers are `{ command, powershell?, show_output?, working_directory? }`. Conversion to Windsurf keeps `command` only and drops matchers with a warning; conversion from Windsurf drops powershell-only handlers. The old flat `pre_tool_use` output and the "unverified" warning are gone.
+2. **Cursor's tool-specific events are portable to Windsurf.** `beforeShellExecution`/`afterShellExecution`, `beforeMCPExecution`/`afterMCPExecution`, `beforeReadFile`, `afterFileEdit`, `beforeSubmitPrompt` and `afterAgentResponse` now have neutral names in the shared event table. Claude and VS Code have none of them, so those pairs still drop them; the generic `PreToolUse`/`PostToolUse` family has no Windsurf equivalent.
+3. **The hook confidence estimate** used by `compat` fixtures one command handler on every shared event the source vendor has, so a pair that drops most events reads `low`.
+4. **Adapters resolve every path from the core `PlatformSpec`** (`SpecAdapter`); the per-adapter directory tables are deleted. The universal spec's user paths were corrected to `~/.aitools/tools/*` and its MCP config added, matching what install already did.
+5. **`compat` and `publish` read SKILL.md frontmatter with the core YAML parser**; a folded multi-line `description` now counts as a field. The scalar-only parser is deleted.  
+**Why**: The 2026-10-19 review left Windsurf's hook format marked unverified; checking the docs showed the shape and event names were wrong. Adapter tables duplicated the spec (one entry had drifted), and the compat parser silently skipped multi-line values.  
+**Impact**: Hook packages targeting Windsurf now land where Windsurf reads them. Cursor-native hook packages convert their shell, MCP and file hooks for Windsurf instead of dropping them.  
+**Key files**: `packages/core/src/formats/hooks.ts`, `packages/core/src/platforms/windsurf.ts`, `packages/core/src/platforms/universal.ts`, `packages/cli/src/adapters/spec-adapter.ts`, `packages/cli/src/transformers/estimate.ts`, `packages/cli/src/commands/compat.ts`
+
+---
+
 ### Vendor file formats are one core model; transforms convert through it — 2026-10-19
 **What**: Rule, command, agent and hook conversion between `cursor`, `vscode`, `claude` and `windsurf` now goes through `packages/core/src/formats/`: each category has a vendor-neutral model, a per-vendor field table and a YAML frontmatter parser/serializer (the `yaml` package). The CLI transformers are thin wrappers that map the core result onto `confidence`.
 1. **Hook packages install a hook on every hook-capable platform.** A `nativeFor: claude` hook package installed on `cursor` or `vscode` is converted (Claude matcher groups flatten, event names rename) and merged into the platform's own hooks file (`.cursor/hooks.json` with `{ version: 1, hooks }`, `.github/hooks/hooks.json` with `{ hooks }`). The "Cursor/Copilot read `.claude/settings.json` natively" shortcut and its `recommendNativePath` advisory are gone.

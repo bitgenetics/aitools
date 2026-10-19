@@ -12,7 +12,6 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-import path from 'node:path';
 import type { ToolCategory, InstallScope, TargetPlatform, FileCategory } from '@bitgenetics/aitools-core';
 import { normalizeCategory } from '@bitgenetics/aitools-core';
 
@@ -91,25 +90,4 @@ export function toAdapterFileCategory(category: ToolCategory): AdapterFileCatego
     throw new Error(`Category "${category}" is not installed as regular files`);
   }
   return normalized;
-}
-
-/** Install directory per file category; a missing key means the platform has no home for it. */
-export type CategoryDirs = Partial<Record<FileCategory, string>>;
-
-/**
- * Resolve a category's directory from a platform's map, or throw when the platform
- * (or this scope on it) has no home for the category.
- */
-export function resolveCategoryDir(
-  platform: TargetPlatform,
-  dirs: CategoryDirs,
-  category: AdapterFileCategory,
-  scope: InstallScope,
-  cwd: string,
-): string {
-  const dir = dirs[resolveFileCategory(category)];
-  if (dir === undefined) {
-    throw new Error(`Category "${category}" is not supported on ${platform} (${scope} scope)`);
-  }
-  return scope === 'project' ? path.resolve(cwd, dir) : dir;
 }

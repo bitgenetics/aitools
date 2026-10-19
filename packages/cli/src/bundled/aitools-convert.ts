@@ -40,7 +40,7 @@ Use this skill when \`aitools install\` or \`aitools_transform\` reports \`mediu
 | Rule | \`.cursor/rules/*.mdc\` | \`.github/instructions/*.instructions.md\` | \`.claude/rules/*.md\` | \`.devin/rules/*.md\` |
 | Command | \`.cursor/commands/\` | \`.github/prompts/*.prompt.md\` | \`.claude/commands/\` | \`.windsurf/workflows/\` |
 | Agent | \`.cursor/agents/\` | \`.github/agents/*.agent.md\` | \`.claude/agents/\` | *(no native format)* |
-| Hook | \`.cursor/hooks.json\` | \`.github/hooks/hooks.json\` | \`.claude/settings.json\` hooks key | \`.windsurf/hooks.json\` |
+| Hook | \`.cursor/hooks.json\` | \`.github/hooks/hooks.json\` | \`.claude/settings.json\` hooks key | \`.devin/hooks.json\` |
 
 ## Hook handler types
 

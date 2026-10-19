@@ -35,7 +35,7 @@ export {
   nonEmptyHookEvents,
   convertHookEvents,
   NO_PORTABLE_HOOKS_WARNING,
-  WINDSURF_HOOKS_UNVERIFIED_WARNING,
+  vendorHookEvents,
 } from './hooks.js';
 export type { FrontmatterCategory } from './detect.js';
 export { detectVendorFrontmatter } from './detect.js';

@@ -33,8 +33,8 @@ const INVALID_HOOK_JSON: TransformResult = {
   skillPrompt: '/aitools-convert — fix malformed hook config',
 };
 
-function hookConfidence(warnings: string[], to: ContentVendor): TransformConfidence {
-  if (to === 'windsurf' || warnings.length > LOW_CONFIDENCE_WARNING_COUNT) return 'low';
+function hookConfidence(warnings: string[]): TransformConfidence {
+  if (warnings.length > LOW_CONFIDENCE_WARNING_COUNT) return 'low';
   return warnings.length > 0 ? 'medium' : 'high';
 }
 
@@ -61,7 +61,7 @@ export function transformHook(content: string, from: TargetPlatform, to: TargetP
   }
   return {
     content: writeHooksFile(conversion.events, to),
-    confidence: hookConfidence(conversion.warnings, to),
+    confidence: hookConfidence(conversion.warnings),
     warnings: conversion.warnings,
   };
 }

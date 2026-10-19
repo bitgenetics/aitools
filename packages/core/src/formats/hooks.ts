@@ -20,21 +20,29 @@ export type HookEvents = Record<string, HookHandler[]>;
 
 /**
  * Hook events with an equivalent on more than one vendor, keyed by a vendor-neutral name.
- * Verified 2026-10-19: Cursor camelCase in `.cursor/hooks.json` `{ version: 1, hooks }`;
- * Claude Code PascalCase under the `hooks` key of settings.json; VS Code PascalCase in
- * `.github/hooks/*.json` `{ hooks }`. Windsurf names are unverified.
+ * Verified 2026-10-19 against each vendor's hooks page:
+ * Cursor camelCase in `.cursor/hooks.json` `{ version: 1, hooks }`; Claude Code PascalCase
+ * under the `hooks` key of settings.json; VS Code PascalCase in `.github/hooks/*.json`
+ * `{ hooks }`; Windsurf snake_case per tool kind in `.devin/hooks.json` `{ hooks }`.
  */
 export const HOOK_EVENTS: Record<string, Record<ContentVendor, string | null>> = {
-  PreToolUse:         { cursor: 'preToolUse',         claude: 'PreToolUse',         vscode: 'PreToolUse',       windsurf: 'pre_tool_use' },
-  PostToolUse:        { cursor: 'postToolUse',        claude: 'PostToolUse',        vscode: 'PostToolUse',      windsurf: 'post_tool_use' },
-  PostToolUseFailure: { cursor: 'postToolUseFailure', claude: 'PostToolUseFailure', vscode: null,               windsurf: null },
-  SessionStart:       { cursor: 'sessionStart',       claude: 'SessionStart',       vscode: 'SessionStart',     windsurf: 'session_start' },
-  SessionEnd:         { cursor: 'sessionEnd',         claude: 'SessionEnd',         vscode: null,               windsurf: 'session_end' },
-  SubagentStart:      { cursor: 'subagentStart',      claude: 'SubagentStart',      vscode: 'SubagentStart',    windsurf: 'subagent_start' },
-  SubagentStop:       { cursor: 'subagentStop',       claude: 'SubagentStop',       vscode: 'SubagentStop',     windsurf: 'subagent_stop' },
-  Stop:               { cursor: 'stop',               claude: 'Stop',               vscode: 'Stop',             windsurf: null },
-  PreCompact:         { cursor: 'preCompact',         claude: 'PreCompact',         vscode: 'PreCompact',       windsurf: null },
-  UserPromptSubmit:   { cursor: 'beforeSubmitPrompt', claude: 'UserPromptSubmit',   vscode: 'UserPromptSubmit', windsurf: null },
+  PreToolUse:         { cursor: 'preToolUse',           claude: 'PreToolUse',         vscode: 'PreToolUse',       windsurf: null },
+  PostToolUse:        { cursor: 'postToolUse',          claude: 'PostToolUse',        vscode: 'PostToolUse',      windsurf: null },
+  PostToolUseFailure: { cursor: 'postToolUseFailure',   claude: 'PostToolUseFailure', vscode: null,               windsurf: null },
+  SessionStart:       { cursor: 'sessionStart',         claude: 'SessionStart',       vscode: 'SessionStart',     windsurf: null },
+  SessionEnd:         { cursor: 'sessionEnd',           claude: 'SessionEnd',         vscode: null,               windsurf: null },
+  SubagentStart:      { cursor: 'subagentStart',        claude: 'SubagentStart',      vscode: 'SubagentStart',    windsurf: null },
+  SubagentStop:       { cursor: 'subagentStop',         claude: 'SubagentStop',       vscode: 'SubagentStop',     windsurf: null },
+  Stop:               { cursor: 'stop',                 claude: 'Stop',               vscode: 'Stop',             windsurf: null },
+  PreCompact:         { cursor: 'preCompact',           claude: 'PreCompact',         vscode: 'PreCompact',       windsurf: null },
+  UserPromptSubmit:   { cursor: 'beforeSubmitPrompt',   claude: 'UserPromptSubmit',   vscode: 'UserPromptSubmit', windsurf: 'pre_user_prompt' },
+  PreShellExecution:  { cursor: 'beforeShellExecution', claude: null,                 vscode: null,               windsurf: 'pre_run_command' },
+  PostShellExecution: { cursor: 'afterShellExecution',  claude: null,                 vscode: null,               windsurf: 'post_run_command' },
+  PreMcpExecution:    { cursor: 'beforeMCPExecution',   claude: null,                 vscode: null,               windsurf: 'pre_mcp_tool_use' },
+  PostMcpExecution:   { cursor: 'afterMCPExecution',    claude: null,                 vscode: null,               windsurf: 'post_mcp_tool_use' },
+  PreReadFile:        { cursor: 'beforeReadFile',       claude: null,                 vscode: null,               windsurf: 'pre_read_code' },
+  PostFileEdit:       { cursor: 'afterFileEdit',        claude: null,                 vscode: null,               windsurf: 'post_write_code' },
+  AgentResponse:      { cursor: 'afterAgentResponse',   claude: null,                 vscode: null,               windsurf: 'post_cascade_response' },
 };
 
 /** The vendor's name for a neutral event, or null when the vendor has no such event. */
@@ -48,6 +56,16 @@ export function neutralHookEvent(name: string, vendor: ContentVendor): string | 
     if (names[vendor] === name) return neutral;
   }
   return null;
+}
+
+/** Every event name the vendor has in the shared table, in the vendor's spelling. */
+export function vendorHookEvents(vendor: ContentVendor): string[] {
+  const names: string[] = [];
+  for (const byVendor of Object.values(HOOK_EVENTS)) {
+    const name = byVendor[vendor];
+    if (name) names.push(name);
+  }
+  return names;
 }
 
 /** Hook file split into its event map and the other top-level keys the file carries. */
@@ -72,8 +90,8 @@ function eventsFrom(map: Record<string, unknown>): HookEvents {
 
 /**
  * Parse a vendor hooks file. Throws on invalid JSON.
- * Cursor, VS Code and Claude wrap events under `hooks`; a flat event map is accepted as
- * legacy input for every vendor, and is what Windsurf is written as (unverified format).
+ * Every vendor wraps events under `hooks`; a flat event map is accepted as legacy input
+ * for the vendors whose file holds nothing else.
  */
 export function readHooksFile(content: string, vendor: ContentVendor): HooksFile {
   const parsed = JSON.parse(content) as unknown;
@@ -88,19 +106,10 @@ export function readHooksFile(content: string, vendor: ContentVendor): HooksFile
 
 /** Serialize events in the shape the vendor reads, keeping unrelated top-level keys. */
 export function writeHooksFile(events: HookEvents, vendor: ContentVendor, rest: Record<string, unknown> = {}): string {
-  let file: Record<string, unknown>;
-  switch (vendor) {
-    case 'cursor':
-      file = { version: CURSOR_HOOKS_FILE_VERSION, ...rest, hooks: events };
-      break;
-    case 'vscode':
-    case 'claude':
-      file = { ...rest, hooks: events };
-      break;
-    case 'windsurf':
-      file = { ...rest, ...events };
-      break;
-  }
+  const file: Record<string, unknown> =
+    vendor === 'cursor'
+      ? { version: CURSOR_HOOKS_FILE_VERSION, ...rest, hooks: events }
+      : { ...rest, hooks: events };
   return JSON.stringify(file, null, 2) + '\n';
 }
 
@@ -132,11 +141,44 @@ function flattenHandlers(handlers: HookHandler[], from: ContentVendor): HookHand
   return flat;
 }
 
+/** Regroup flat handlers into Claude's matcher groups, one group per distinct matcher. */
 function groupForClaude(handlers: HookHandler[]): HookHandler[] {
-  return handlers.map((handler) => {
+  const groups = new Map<string | undefined, HookHandler[]>();
+  for (const handler of handlers) {
     const { matcher, ...rest } = handler;
-    return matcher === undefined ? { hooks: [rest] } : { matcher, hooks: [rest] };
-  });
+    const key = typeof matcher === 'string' ? matcher : undefined;
+    const list = groups.get(key) ?? [];
+    list.push(rest);
+    groups.set(key, list);
+  }
+  return [...groups.entries()].map(([matcher, hooks]) =>
+    matcher === undefined ? { hooks } : { matcher, hooks },
+  );
+}
+
+/**
+ * Windsurf handlers are `{ command, powershell?, show_output?, working_directory? }` with
+ * no `type`; every other vendor writes `{ type: 'command', command, ... }`.
+ */
+function fromWindsurfHandler(handler: HookHandler, warnings: string[]): HookHandler | null {
+  const command = handler['command'];
+  if (typeof command !== 'string') {
+    warnings.push('Dropped Windows-only hook: it has a powershell command but no shell command');
+    return null;
+  }
+  return { type: 'command', command };
+}
+
+function toWindsurfHandler(handler: HookHandler, warnings: string[]): HookHandler | null {
+  const command = handler['command'];
+  if (typeof command !== 'string') {
+    warnings.push('Dropped hook without a shell command: Windsurf hooks run commands only');
+    return null;
+  }
+  if (handler['matcher'] !== undefined) {
+    warnings.push('Dropped hook matcher: Windsurf events are already per tool kind');
+  }
+  return { command };
 }
 
 /** Drop handler types the target cannot run; returns null when the handler is dropped. */
@@ -162,6 +204,19 @@ function portableHandler(handler: HookHandler, to: ContentVendor, warnings: stri
   return handler;
 }
 
+function convertHandler(
+  handler: HookHandler,
+  from: ContentVendor,
+  to: ContentVendor,
+  warnings: string[],
+): HookHandler | null {
+  const neutral = from === 'windsurf' ? fromWindsurfHandler(handler, warnings) : handler;
+  if (!neutral) return null;
+  const portable = portableHandler(neutral, to, warnings);
+  if (!portable) return null;
+  return to === 'windsurf' ? toWindsurfHandler(portable, warnings) : portable;
+}
+
 export interface HookConversion {
   events: HookEvents;
   warnings: string[];
@@ -170,8 +225,6 @@ export interface HookConversion {
 }
 
 export const NO_PORTABLE_HOOKS_WARNING = 'No portable hook events survived transformation';
-export const WINDSURF_HOOKS_UNVERIFIED_WARNING =
-  'Windsurf hook file format and event names are unverified; review before relying on them';
 
 /** Convert events parsed from a `from` hooks file into the `to` vendor's events. */
 export function convertHookEvents(input: HookEvents, from: ContentVendor, to: ContentVendor): HookConversion {
@@ -186,8 +239,8 @@ export function convertHookEvents(input: HookEvents, from: ContentVendor, to: Co
     }
     const kept: HookHandler[] = [];
     for (const handler of flattenHandlers(handlers, from)) {
-      const portable = portableHandler(handler, to, warnings);
-      if (portable) kept.push(portable);
+      const converted = convertHandler(handler, from, to, warnings);
+      if (converted) kept.push(converted);
     }
     if (kept.length === 0) continue;
     events[target] = to === 'claude' ? groupForClaude(kept) : kept;
@@ -196,6 +249,5 @@ export function convertHookEvents(input: HookEvents, from: ContentVendor, to: Co
     warnings.push(NO_PORTABLE_HOOKS_WARNING);
     return { events, warnings, unsupported: true };
   }
-  if (to === 'windsurf') warnings.push(WINDSURF_HOOKS_UNVERIFIED_WARNING);
   return { events, warnings, unsupported: false };
 }

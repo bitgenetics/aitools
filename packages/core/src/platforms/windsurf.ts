@@ -38,6 +38,6 @@ export const windsurfSpec: PlatformSpec = {
     prompt:     { project: '.windsurf/workflows',  user: '~/.windsurf/workflows' },
     instructions: { project: '.' },
     mcpConfig:  { project: '.windsurf/mcp.json',   user: '~/.windsurf/mcp.json' },
-    hookConfig: { project: '.windsurf/hooks.json', user: '~/.windsurf/hooks.json' },
+    hookConfig: { project: '.devin/hooks.json',    user: '~/.codeium/windsurf/hooks.json' },
   },
 };

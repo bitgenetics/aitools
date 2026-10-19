@@ -784,7 +784,7 @@ These categories don't add files. They merge entries into the platform's config 
 | `vscode` | `.vscode/mcp.json` / VS Code user-profile `mcp.json` | `.github/hooks/hooks.json` / `~/.copilot/hooks/hooks.json` |
 | `claude` | `.mcp.json` / `~/.claude.json` | `.claude/settings.json` / `~/.claude/settings.json` |
 | `cursor` | `.cursor/mcp.json` / `~/.cursor/mcp.json` | `.cursor/hooks.json` / `~/.cursor/hooks.json` |
-| `windsurf` | `.windsurf/mcp.json` / `~/.windsurf/mcp.json` | `.windsurf/hooks.json` / `~/.windsurf/hooks.json` |
+| `windsurf` | `.windsurf/mcp.json` / `~/.windsurf/mcp.json` | `.devin/hooks.json` / `~/.codeium/windsurf/hooks.json` |
 | universal | `.agents/mcp.json` / `~/.aitools/mcp.json` | not supported |
 
 ### `plugin`

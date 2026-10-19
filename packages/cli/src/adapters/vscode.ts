@@ -14,61 +14,22 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import os from 'node:os';
 import path from 'node:path';
-import type { PlatformAdapter, AdapterFileCategory, CategoryDirs } from './types.js';
-import { resolveCategoryDir } from './types.js';
+import { vscodeSpec } from '@bitgenetics/aitools-core';
 import type { InstallScope } from '@bitgenetics/aitools-core';
+import { SpecAdapter } from './spec-adapter.js';
 
 /**
- * VS Code / GitHub Copilot adapter.
- *
- * Project scope paths:
- *   skill   → .github/skills/
- *   rule    → .github/instructions/
- *   command → .github/prompts/
- *   agent   → .github/agents/
- *   hook    → .github/hooks/hooks.json
- *   mcp     → .vscode/mcp.json
- *
- * User scope:
- *   skill/rule/agent → ~/.copilot/{skills,instructions,agents}
- *   command (prompts) → ~/.copilot/prompts (Copilot-aligned; VS Code UI may also use profile data)
- *   mcp → VS Code user profile mcp.json (MCP: Open User Configuration)
- *   hooks → ~/.copilot/hooks/hooks.json
+ * Paths come from the vscode platform spec in core, except the user-scope MCP config,
+ * which is the VS Code profile mcp.json and depends on the operating system.
  */
-export class VsCodeAdapter implements PlatformAdapter {
-  readonly platform = 'vscode' as const;
-
-  private projectDirs: CategoryDirs = {
-    instructions: '.',
-    skill:   path.join('.github', 'skills'),
-    rule:    path.join('.github', 'instructions'),
-    command: path.join('.github', 'prompts'),
-    agent:   path.join('.github', 'agents'),
-  };
-
-  private userDirs(): CategoryDirs {
-    const home = os.homedir();
-    return {
-      skill:   path.join(home, '.copilot', 'skills'),
-      rule:    path.join(home, '.copilot', 'instructions'),
-      command: path.join(home, '.copilot', 'prompts'),
-      agent:   path.join(home, '.copilot', 'agents'),
-    };
+export class VsCodeAdapter extends SpecAdapter {
+  constructor() {
+    super(vscodeSpec);
   }
 
-  resolveDir(category: AdapterFileCategory, scope: InstallScope, cwd: string): string {
-    const dirs = scope === 'project' ? this.projectDirs : this.userDirs();
-    return resolveCategoryDir(this.platform, dirs, category, scope, cwd);
-  }
-
-  resolveMcpConfig(scope: InstallScope, cwd: string): string {
-    if (scope === 'project') return path.resolve(cwd, '.vscode', 'mcp.json');
+  override resolveMcpConfig(scope: InstallScope, cwd: string): string {
+    if (scope === 'project') return super.resolveMcpConfig(scope, cwd);
     return resolveVsCodeUserMcpConfig();
-  }
-
-  resolveHooksConfig(scope: InstallScope, cwd: string): string {
-    if (scope === 'project') return path.resolve(cwd, '.github', 'hooks', 'hooks.json');
-    return path.join(os.homedir(), '.copilot', 'hooks', 'hooks.json');
   }
 }
 

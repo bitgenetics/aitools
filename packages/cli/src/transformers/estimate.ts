@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import type { ContentVendor, TargetPlatform, ToolCategory } from '@bitgenetics/aitools-core';
-import { hookEventName, isContentVendor, normalizeCategory, writeHooksFile } from '@bitgenetics/aitools-core';
+import { isContentVendor, normalizeCategory, vendorHookEvents, writeHooksFile } from '@bitgenetics/aitools-core';
 import type { TransformConfidence } from './types.js';
 import { transformRule } from './rule.js';
 import { transformCommand } from './command.js';
@@ -36,10 +36,15 @@ const COMMAND_FIXTURE = '---\ndescription: Do it\n---\nRun it.\n';
 
 const AGENT_FIXTURE = '---\nname: reviewer\ndescription: Reviews code\n---\nReview the change.\n';
 
+// One command handler on every shared event the source vendor has, so the estimate reflects
+// how much of a typical hooks file the target can take.
 function hookFixture(from: ContentVendor): string {
-  const event = hookEventName('PreToolUse', from)!;
-  const handler = { type: 'command', command: 'echo pre' };
-  return writeHooksFile({ [event]: from === 'claude' ? [{ hooks: [handler] }] : [handler] }, from);
+  const handler = from === 'windsurf' ? { command: 'echo pre' } : { type: 'command', command: 'echo pre' };
+  const events: Record<string, Array<Record<string, unknown>>> = {};
+  for (const event of vendorHookEvents(from)) {
+    events[event] = from === 'claude' ? [{ hooks: [handler] }] : [handler];
+  }
+  return writeHooksFile(events, from);
 }
 
 /** Estimate hook transform confidence for the compat matrix. */

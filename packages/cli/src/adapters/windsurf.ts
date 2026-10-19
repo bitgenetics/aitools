@@ -12,54 +12,12 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-import os from 'node:os';
-import path from 'node:path';
-import type { PlatformAdapter, AdapterFileCategory, CategoryDirs } from './types.js';
-import { resolveCategoryDir } from './types.js';
-import type { InstallScope } from '@bitgenetics/aitools-core';
+import { windsurfSpec } from '@bitgenetics/aitools-core';
+import { SpecAdapter } from './spec-adapter.js';
 
-/**
- * Windsurf IDE (Cognition) adapter.
- *
- * Project scope paths:
- *   skill   → .windsurf/skills/
- *   rule    → .devin/rules/ (preferred; .windsurf/rules/ legacy)
- *   command → .windsurf/workflows/
- *   agent   → not supported (Windsurf has no agent files; resolveDir throws)
- *   hook    → .windsurf/hooks.json
- *   mcp     → .windsurf/mcp.json
- */
-export class WindsurfAdapter implements PlatformAdapter {
-  readonly platform = 'windsurf' as const;
-
-  private projectDirs: CategoryDirs = {
-    instructions: '.',
-    skill:   path.join('.windsurf', 'skills'),
-    rule:    path.join('.devin', 'rules'),
-    command: path.join('.windsurf', 'workflows'),
-  };
-
-  private userDirs(): CategoryDirs {
-    const home = os.homedir();
-    return {
-      skill:   path.join(home, '.windsurf', 'skills'),
-      rule:    path.join(home, '.devin', 'rules'),
-      command: path.join(home, '.windsurf', 'workflows'),
-    };
-  }
-
-  resolveDir(category: AdapterFileCategory, scope: InstallScope, cwd: string): string {
-    const dirs = scope === 'project' ? this.projectDirs : this.userDirs();
-    return resolveCategoryDir(this.platform, dirs, category, scope, cwd);
-  }
-
-  resolveMcpConfig(scope: InstallScope, cwd: string): string {
-    if (scope === 'project') return path.resolve(cwd, '.windsurf', 'mcp.json');
-    return path.join(os.homedir(), '.windsurf', 'mcp.json');
-  }
-
-  resolveHooksConfig(scope: InstallScope, cwd: string): string {
-    if (scope === 'project') return path.resolve(cwd, '.windsurf', 'hooks.json');
-    return path.join(os.homedir(), '.windsurf', 'hooks.json');
+/** Paths come from the windsurf platform spec in core. */
+export class WindsurfAdapter extends SpecAdapter {
+  constructor() {
+    super(windsurfSpec);
   }
 }
