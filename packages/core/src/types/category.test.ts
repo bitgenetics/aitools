@@ -40,6 +40,7 @@ describe('isFileCategory', () => {
     expect(isFileCategory('rule')).toBe(true);
     expect(isFileCategory('command')).toBe(true);
     expect(isFileCategory('agent')).toBe(true);
+    expect(isFileCategory('instructions')).toBe(true);
   });
 
   it('returns false for config-merge and bundle categories', () => {

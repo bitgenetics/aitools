@@ -206,8 +206,8 @@ describe('plugin explode install', () => {
 
     const hooks = JSON.parse(
       fs.readFileSync(path.join(tmpDir, '.cursor', 'hooks.json'), 'utf8'),
-    ) as { afterFileEdit: Array<{ command: string }> };
-    expect(hooks.afterFileEdit[0]!.command).toContain(
+    ) as { hooks: { afterFileEdit: Array<{ command: string }> } };
+    expect(hooks.hooks.afterFileEdit[0]!.command).toContain(
       `.cursor/skills/${PLUGIN_NAME}/scripts/fmt.sh`,
     );
   });

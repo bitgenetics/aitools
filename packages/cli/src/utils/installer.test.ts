@@ -519,23 +519,26 @@ describe('Installer.install (plugin explode mcp+hooks)', () => {
 
     const hooksPath = path.join(tmp, '.cursor', 'hooks.json');
     const hooks = JSON.parse(fs.readFileSync(hooksPath, 'utf8')) as {
-      afterFileEdit: Array<{ command: string }>;
+      hooks: { afterFileEdit: Array<{ command: string }> };
     };
-    expect(hooks.afterFileEdit[0]!.command).toContain('.cursor/skills/hook-plugin/scripts/fmt.sh');
+    expect(hooks.hooks.afterFileEdit[0]!.command).toContain('.cursor/skills/hook-plugin/scripts/fmt.sh');
 
     fs.writeFileSync(
       hooksPath,
       JSON.stringify({
-        afterFileEdit: hooks.afterFileEdit,
-        sessionStart: [{ command: 'echo keep' }],
+        version: 1,
+        hooks: {
+          afterFileEdit: hooks.hooks.afterFileEdit,
+          sessionStart: [{ command: 'echo keep' }],
+        },
       }) + '\n',
       'utf8',
     );
 
     installer.uninstall('hook-plugin');
-    const after = JSON.parse(fs.readFileSync(hooksPath, 'utf8')) as Record<string, unknown[]>;
-    expect(after.afterFileEdit).toBeUndefined();
-    expect(after.sessionStart).toHaveLength(1);
+    const after = JSON.parse(fs.readFileSync(hooksPath, 'utf8')) as { hooks: Record<string, unknown[]> };
+    expect(after.hooks.afterFileEdit).toBeUndefined();
+    expect(after.hooks.sessionStart).toHaveLength(1);
   });
 
   it('merges mcpServers-shaped plugin config into existing mcpServers file', async () => {
@@ -721,9 +724,8 @@ describe('Installer.install (plugin explode mcp+hooks)', () => {
     await installer.install(mockClient as never, PLUGIN_MANIFEST, 'project');
     await installer.install(mockClient as never, { ...PLUGIN_MANIFEST, version: '2.0.0' }, 'project');
 
-    const hooks = JSON.parse(fs.readFileSync(path.join(tmp, '.cursor', 'hooks.json'), 'utf8')) as {
-      afterFileEdit?: unknown[];
-      sessionStart?: unknown[];
+    const { hooks } = JSON.parse(fs.readFileSync(path.join(tmp, '.cursor', 'hooks.json'), 'utf8')) as {
+      hooks: { afterFileEdit?: unknown[]; sessionStart?: unknown[] };
     };
     expect(hooks.afterFileEdit).toBeUndefined();
     expect(hooks.sessionStart).toHaveLength(1);
@@ -856,9 +858,9 @@ describe('Installer.install (plugin explode mcp+hooks)', () => {
     await installer.install(mockClient as never, PLUGIN_MANIFEST, 'project');
 
     const hooks = JSON.parse(fs.readFileSync(path.join(tmp, '.cursor', 'hooks.json'), 'utf8')) as {
-      afterFileEdit: Array<{ command: string }>;
+      hooks: { afterFileEdit: Array<{ command: string }> };
     };
-    expect(hooks.afterFileEdit[0]!.command).toBe('echo nested');
+    expect(hooks.hooks.afterFileEdit[0]!.command).toBe('echo nested');
   });
 
   it('throws when a plugin lists mcp.json but the tarball omits it', async () => {
@@ -953,7 +955,7 @@ describe('Installer.install (plugin explode mcp+hooks)', () => {
     expect(fs.readFileSync(rulePath, 'utf8')).toContain('Be tidy.');
   });
 
-  it('skips claude-native plugin hooks on cursor when transform cannot merge', async () => {
+  it('merges claude-native plugin hooks into the cursor hooks file', async () => {
     const PLUGIN_MANIFEST: ToolManifest = {
       name: 'cross-hook-plugin',
       version: '1.0.0',
@@ -984,10 +986,12 @@ describe('Installer.install (plugin explode mcp+hooks)', () => {
       download: jest.fn().mockResolvedValue({ data: tarball }),
     };
 
-    const result = await installer.install(mockClient as never, PLUGIN_MANIFEST, 'project');
+    await installer.install(mockClient as never, PLUGIN_MANIFEST, 'project');
 
-    expect(fs.existsSync(path.join(tmp, '.cursor', 'hooks.json'))).toBe(false);
-    expect(result.fileResults.some((f) => f.skipped)).toBe(true);
+    const hooks = JSON.parse(fs.readFileSync(path.join(tmp, '.cursor', 'hooks.json'), 'utf8')) as {
+      hooks: { preToolUse: Array<{ command: string }> };
+    };
+    expect(hooks.hooks.preToolUse).toEqual([{ type: 'command', command: 'echo hi' }]);
   });
 });
 
@@ -1486,9 +1490,9 @@ describe('Installer.install (cross-platform transformation)', () => {
     expect(result.files).toHaveLength(2);
     expect(result.files.some((f) => f.endsWith('aitools.json'))).toBe(true);
     const written = fs.readFileSync(path.resolve(tmp, result.files[0]!), 'utf8');
-    expect(written).toContain('# aitools:');
+    expect(written).toContain('paths:');
     expect(written).toContain('# Rule body');
-    expect(result.fileResults[0]?.transform?.confidence).toBe('medium');
+    expect(result.fileResults[0]?.transform?.confidence).toBe('high');
   });
 
   it('skips cursor-only plugin hooks when installing to claude without throwing', async () => {
@@ -1638,8 +1642,8 @@ describe('Installer.install (hook category)', () => {
 
     const hooksPath = path.join(tmp, '.cursor', 'hooks.json');
     expect(fs.existsSync(hooksPath)).toBe(true);
-    const parsed = JSON.parse(fs.readFileSync(hooksPath, 'utf8')) as Record<string, unknown[]>;
-    expect(parsed.preToolUse).toHaveLength(1);
+    const parsed = JSON.parse(fs.readFileSync(hooksPath, 'utf8')) as { hooks: Record<string, unknown[]> };
+    expect(parsed.hooks.preToolUse).toHaveLength(1);
     expect(result.files[0]).toMatch(/\.cursor[\\/]hooks\.json$/);
   });
 
@@ -1670,12 +1674,12 @@ describe('Installer.install (hook category)', () => {
 
     await installer.install(makeClient(tarball) as never, manifest, 'project');
 
-    const parsed = JSON.parse(fs.readFileSync(path.join(hooksDir, 'hooks.json'), 'utf8')) as Record<string, unknown[]>;
-    expect(parsed.sessionStart).toHaveLength(1);
-    expect(parsed.preToolUse).toHaveLength(1);
+    const parsed = JSON.parse(fs.readFileSync(path.join(hooksDir, 'hooks.json'), 'utf8')) as { hooks: Record<string, unknown[]> };
+    expect(parsed.hooks.sessionStart).toHaveLength(1);
+    expect(parsed.hooks.preToolUse).toHaveLength(1);
   });
 
-  it('skips claude-native hooks on cursor with an advisory message', async () => {
+  it('converts claude-native hooks into the cursor hooks file', async () => {
     fs.writeFileSync(path.join(tmp, 'aitools.config.json'), JSON.stringify({ platform: 'cursor' }), 'utf8');
     const claudeHooks = JSON.stringify({
       hooks: { PreToolUse: [{ type: 'command', command: 'echo hi' }] },
@@ -1693,11 +1697,12 @@ describe('Installer.install (hook category)', () => {
       'utf8',
     );
 
-    const stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
     const result = await installer.install(makeClient(tarball) as never, manifest, 'project');
-    expect(result.fileResults.some((f) => f.skipped)).toBe(true);
-    expect(stderrSpy.mock.calls.map((c) => String(c[0])).join('\n')).toContain('Advisory');
-    stderrSpy.mockRestore();
+    expect(result.fileResults.some((f) => f.skipped)).toBe(false);
+    const parsed = JSON.parse(fs.readFileSync(path.join(tmp, '.cursor', 'hooks.json'), 'utf8')) as {
+      hooks: Record<string, unknown[]>;
+    };
+    expect(parsed.hooks.preToolUse).toEqual([{ type: 'command', command: 'echo hi' }]);
   });
 
   it('throws when installing hooks on universal platform', async () => {

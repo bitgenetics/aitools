@@ -231,3 +231,22 @@ describe('resolveFileCategory', () => {
     expect(() => resolveFileCategory('hook' as never)).toThrow('not file-based');
   });
 });
+
+describe('instructions category', () => {
+  const adapters = [new ClaudeAdapter(), new CursorAdapter(), new VsCodeAdapter(), new WindsurfAdapter(), new UniversalAdapter()];
+
+  it('resolves project-scope instruction files to the project root on every platform', () => {
+    const dirs = adapters.map((a) => a.resolveDir('instructions', 'project', CWD));
+    expect(dirs).toEqual(adapters.map(() => CWD));
+  });
+
+  it('throws for user-scope instruction files', () => {
+    expect(() => new CursorAdapter().resolveDir('instructions', 'user', CWD)).toThrow('not supported on cursor (user scope)');
+  });
+});
+
+describe('WindsurfAdapter (agents)', () => {
+  it('throws because Windsurf has no agent files', () => {
+    expect(() => new WindsurfAdapter().resolveDir('agent', 'project', CWD)).toThrow('not supported on windsurf');
+  });
+});

@@ -62,6 +62,7 @@ export const ToolCategorySchema = z.enum([
   'plugin',
   'reference',
   'context-profile',
+  'instructions',
   'subagent',
   'prompt',
 ]);

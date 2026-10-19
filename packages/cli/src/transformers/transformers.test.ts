@@ -12,17 +12,11 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-import { transformRule, applyRuleExtension } from './rule.js';
+import { transformRule } from './rule.js';
 import { transformCommand } from './command.js';
 import { transformAgent } from './agent.js';
-import {
-  transformHook,
-  mergeHookConfigs,
-  unmergeHookConfigs,
-  extractHooksAdded,
-  estimateCategoryConfidence,
-  estimateHookConfidence,
-} from './hook.js';
+import { transformHook, mergeHookConfigs, unmergeHookConfigs, extractHooksAdded } from './hook.js';
+import { estimateCategoryConfidence, estimateHookConfidence } from './estimate.js';
 import { transform, applyDestExtension } from './index.js';
 
 describe('transformRule', () => {
@@ -38,12 +32,11 @@ describe('transformRule', () => {
     expect(result.destExtension).toBe('.instructions.md');
   });
 
-  it('warns when alwaysApply is true for cursor to vscode', () => {
+  it('maps cursor alwaysApply to the vscode all-files glob', () => {
     const input = `---\nalwaysApply: true\n---\n# Rule body`;
     const result = transformRule(input, 'cursor', 'vscode');
-    expect(result.confidence).toBe('medium');
-    expect(result.warnings.length).toBeGreaterThan(0);
-    expect(result.content).toContain('# aitools:');
+    expect(result.confidence).toBe('high');
+    expect(result.content).toMatch(/^applyTo: "?\*\*"?$/m);
   });
 
   it('maps cursor alwaysApply to windsurf trigger always_on', () => {
@@ -58,44 +51,41 @@ describe('transformRule', () => {
     expect(result.content).toContain('trigger: glob');
   });
 
-  it('strips frontmatter when targeting claude from cursor', () => {
+  it('maps cursor globs to claude paths', () => {
     const input = `---\nglobs: src/**\n---\n# Rule body`;
+    const result = transformRule(input, 'cursor', 'claude');
+    expect(result.confidence).toBe('high');
+    expect(result.content).toMatch(/^paths:\n {2}- src\/\*\*$/m);
+    expect(result.content).toContain('# Rule body');
+  });
+
+  it('warns when a manually scoped cursor rule targets claude', () => {
+    const input = `---\ndescription: Only when asked\n---\n# Rule body`;
     const result = transformRule(input, 'cursor', 'claude');
     expect(result.confidence).toBe('medium');
     expect(result.content).toContain('# aitools:');
-    expect(result.content).toContain('# Rule body');
   });
 
   it('maps vscode applyTo to cursor globs', () => {
     const input = `---\napplyTo: src/**\nexcludeAgent: foo\n---\n# Rule body`;
     const result = transformRule(input, 'vscode', 'cursor');
     expect(result.content).toContain('globs: src/**');
-    expect(result.content).not.toContain('excludeAgent');
+    expect(result.content).not.toMatch(/^excludeAgent:/m);
     expect(result.destExtension).toBe('.mdc');
   });
 
-  it('strips frontmatter for vscode to claude', () => {
+  it('maps vscode applyTo to claude paths', () => {
     const input = `---\napplyTo: src/**\n---\n# Rule body`;
     const result = transformRule(input, 'vscode', 'claude');
-    expect(result.content).toContain('# aitools:');
+    expect(result.content).toContain('paths:');
     expect(result.content).toContain('# Rule body');
   });
 
-  it('passes through unrecognized platform pairs', () => {
+  it('copies a plain rule without frontmatter unchanged between windsurf and vscode', () => {
     const input = 'plain rule without frontmatter';
     const result = transformRule(input, 'windsurf', 'vscode');
     expect(result.confidence).toBe('high');
     expect(result.content).toBe(input);
-  });
-});
-
-describe('applyRuleExtension', () => {
-  it('returns vscode instructions extension', () => {
-    expect(applyRuleExtension('rule.mdc', 'vscode')).toBe('rule.instructions.md');
-  });
-
-  it('returns cursor mdc extension', () => {
-    expect(applyRuleExtension('rule.md', 'cursor')).toBe('rule.mdc');
   });
 });
 
@@ -104,34 +94,35 @@ describe('transformCommand', () => {
     expect(transformCommand('x', 'cursor', 'cursor').confidence).toBe('native');
   });
 
-  it('maps cursor $1 to claude $ARGUMENTS', () => {
+  it('leaves argument placeholders untouched between cursor and claude', () => {
     const result = transformCommand('Run lint on $1', 'cursor', 'claude');
-    expect(result.content).toBe('Run lint on $ARGUMENTS');
+    expect(result.content).toBe('Run lint on $1');
     expect(result.confidence).toBe('high');
   });
 
-  it('adds prompt extension for cursor to vscode', () => {
+  it('adds prompt extension for cursor to vscode without annotation', () => {
     const result = transformCommand('# Cmd', 'cursor', 'vscode');
     expect(result.destExtension).toBe('.prompt.md');
-    expect(result.confidence).toBe('medium');
-    expect(result.content).toContain('# aitools:');
+    expect(result.confidence).toBe('high');
+    expect(result.content).toBe('# Cmd');
   });
 
   it('adds description frontmatter for cursor to windsurf when missing', () => {
     const result = transformCommand('# Cmd', 'cursor', 'windsurf');
-    expect(result.content).toContain('description: Command');
+    expect(result.content).toContain('description: Workflow');
     expect(result.confidence).toBe('medium');
     expect(result.content).toContain('# aitools:');
-  });
-
-  it('maps claude $ARGUMENTS to cursor $1', () => {
-    const result = transformCommand('Run $ARGUMENTS', 'claude', 'cursor');
-    expect(result.content).toBe('Run $1');
   });
 
   it('adds prompt extension for claude to vscode', () => {
     const result = transformCommand('# Cmd', 'claude', 'vscode');
     expect(result.destExtension).toBe('.prompt.md');
+  });
+
+  it('drops claude-only command fields when targeting cursor', () => {
+    const result = transformCommand('---\ndescription: Lint\nallowed-tools: Bash\n---\nRun.', 'claude', 'cursor');
+    expect(result.content).not.toMatch(/^allowed-tools:/m);
+    expect(result.confidence).toBe('medium');
   });
 
   it('passes through other platform pairs', () => {
@@ -162,15 +153,22 @@ describe('transformAgent', () => {
     const input = `---\nname: my-agent\nreadonly: true\nmodel: sonnet\n---\nBody`;
     const result = transformAgent(input, 'cursor', 'claude');
     expect(result.content).not.toMatch(/^readonly:/m);
-    expect(result.content).not.toContain('\nreadonly:');
     expect(result.warnings.some((w) => w.includes('readonly'))).toBe(true);
     expect(result.content).toContain('# aitools:');
   });
 
   it('drops claude-only fields when targeting cursor', () => {
-    const input = `---\nname: my-agent\ntools: []\nmaxTurns: 3\n---\nBody`;
+    const input = `---\nname: my-agent\ntools: Read\nmaxTurns: 3\n---\nBody`;
     const result = transformAgent(input, 'claude', 'cursor');
-    expect(result.content).not.toContain('\nmaxTurns:');
+    expect(result.content).not.toMatch(/^maxTurns:/m);
+    expect(result.content).not.toMatch(/^tools:/m);
+  });
+
+  it('maps claude background to cursor is_background', () => {
+    const input = `---\nname: my-agent\ndescription: d\nbackground: true\n---\nBody`;
+    const result = transformAgent(input, 'claude', 'cursor');
+    expect(result.content).toMatch(/^is_background: true$/m);
+    expect(result.confidence).toBe('high');
   });
 
   it('adds agent extension for vscode target', () => {
@@ -182,16 +180,19 @@ describe('transformAgent', () => {
   it('drops claude-only fields when targeting vscode', () => {
     const input = `---\nname: my-agent\nskills: []\n---\nBody`;
     const result = transformAgent(input, 'claude', 'vscode');
-    expect(result.content).not.toContain('\nskills:');
+    expect(result.content).not.toMatch(/^skills:/m);
   });
 });
 
 describe('transformHook', () => {
-  it('recommends native path for claude to cursor', () => {
-    const input = JSON.stringify({ PreToolUse: [{ type: 'command', command: 'echo hi' }] });
+  it('converts claude settings hooks into a cursor hooks file', () => {
+    const input = JSON.stringify({ hooks: { PreToolUse: [{ type: 'command', command: 'echo hi' }] } });
     const result = transformHook(input, 'claude', 'cursor');
-    expect(result.confidence).toBe('native');
-    expect(result.recommendNativePath).toContain('.claude/settings.json');
+    expect(result.confidence).toBe('high');
+    expect(JSON.parse(result.content)).toEqual({
+      version: 1,
+      hooks: { preToolUse: [{ type: 'command', command: 'echo hi' }] },
+    });
   });
 
   it('returns native when from equals to', () => {
@@ -205,14 +206,15 @@ describe('transformHook', () => {
     expect(result.warnings).toContain('Invalid hook JSON');
   });
 
-  it('keeps portable events when transforming cursor to vscode', () => {
+  it('keeps portable events in PascalCase when transforming cursor to vscode', () => {
     const input = JSON.stringify({
       preToolUse: [{ type: 'command', command: 'echo hi' }],
       beforeShellExecution: [{ type: 'command', command: 'echo drop' }],
     });
     const result = transformHook(input, 'cursor', 'vscode');
-    expect(result.content).toContain('preToolUse');
-    expect(result.content).not.toContain('beforeShellExecution');
+    expect(JSON.parse(result.content)).toEqual({
+      hooks: { PreToolUse: [{ type: 'command', command: 'echo hi' }] },
+    });
     expect(result.warnings.length).toBeGreaterThan(0);
   });
 
@@ -246,6 +248,7 @@ describe('transformHook', () => {
     });
     const result = transformHook(input, 'cursor', 'windsurf');
     expect(result.content).toContain('pre_tool_use');
+    expect(result.confidence).toBe('low');
   });
 
   it('returns unsupported when no portable events remain', () => {
@@ -255,7 +258,6 @@ describe('transformHook', () => {
     const result = transformHook(input, 'cursor', 'claude');
     expect(result.confidence).toBe('unsupported');
     expect(result.content).toBe('');
-    expect(result.content).not.toContain('# aitools:');
     expect(result.warnings).toContain('No portable hook events survived transformation');
   });
 
@@ -282,13 +284,14 @@ describe('transformHook', () => {
     expect(result.content).toContain('pre_tool_use');
   });
 
-  it('preserves command hooks when transforming cursor to claude', () => {
+  it('groups command hooks the claude way when transforming cursor to claude', () => {
     const input = JSON.stringify({
-      preToolUse: [{ type: 'command', command: 'echo hi' }],
+      preToolUse: [{ type: 'command', command: 'echo hi', matcher: 'Write' }],
     });
     const result = transformHook(input, 'cursor', 'claude');
-    expect(result.content).toContain('PreToolUse');
-    expect(result.content).toContain('echo hi');
+    expect(JSON.parse(result.content)).toEqual({
+      hooks: { PreToolUse: [{ matcher: 'Write', hooks: [{ type: 'command', command: 'echo hi' }] }] },
+    });
   });
 
   it('lowers confidence when many warnings accumulate', () => {
@@ -310,8 +313,8 @@ describe('estimateHookConfidence', () => {
     expect(estimateHookConfidence('cursor', 'cursor')).toBe('native');
   });
 
-  it('returns native for claude to cursor', () => {
-    expect(estimateHookConfidence('claude', 'cursor')).toBe('native');
+  it('returns high for claude to cursor', () => {
+    expect(estimateHookConfidence('claude', 'cursor')).toBe('high');
   });
 
   it('returns low for windsurf target', () => {
@@ -336,12 +339,20 @@ describe('estimateCategoryConfidence', () => {
     expect(estimateCategoryConfidence('command', 'cursor', 'claude')).toBe('high');
   });
 
-  it('returns medium for rule to claude', () => {
-    expect(estimateCategoryConfidence('rule', 'cursor', 'claude')).toBe('medium');
+  it('returns high for a glob-scoped cursor rule to claude', () => {
+    expect(estimateCategoryConfidence('rule', 'cursor', 'claude')).toBe('high');
   });
 
-  it('returns medium for mcp-tool cross-platform', () => {
+  it('returns unsupported for agents on windsurf', () => {
+    expect(estimateCategoryConfidence('subagent', 'cursor', 'windsurf')).toBe('unsupported');
+  });
+
+  it('returns high for mcp-tool cross-platform', () => {
     expect(estimateCategoryConfidence('mcp-tool', 'cursor', 'windsurf')).toBe('high');
+  });
+
+  it('returns native for instruction files on every platform', () => {
+    expect(estimateCategoryConfidence('instructions', 'claude', 'cursor')).toBe('native');
   });
 });
 
@@ -351,8 +362,8 @@ describe('transform router', () => {
   });
 
   it('adds skill prompt metadata for medium-confidence transforms with destPath', () => {
-    const content = '---\nglobs: ["*.ts"]\n---\n# Rule';
-    const result = transform(content, 'rule', 'cursor', 'claude', { destPath: '.cursor/rules/x.mdc' });
+    const content = '---\napplyTo: "*.ts"\nexcludeAgent: foo\n---\n# Rule';
+    const result = transform(content, 'rule', 'vscode', 'cursor', { destPath: '.cursor/rules/x.mdc' });
     expect(result.skillPrompt).toContain('aitools-convert');
   });
 
@@ -361,10 +372,10 @@ describe('transform router', () => {
     expect(applyDestExtension('prompt.md', result)).toBe('prompt.prompt.md');
   });
 
-  it('returns early when hook transform recommends a native install path', () => {
-    const claudeHooks = JSON.stringify({ hooks: { PreToolUse: [{ type: 'command', command: 'x' }] } });
-    const result = transform(claudeHooks, 'hook', 'claude', 'cursor');
-    expect(result.recommendNativePath).toContain('.claude/settings.json');
+  it('copies instruction files unchanged between vendors', () => {
+    const result = transform('# AGENTS', 'instructions', 'claude', 'cursor');
+    expect(result.confidence).toBe('native');
+    expect(result.content).toBe('# AGENTS');
   });
 });
 
@@ -380,20 +391,30 @@ describe('mergeHookConfigs', () => {
 
   it('appends handlers without removing existing hook events', () => {
     const existing = JSON.stringify({
-      sessionStart: [{ type: 'command', command: 'echo start' }],
+      version: 1,
+      hooks: { sessionStart: [{ type: 'command', command: 'echo start' }] },
     });
     const incoming = JSON.stringify({
-      preToolUse: [{ type: 'command', command: 'echo tool' }],
+      hooks: { preToolUse: [{ type: 'command', command: 'echo tool' }] },
     });
     const merged = mergeHookConfigs(existing, incoming, 'cursor');
-    const parsed = JSON.parse(merged) as Record<string, unknown[]>;
-    expect(parsed.sessionStart).toHaveLength(1);
-    expect(parsed.preToolUse).toHaveLength(1);
+    const parsed = JSON.parse(merged) as { hooks: Record<string, unknown[]> };
+    expect(parsed.hooks.sessionStart).toHaveLength(1);
+    expect(parsed.hooks.preToolUse).toHaveLength(1);
+  });
+
+  it('migrates a flat legacy cursor hooks file to the versioned shape', () => {
+    const existing = JSON.stringify({ sessionStart: [{ command: 'echo start' }] });
+    const merged = mergeHookConfigs(existing, JSON.stringify({ preToolUse: [{ command: 'x' }] }), 'cursor');
+    expect(JSON.parse(merged)).toEqual({
+      version: 1,
+      hooks: { sessionStart: [{ command: 'echo start' }], preToolUse: [{ command: 'x' }] },
+    });
   });
 
   it('ignores malformed existing config when merging', () => {
     const merged = mergeHookConfigs('{ bad json', JSON.stringify({ preToolUse: [] }), 'cursor');
-    expect(JSON.parse(merged)).toEqual({ preToolUse: [] });
+    expect(JSON.parse(merged)).toEqual({ version: 1, hooks: { preToolUse: [] } });
   });
 
   it('preserves other settings keys when merging claude hooks', () => {
@@ -405,12 +426,17 @@ describe('mergeHookConfigs', () => {
     expect(parsed.hooks.PreToolUse).toHaveLength(1);
   });
 
+  it('writes vscode hooks under the hooks key', () => {
+    const merged = mergeHookConfigs(null, JSON.stringify({ hooks: { PreToolUse: [{ command: 'x' }] } }), 'vscode');
+    expect(JSON.parse(merged)).toEqual({ hooks: { PreToolUse: [{ command: 'x' }] } });
+  });
+
   it('ignores non-array hook event values when merging', () => {
     const incoming = JSON.stringify({ preToolUse: 'not-an-array', sessionStart: [{ type: 'command', command: 'x' }] });
     const merged = mergeHookConfigs(null, incoming, 'cursor');
-    const parsed = JSON.parse(merged) as Record<string, unknown[]>;
-    expect(parsed.preToolUse).toBeUndefined();
-    expect(parsed.sessionStart).toHaveLength(1);
+    const parsed = JSON.parse(merged) as { hooks: Record<string, unknown[]> };
+    expect(parsed.hooks.preToolUse).toBeUndefined();
+    expect(parsed.hooks.sessionStart).toHaveLength(1);
   });
 
   it('skips invalid incoming hook JSON without throwing', () => {
@@ -443,17 +469,20 @@ describe('extractHooksAdded', () => {
 describe('unmergeHookConfigs', () => {
   it('removes only previously added handlers', () => {
     const existing = JSON.stringify({
-      afterFileEdit: [{ command: 'plugin' }, { command: 'user' }],
-      sessionStart: [{ command: 'keep' }],
+      version: 1,
+      hooks: {
+        afterFileEdit: [{ command: 'plugin' }, { command: 'user' }],
+        sessionStart: [{ command: 'keep' }],
+      },
     });
     const cleaned = unmergeHookConfigs(
       existing,
       { afterFileEdit: [{ command: 'plugin' }] },
       'cursor',
     );
-    const parsed = JSON.parse(cleaned) as Record<string, Array<{ command: string }>>;
-    expect(parsed.afterFileEdit).toEqual([{ command: 'user' }]);
-    expect(parsed.sessionStart).toEqual([{ command: 'keep' }]);
+    const parsed = JSON.parse(cleaned) as { hooks: Record<string, Array<{ command: string }>> };
+    expect(parsed.hooks.afterFileEdit).toEqual([{ command: 'user' }]);
+    expect(parsed.hooks.sessionStart).toEqual([{ command: 'keep' }]);
   });
 });
 
@@ -471,10 +500,10 @@ describe('transform()', () => {
     expect(transform('# Skill', 'skill', 'cursor', 'vscode').confidence).toBe('high');
   });
 
-  it('returns recommendNativePath without adding skillPrompt', () => {
-    const input = JSON.stringify({ PreToolUse: [{ type: 'command', command: 'x' }] });
-    const result = transform(input, 'hook', 'claude', 'cursor', { destPath: '.claude/settings.json' });
-    expect(result.recommendNativePath).toBeDefined();
+  it('converts claude hooks for cursor with high confidence and no skillPrompt', () => {
+    const input = JSON.stringify({ hooks: { PreToolUse: [{ type: 'command', command: 'x' }] } });
+    const result = transform(input, 'hook', 'claude', 'cursor', { destPath: '.cursor/hooks.json' });
+    expect(result.confidence).toBe('high');
     expect(result.skillPrompt).toBeUndefined();
   });
 
@@ -499,13 +528,18 @@ describe('applyDestExtension', () => {
     expect(applyDestExtension('cmd.md', result)).toBe('cmd.prompt.md');
   });
 
+  it('replaces a compound vendor suffix as a whole', () => {
+    const result = { content: 'x', confidence: 'high' as const, warnings: [], destExtension: '.mdc' };
+    expect(applyDestExtension('style.instructions.md', result)).toBe('style.mdc');
+  });
+
   it('returns filename unchanged when no destExtension', () => {
     const result = { content: 'x', confidence: 'high' as const, warnings: [] };
     expect(applyDestExtension('cmd.md', result)).toBe('cmd.md');
   });
 });
 
-// -- Review: vendor transform gaps (red until fixed) -------------------------
+// -- Vendor format fidelity (review 2026-10-18) ------------------------------
 
 describe('transformRule (vendor format fidelity)', () => {
   it('keeps Cursor globs written as a YAML list when targeting vscode', () => {
@@ -525,10 +559,11 @@ describe('transformRule (vendor format fidelity)', () => {
     expect(result.destExtension).toBe('.mdc');
   });
 
-  it('does not claim high confidence for an unmapped platform pair', () => {
+  it('maps windsurf always_on to cursor alwaysApply', () => {
     const content = '---\ntrigger: always_on\n---\nBe tidy.\n';
     const result = transformRule(content, 'windsurf', 'cursor');
-    expect(result.confidence).not.toBe('high');
+    expect(result.content).toMatch(/^alwaysApply: true$/m);
+    expect(result.confidence).toBe('high');
   });
 });
 
@@ -550,20 +585,38 @@ describe('transformCommand (vendor format fidelity)', () => {
 
 describe('estimateCategoryConfidence (single authority)', () => {
   const VENDORS = ['vscode', 'claude', 'cursor', 'windsurf'] as const;
-  const FIXTURES = {
-    rule: '---\ndescription: Style\nglobs: "*.ts"\nalwaysApply: false\n---\nBe tidy.\n',
-    command: '---\ndescription: Do it\n---\nRun $1 now.\n',
-    agent: '---\nname: reviewer\ndescription: Reviews\n---\nReview code.\n',
-  } as const;
+  type Vendor = (typeof VENDORS)[number];
+  type Category = 'rule' | 'command' | 'agent';
+  // Common fields only, each written the way the source vendor spells them.
+  const FIXTURES: Record<Category, Record<Vendor, string>> = {
+    rule: {
+      cursor: '---\ndescription: Tidy\nglobs: "src/**"\n---\nBe tidy.\n',
+      vscode: '---\ndescription: Tidy\napplyTo: "src/**"\n---\nBe tidy.\n',
+      claude: '---\ndescription: Tidy\npaths:\n  - "src/**"\n---\nBe tidy.\n',
+      windsurf: '---\ndescription: Tidy\ntrigger: glob\nglobs: "src/**"\n---\nBe tidy.\n',
+    },
+    command: {
+      cursor: '---\ndescription: Lint it\n---\nRun lint.\n',
+      vscode: '---\ndescription: Lint it\n---\nRun lint.\n',
+      claude: '---\ndescription: Lint it\n---\nRun lint.\n',
+      windsurf: '---\ndescription: Lint it\n---\nRun lint.\n',
+    },
+    agent: {
+      cursor: '---\nname: tester\ndescription: Tests\n---\nTest it.\n',
+      vscode: '---\nname: tester\ndescription: Tests\n---\nTest it.\n',
+      claude: '---\nname: tester\ndescription: Tests\n---\nTest it.\n',
+      windsurf: '---\nname: tester\ndescription: Tests\n---\nTest it.\n',
+    },
+  };
 
   it('agrees with the transformer for every vendor pair on a portable fixture', () => {
     const mismatches: string[] = [];
-    for (const [category, fixture] of Object.entries(FIXTURES)) {
+    for (const category of Object.keys(FIXTURES) as Category[]) {
       for (const from of VENDORS) {
         for (const to of VENDORS) {
           if (from === to) continue;
           const estimate = estimateCategoryConfidence(category, from, to);
-          const actual = transform(fixture, category as 'rule' | 'command' | 'agent', from, to).confidence;
+          const actual = transform(FIXTURES[category][from], category, from, to).confidence;
           if (estimate !== actual) {
             mismatches.push(`${category} ${from}->${to}: estimate=${estimate} actual=${actual}`);
           }

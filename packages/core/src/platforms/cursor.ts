@@ -22,8 +22,8 @@ export const cursorSpec: PlatformSpec = {
   id: 'cursor',
   name: 'Cursor',
   docsUrl: 'https://cursor.com/docs/skills#frontmatter-fields',
-  lastVerified: '2026-06-01',
-  supportedCategories: ['skill', 'rule', 'command', 'agent', 'hook', 'mcp-tool', 'subagent', 'prompt'],
+  lastVerified: '2026-10-19',
+  supportedCategories: ['skill', 'rule', 'command', 'agent', 'hook', 'mcp-tool', 'instructions', 'subagent', 'prompt'],
   skillFrontmatter: {
     name:                       { required: true,  support: 'supported',   platformExtension: false },
     description:                { required: true,  support: 'supported',   platformExtension: false },
@@ -42,6 +42,7 @@ export const cursorSpec: PlatformSpec = {
     command:   { project: '.cursor/commands',  user: '~/.cursor/commands' },
     agent:     { project: '.cursor/agents',    user: '~/.cursor/agents' },
     prompt:    { project: '.cursor/commands',  user: '~/.cursor/commands' },
+    instructions: { project: '.' },
     subagent:  { project: '.cursor/agents',    user: '~/.cursor/agents' },
     mcpConfig: { project: '.cursor/mcp.json',  user: '~/.cursor/mcp.json' },
     hookConfig: { project: '.cursor/hooks.json', user: '~/.cursor/hooks.json' },

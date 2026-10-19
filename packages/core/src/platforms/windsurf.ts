@@ -17,9 +17,9 @@ import type { PlatformSpec } from './types.js';
 export const windsurfSpec: PlatformSpec = {
   id: 'windsurf',
   name: 'Windsurf',
-  docsUrl: 'https://docs.windsurf.com',
-  lastVerified: '2026-06-01',
-  supportedCategories: ['skill', 'rule', 'command', 'hook', 'mcp-tool', 'subagent', 'prompt'],
+  docsUrl: 'https://docs.windsurf.com/windsurf/cascade/memories',
+  lastVerified: '2026-10-19',
+  supportedCategories: ['skill', 'rule', 'command', 'hook', 'mcp-tool', 'instructions', 'prompt'],
   skillFrontmatter: {
     name:                       { required: true,  support: 'supported',   platformExtension: false },
     description:                { required: true,  support: 'supported',   platformExtension: false },
@@ -36,7 +36,7 @@ export const windsurfSpec: PlatformSpec = {
     rule:       { project: '.devin/rules',         user: '~/.devin/rules' },
     command:    { project: '.windsurf/workflows',  user: '~/.windsurf/workflows' },
     prompt:     { project: '.windsurf/workflows',  user: '~/.windsurf/workflows' },
-    subagent:   { project: '.windsurf/agents',     user: '~/.windsurf/agents' },
+    instructions: { project: '.' },
     mcpConfig:  { project: '.windsurf/mcp.json',   user: '~/.windsurf/mcp.json' },
     hookConfig: { project: '.windsurf/hooks.json', user: '~/.windsurf/hooks.json' },
   },

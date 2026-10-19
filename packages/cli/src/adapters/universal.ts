@@ -14,9 +14,9 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import os from 'node:os';
 import path from 'node:path';
-import type { PlatformAdapter, AdapterFileCategory } from './types.js';
-import { resolveFileCategory } from './types.js';
-import type { InstallScope, FileCategory } from '@bitgenetics/aitools-core';
+import type { PlatformAdapter, AdapterFileCategory, CategoryDirs } from './types.js';
+import { resolveCategoryDir } from './types.js';
+import type { InstallScope } from '@bitgenetics/aitools-core';
 
 /**
  * Universal adapter — internal fallback when no platform is configured.
@@ -27,14 +27,15 @@ import type { InstallScope, FileCategory } from '@bitgenetics/aitools-core';
 export class UniversalAdapter implements PlatformAdapter {
   readonly platform = 'universal' as const;
 
-  private projectDirs: Record<FileCategory, string> = {
+  private projectDirs: CategoryDirs = {
+    instructions: '.',
     skill:   path.join('.agents', 'skills'),
     rule:    path.join('.agents', 'rules'),
     command: path.join('.agents', 'commands'),
     agent:   path.join('.agents', 'agents'),
   };
 
-  private userDirs(): Record<FileCategory, string> {
+  private userDirs(): CategoryDirs {
     const home = os.homedir();
     return {
       skill:   path.join(home, '.aitools', 'tools', 'skills'),
@@ -45,11 +46,8 @@ export class UniversalAdapter implements PlatformAdapter {
   }
 
   resolveDir(category: AdapterFileCategory, scope: InstallScope, cwd: string): string {
-    const fileCategory = resolveFileCategory(category);
-    if (scope === 'project') {
-      return path.resolve(cwd, this.projectDirs[fileCategory]);
-    }
-    return this.userDirs()[fileCategory];
+    const dirs = scope === 'project' ? this.projectDirs : this.userDirs();
+    return resolveCategoryDir(this.platform, dirs, category, scope, cwd);
   }
 
   resolveMcpConfig(scope: InstallScope, cwd: string): string {

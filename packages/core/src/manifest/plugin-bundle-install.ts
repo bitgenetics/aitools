@@ -77,6 +77,8 @@ export function resolvePluginBundleInstallBase(
     case 'agent':
       relativeRoot = asRootList(pj?.agents, 'agents/')[0]!;
       break;
+    case 'instructions':
+      throw new PluginBundleInstallError('Instruction files (AGENTS.md) are not part of plugin author layout');
     default: {
       const _exhaustive: never = category;
       throw new PluginBundleInstallError(`Unsupported plugin-bundle file category: ${_exhaustive}`);

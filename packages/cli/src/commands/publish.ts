@@ -26,8 +26,10 @@ import {
   resolveStoredPath,
   analyzePluginPortability,
   parseCursorPluginJson,
+  normalizeCategory,
+  detectVendorFrontmatter,
 } from '@bitgenetics/aitools-core';
-import type { ToolManifest, CursorPluginJsonPaths } from '@bitgenetics/aitools-core';
+import type { ToolManifest, CursorPluginJsonPaths, VendorField } from '@bitgenetics/aitools-core';
 import { ConfigManager } from '../utils/config-manager.js';
 import { createRegistryClient } from '../utils/registry-client.js';
 import { parseSkillFrontmatter, analyzeCompat, printPortabilityGrade } from './compat.js';
@@ -40,6 +42,29 @@ interface PublishOptions {
   dryRun?: boolean;
   strict?: boolean;
   yes?: boolean;
+}
+
+const FRONTMATTER_FILE_RE = /\.(md|mdc)$/i;
+
+/**
+ * Vendor-only frontmatter fields in a package that claims no native platform.
+ * Such a package is copied verbatim to every platform, so the claim is wrong.
+ */
+function findVendorFrontmatter(
+  manifest: ToolManifest,
+  files: Record<string, string>,
+): Array<VendorField & { src: string }> {
+  if (manifest.nativeFor) return [];
+  const { category } = normalizeCategory(manifest.category);
+  if (category !== 'rule' && category !== 'agent' && category !== 'command') return [];
+  const found: Array<VendorField & { src: string }> = [];
+  for (const [src, content] of Object.entries(files)) {
+    if (!FRONTMATTER_FILE_RE.test(src)) continue;
+    for (const field of detectVendorFrontmatter(content, category)) {
+      found.push({ src, ...field });
+    }
+  }
+  return found;
 }
 
 /**
@@ -210,6 +235,20 @@ export function createPublishCommand(): Command {
             }
           }
         }
+      }
+
+      const vendorFields = findVendorFrontmatter(manifest, files);
+      if (vendorFields.length > 0) {
+        console.warn(chalk.yellow('\n  Warning: vendor-specific frontmatter in a package without nativeFor:'));
+        for (const v of vendorFields) {
+          console.warn(`    ${v.src}: "${v.field}" is a ${v.vendor} field`);
+        }
+        console.warn(chalk.dim('  Declare "nativeFor" so installs on other platforms convert the file.'));
+        if (options.strict) {
+          console.error(chalk.red('\n  Publish blocked by --strict. Declare nativeFor or remove the vendor fields.'));
+          process.exit(1);
+        }
+        console.warn('');
       }
 
       const portabilityResult = await checkPluginPortability(manifest, manifestDir, options);

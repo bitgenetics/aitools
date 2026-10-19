@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import type { NormalizedCategory, TargetPlatform, ToolCategory } from '@bitgenetics/aitools-core';
-import { normalizeCategory } from '@bitgenetics/aitools-core';
+import { normalizeCategory, replaceVendorExtension } from '@bitgenetics/aitools-core';
 import type { TransformContext, TransformResult } from './types.js';
 import { nativeResult, passthrough, unsupportedCategory, withSkillPrompt } from './types.js';
 import { transformRule } from './rule.js';
@@ -22,18 +22,14 @@ import { transformAgent } from './agent.js';
 import { transformHook } from './hook.js';
 
 export type { TransformConfidence, TransformResult, TransformContext } from './types.js';
-export { estimateCategoryConfidence, estimateHookConfidence, mergeHookConfigs, unmergeHookConfigs, extractHooksAdded } from './hook.js';
+export { mergeHookConfigs, unmergeHookConfigs, extractHooksAdded } from './hook.js';
+export { estimateCategoryConfidence, estimateHookConfidence } from './estimate.js';
 export { rewriteRelativePaths, buildPluginPathMap, resolveMappedPath } from './path-rewrite.js';
 export type { PluginPathMap, PathRewriteResult } from './path-rewrite.js';
 
-function applyExtension(filename: string, ext: string | undefined): string {
-  if (!ext) return filename;
-  const base = filename.replace(/\.[^./\\]+$/, '');
-  return `${base}${ext}`;
-}
-
 /**
  * Transform tool file content from one platform format to another.
+ * `universal` content has no vendor format of its own and is copied as-is.
  */
 export function transform(
   content: string,
@@ -55,6 +51,9 @@ export function transform(
     case 'mcp-tool':
       result = passthrough(content);
       break;
+    case 'instructions':
+      result = nativeResult(content);
+      break;
     case 'rule':
       result = transformRule(content, from, to);
       break;
@@ -71,10 +70,6 @@ export function transform(
       result = unsupportedCategory(normalized as NormalizedCategory, to);
   }
 
-  if (result.recommendNativePath) {
-    return result;
-  }
-
   if (ctx.destPath && result.confidence !== 'native' && result.confidence !== 'high') {
     const summary =
       result.warnings.length > 0
@@ -84,12 +79,13 @@ export function transform(
   }
 
   if (result.destExtension && ctx.destPath) {
-    ctx.destPath = applyExtension(ctx.destPath, result.destExtension);
+    ctx.destPath = applyDestExtension(ctx.destPath, result);
   }
 
   return result;
 }
 
+/** Filename with the extension the transform result asks for (unchanged when it asks for none). */
 export function applyDestExtension(filename: string, result: TransformResult): string {
-  return applyExtension(filename, result.destExtension);
+  return result.destExtension ? replaceVendorExtension(filename, result.destExtension) : filename;
 }

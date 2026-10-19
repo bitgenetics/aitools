@@ -43,7 +43,8 @@ export interface SkillFieldSpec {
  */
 export interface InstallPathSpec {
   project: string;
-  user: string;
+  /** Absent when the category installs to project scope only (instruction files). */
+  user?: string;
 }
 
 /**

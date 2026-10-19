@@ -26,7 +26,7 @@
 
 ## Recent Changes
 
-- **2026-10-18** (uncommitted; red e2e) — Transform contracts: hook packages install a hook on every hook-capable platform; `publish --strict` blocks vendor frontmatter on packages without `nativeFor` — see `features/platforms-and-placement.md`
+- **2026-10-19** (uncommitted) — Vendor file formats live in core (`packages/core/src/formats/`); hooks convert and merge on every hook-capable platform; vendor extensions always apply; `instructions` category; `publish --strict` blocks vendor frontmatter without `nativeFor`; one confidence authority — see `features/platforms-and-placement.md`
 - **2026-10-18** (uncommitted) — Automated PR review: `pr-review.yml` + `scripts/pr-review.cjs` run a read-only Cursor SDK agent after CI passes; verdict applied by code via the release App (approve → merge commit, else request changes) — see `architecture.md`, `MAINTAINING.md`
 - **2026-10-18** `26dc9aa` / `6d38fe6` — Automatic releases: Conventional Commits since the last tag decide the level (`feat`/`fix`/`!`), `CHANGELOG.md` `[Unreleased]` is the notes; `ci.yml` cut → ship, signed release commit via GitHub App, `Release gate` PR check; tag-triggered publish removed — see `architecture.md`, `MAINTAINING.md`
 - **2026-10-18** `6a98d0c` — Root CLI options (`--version`) must precede the subcommand; subcommand `--version` now reaches `install` / `context push` — see `constraints/cli-and-dev.md`

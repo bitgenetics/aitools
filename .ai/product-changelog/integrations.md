@@ -63,7 +63,7 @@
 ### `Installer` (cli) ↔ `transformers` — 2026-06-27 `6eba41d`
 **How they connect**: After reading cached file content, `installFiles` compares `manifest.nativeFor ?? 'universal'` to the active platform. Non-native installs call `transform()` per file category; hooks additionally `mergeHookConfigs` into the path from `adapter.resolveHooksConfig()`. Transform warnings go to stderr; skipped files still update lock only when written.  
 **Key files**: `packages/cli/src/utils/installer.ts`, `packages/cli/src/transformers/index.ts`, `packages/cli/src/adapters/types.ts`  
-**Gotchas**: Hook install is config-merge, not a standalone file copy. `recommendNativePath` advisory may skip the write even when partial content exists.
+**Gotchas**: Hook install is config-merge, not a standalone file copy. The hooks file shape is per vendor (`readHooksFile`/`writeHooksFile` in core formats); only an empty or invalid conversion skips the merge.
 
 ---
 

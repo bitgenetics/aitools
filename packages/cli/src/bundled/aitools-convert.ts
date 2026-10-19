@@ -49,9 +49,12 @@ Use this skill when \`aitools install\` or \`aitools_transform\` reports \`mediu
 - \`prompt\` — **not interchangeable** (Cursor inline eval vs Claude single-turn vs Copilot text injection).
 - \`mcp_tool\`, \`agent\` — Claude Code only.
 
-## Native compatibility shortcuts
+## Hook file shapes
 
-- Claude hooks in \`.claude/settings.json\` are loaded natively by Cursor and GitHub Copilot — prefer installing there when targeting those platforms.
+- Cursor: \`.cursor/hooks.json\` as \`{ "version": 1, "hooks": { camelCaseEvent: [...] } }\`.
+- GitHub Copilot: \`.github/hooks/hooks.json\` as \`{ "hooks": { PascalCaseEvent: [...] } }\`.
+- Claude Code: the \`hooks\` key of \`.claude/settings.json\`, handlers grouped under \`{ matcher?, hooks: [...] }\`.
+- aitools converts and merges into the target platform's own file; it never relies on one platform reading another's settings.
 - Skills follow the agentskills.io \`SKILL.md\` standard — minimal transformation needed.
 
 ## Tools

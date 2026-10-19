@@ -14,9 +14,9 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 import os from 'node:os';
 import path from 'node:path';
-import type { PlatformAdapter, AdapterFileCategory } from './types.js';
-import { resolveFileCategory } from './types.js';
-import type { InstallScope, FileCategory } from '@bitgenetics/aitools-core';
+import type { PlatformAdapter, AdapterFileCategory, CategoryDirs } from './types.js';
+import { resolveCategoryDir } from './types.js';
+import type { InstallScope } from '@bitgenetics/aitools-core';
 
 /**
  * Windsurf IDE (Cognition) adapter.
@@ -25,36 +25,32 @@ import type { InstallScope, FileCategory } from '@bitgenetics/aitools-core';
  *   skill   → .windsurf/skills/
  *   rule    → .devin/rules/ (preferred; .windsurf/rules/ legacy)
  *   command → .windsurf/workflows/
- *   agent   → no native format (falls back to .windsurf/agents/ with warning)
+ *   agent   → not supported (Windsurf has no agent files; resolveDir throws)
  *   hook    → .windsurf/hooks.json
  *   mcp     → .windsurf/mcp.json
  */
 export class WindsurfAdapter implements PlatformAdapter {
   readonly platform = 'windsurf' as const;
 
-  private projectDirs: Record<FileCategory, string> = {
+  private projectDirs: CategoryDirs = {
+    instructions: '.',
     skill:   path.join('.windsurf', 'skills'),
     rule:    path.join('.devin', 'rules'),
     command: path.join('.windsurf', 'workflows'),
-    agent:   path.join('.windsurf', 'agents'),
   };
 
-  private userDirs(): Record<FileCategory, string> {
+  private userDirs(): CategoryDirs {
     const home = os.homedir();
     return {
       skill:   path.join(home, '.windsurf', 'skills'),
       rule:    path.join(home, '.devin', 'rules'),
       command: path.join(home, '.windsurf', 'workflows'),
-      agent:   path.join(home, '.windsurf', 'agents'),
     };
   }
 
   resolveDir(category: AdapterFileCategory, scope: InstallScope, cwd: string): string {
-    const fileCategory = resolveFileCategory(category);
-    if (scope === 'project') {
-      return path.resolve(cwd, this.projectDirs[fileCategory]);
-    }
-    return this.userDirs()[fileCategory];
+    const dirs = scope === 'project' ? this.projectDirs : this.userDirs();
+    return resolveCategoryDir(this.platform, dirs, category, scope, cwd);
   }
 
   resolveMcpConfig(scope: InstallScope, cwd: string): string {

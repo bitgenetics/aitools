@@ -254,6 +254,54 @@ describe('publish command', () => {
     }
   });
 
+  function writeVendorRulePackage(): void {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.json'),
+      JSON.stringify({
+        ...VALID_MANIFEST,
+        name: 'tidy-rule',
+        category: 'rule',
+        files: [{ src: 'style.mdc', dest: 'style.mdc' }],
+      }),
+      'utf8',
+    );
+    fs.writeFileSync(path.join(tmp, 'style.mdc'), '---\ndescription: style\nalwaysApply: true\n---\nBe tidy.\n', 'utf8');
+  }
+
+  it('warns when a rule without nativeFor carries vendor frontmatter', async () => {
+    writeVendorRulePackage();
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createPublishCommand().parseAsync([], { from: 'user' });
+    const output = warnSpy.mock.calls.flat().map(String).join('\n');
+    expect(output).toContain('"alwaysApply" is a cursor field');
+  });
+
+  it('blocks publish with --strict when a rule without nativeFor carries vendor frontmatter', async () => {
+    writeVendorRulePackage();
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const mockExit = jest.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      await expect(createPublishCommand().parseAsync(['--strict'], { from: 'user' })).rejects.toThrow('process.exit(1)');
+    } finally {
+      mockExit.mockRestore();
+    }
+  });
+
+  it('does not warn about vendor frontmatter when nativeFor is declared', async () => {
+    writeVendorRulePackage();
+    const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'aitools.json'), 'utf8')) as Record<string, unknown>;
+    fs.writeFileSync(path.join(tmp, 'aitools.json'), JSON.stringify({ ...manifest, nativeFor: 'cursor' }), 'utf8');
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createPublishCommand().parseAsync([], { from: 'user' });
+    const output = warnSpy.mock.calls.flat().map(String).join('\n');
+    expect(output).not.toContain('alwaysApply');
+  });
+
   it('reports network errors with a helpful message', async () => {
     const err = new Error('connect failed') as NodeJS.ErrnoException;
     err.code = 'ECONNREFUSED';

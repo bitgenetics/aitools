@@ -22,8 +22,8 @@ export const universalSpec: PlatformSpec = {
   id: 'universal',
   name: 'Universal (agentskills.io)',
   docsUrl: 'https://agentskills.io/docs/spec',
-  lastVerified: '2026-05-15',
-  supportedCategories: ['skill', 'rule', 'command', 'agent', 'hook', 'mcp-tool', 'subagent', 'prompt'],
+  lastVerified: '2026-10-19',
+  supportedCategories: ['skill', 'rule', 'command', 'agent', 'hook', 'mcp-tool', 'instructions', 'subagent', 'prompt'],
   skillFrontmatter: {
     name:            { required: true,  support: 'supported', platformExtension: false },
     description:     { required: true,  support: 'supported', platformExtension: false },
@@ -39,5 +39,6 @@ export const universalSpec: PlatformSpec = {
     agent:    { project: '.agents/agents',   user: '~/.agents/agents' },
     subagent: { project: '.agents/agents',   user: '~/.agents/agents' },
     prompt:   { project: '.agents/commands', user: '~/.agents/commands' },
+    instructions: { project: '.' },
   },
 };

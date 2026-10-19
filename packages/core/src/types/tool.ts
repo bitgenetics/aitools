@@ -16,6 +16,8 @@
  * Tool categories supported by the aitools registry.
  * Each category has specific install behaviour and target paths.
  *
+ * instructions: project-root instruction files (AGENTS.md and friends) every vendor reads as-is.
+ *
  * Deprecated aliases accepted at parse time and normalized internally:
  * - subagent → agent
  * - prompt   → command (ambiguous; prefer explicit rule or command)
@@ -30,6 +32,7 @@ export type ToolCategory =
   | 'plugin'
   | 'reference'
   | 'context-profile'
+  | 'instructions'
   | 'subagent'
   | 'prompt';
 

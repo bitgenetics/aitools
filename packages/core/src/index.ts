@@ -263,6 +263,7 @@ export {
   PLATFORM_SPECS,
   SPEC_STALE_DAYS,
   isSpecStale,
+  platformSupportsCategory,
   universalSpec,
   vscodeSpec,
   cursorSpec,
@@ -270,3 +271,40 @@ export {
   windsurfSpec,
 } from './platforms/index.js';
 
+
+// Vendor file formats (rules, commands, agents, hooks) and conversions between them
+export type {
+  ContentVendor,
+  VendorConversion,
+  VendorField,
+  FrontmatterDocument,
+  FrontmatterCategory,
+  HookHandler,
+  HookEvents,
+  HooksFile,
+  HookConversion,
+} from './formats/index.js';
+export {
+  CONTENT_VENDORS,
+  isContentVendor,
+  parseFrontmatter,
+  serializeFrontmatter,
+  replaceVendorExtension,
+  convertRule,
+  convertAgent,
+  convertCommand,
+  agentsSupported,
+  RULE_EXTENSION,
+  AGENT_EXTENSION,
+  COMMAND_EXTENSION,
+  HOOK_EVENTS,
+  hookEventName,
+  neutralHookEvent,
+  readHooksFile,
+  writeHooksFile,
+  nonEmptyHookEvents,
+  convertHookEvents,
+  NO_PORTABLE_HOOKS_WARNING,
+  WINDSURF_HOOKS_UNVERIFIED_WARNING,
+  detectVendorFrontmatter,
+} from './formats/index.js';
