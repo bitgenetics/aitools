@@ -12,7 +12,8 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-import type { TargetPlatform } from '../types/tool.js';
+import type { TargetPlatform, ToolCategory } from '../types/tool.js';
+import { normalizeCategory } from '../types/category.js';
 import type { PlatformSpec } from './types.js';
 import { universalSpec } from './universal.js';
 import { vscodeSpec } from './vscode.js';
@@ -46,4 +47,12 @@ export function isSpecStale(spec: PlatformSpec): boolean {
   const verified = new Date(spec.lastVerified);
   const ageMs = Date.now() - verified.getTime();
   return ageMs > SPEC_STALE_DAYS * 24 * 60 * 60 * 1000;
+}
+
+/** True when the platform's spec lists the category (deprecated aliases resolve first). */
+export function platformSupportsCategory(platform: TargetPlatform, category: ToolCategory): boolean {
+  const { category: normalized } = normalizeCategory(category);
+  return PLATFORM_SPECS[platform].supportedCategories.some(
+    (supported) => normalizeCategory(supported).category === normalized,
+  );
 }

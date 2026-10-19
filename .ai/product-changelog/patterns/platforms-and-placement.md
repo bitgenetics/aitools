@@ -12,15 +12,15 @@
 
 ### Platform adapter interface for path resolution
 **Used for**: Resolving where tool files should be installed for each IDE.  
-**How**: Implement `PlatformAdapter` (`resolveDir(category, scope, cwd)`, `resolveMcpConfig(scope, cwd)`, `resolveHooksConfig(scope, cwd)` for hook category). Register in `ADAPTERS` map in `packages/cli/src/adapters/index.ts`. Add a `PlatformSpec` entry in `packages/core/src/platforms/`.  
+**How**: Add a `PlatformSpec` entry in `packages/core/src/platforms/` with `installPaths` (project and `~/`-prefixed user paths, `mcpConfig`, `hookConfig`); then `export class XAdapter extends SpecAdapter { constructor() { super(xSpec); } }` in `packages/cli/src/adapters/` and register it in the `ADAPTERS` map. `SpecAdapter` (`spec-adapter.ts`) resolves every path from the spec; override a method only for a path the spec cannot express (VS Code's per-OS user MCP file).  
 **Example**: `packages/cli/src/adapters/vscode.ts`  
-**Do not**: Branch on platform name inside `Installer` or command handlers — always go through the adapter.
+**Do not**: Write an install path in an adapter class, or branch on platform name inside `Installer` or command handlers — the spec is the one place a path lives, and callers go through the adapter.
 
 ---
 
 ### Transformer layer for cross-platform content — 2026-06-27 `6eba41d`
 **Used for**: Converting rule/command/agent/hook file content between IDE formats at install time.  
-**How**: Call `transform(content, category, from, to, ctx)` from `packages/cli/src/transformers/index.ts`. Category-specific logic lives in `rule.ts`, `command.ts`, `agent.ts`, `hook.ts`. Return `TransformResult` with `confidence`, optional `destExtension`, `skillPrompt`, and `# aitools:` annotations. Use `normalizeCategory()` before routing. Skills and mcp-tool categories passthrough.  
+**How**: Call `transform(content, category, from, to, ctx)` from `packages/cli/src/transformers/index.ts`. The vendor formats (field tables, YAML frontmatter, hook file shapes) live in core `packages/core/src/formats/` (`convertRule`, `convertCommand`, `convertAgent`, `convertHookEvents`); the CLI `rule.ts`, `command.ts`, `agent.ts`, `hook.ts` only map the core `VendorConversion` onto `TransformResult` (`confidence`, `destExtension`, `skillPrompt`, `# aitools:` annotations). Use `normalizeCategory()` before routing. Skills, mcp-tool and instructions categories passthrough.  
 **Example**: `packages/cli/src/utils/installer.ts` — transform branch in `installFiles`  
 **Do not**: Branch on platform inside command handlers — keep conversion rules in transformers so `compat` and MCP can reuse `estimateCategoryConfidence`.
 
@@ -60,6 +60,6 @@
 
 ### File placementMode resolution — 2026-07-17 `31b7508`
 **Used for**: Deciding whether `files[].dest` is honored 1:1 or remapped at install.  
-**How**: Call `effectivePlacementMode(file)` (`packages/core/src/placement/placement-mode.ts`). Omitted → `strict` (project-relative `dest`). `transform` enables plugin explode remaps and content `destExtension`. Manifest generators always emit `placementMode: 'strict'` via `fileEntry()`.  
+**How**: Call `effectivePlacementMode(file)` (`packages/core/src/placement/placement-mode.ts`). Omitted → `strict` (project-relative `dest`). `transform` enables plugin explode remaps; content conversion and the target vendor's extension apply to every non-native install regardless of mode. Manifest generators always emit `placementMode: 'strict'` via `fileEntry()`.  
 **Example**: `packages/cli/src/utils/installer.ts` (explode + `installFiles`), `packages/cli/src/commands/manifest.ts`  
 **Do not**: Assume legacy asset remapping when `placementMode` is absent.

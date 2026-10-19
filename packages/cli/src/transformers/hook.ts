@@ -12,253 +12,102 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-import type { TargetPlatform } from '@bitgenetics/aitools-core';
-import type { TransformResult } from './types.js';
-import { mergeConfidence, nativeResult } from './types.js';
+import type { ContentVendor, HookEvents, TargetPlatform } from '@bitgenetics/aitools-core';
+import {
+  convertHookEvents,
+  isContentVendor,
+  nonEmptyHookEvents,
+  readHooksFile,
+  writeHooksFile,
+} from '@bitgenetics/aitools-core';
+import type { TransformConfidence, TransformResult } from './types.js';
+import { nativeResult, passthrough } from './types.js';
 
-/** Events with approximate cross-platform support. */
-export const PORTABLE_HOOK_EVENTS = new Set([
-  'preToolUse',
-  'postToolUse',
-  'sessionStart',
-  'sessionEnd',
-  'subagentStart',
-  'subagentStop',
-]);
+/** More dropped items than this means the result needs a human pass. */
+const LOW_CONFIDENCE_WARNING_COUNT = 3;
 
-const CURSOR_SPECIFIC = new Set([
-  'beforeShellExecution', 'afterShellExecution', 'beforeMCPExecution', 'afterMCPExecution',
-  'beforeReadFile', 'afterFileEdit', 'beforeSubmitPrompt', 'stop', 'afterAgentResponse',
-  'afterAgentThought', 'beforeTabFileRead', 'afterTabFileEdit', 'workspaceOpen',
-  'postToolUseFailure', 'preCompact',
-]);
-
-const CLAUDE_SPECIFIC = new Set([
-  'Setup', 'UserPromptExpansion', 'PostToolBatch', 'PermissionRequest', 'PermissionDenied',
-  'TaskCreated', 'TaskCompleted', 'TeammateIdle', 'InstructionsLoaded', 'ConfigChange',
-  'CwdChanged', 'FileChanged', 'WorktreeCreate', 'WorktreeRemove', 'PostCompact',
-  'Elicitation', 'ElicitationResult', 'StopFailure', 'MessageDisplay', 'Stop', 'Notification',
-]);
-
-const COPILOT_SPECIFIC = new Set([
-  'userPromptSubmitted', 'notification', 'permissionRequest', 'preCompact',
-  'errorOccurred', 'agentStop', 'postToolUseFailure',
-]);
-
-/** Map camelCase shared events to PascalCase (Claude/VS Code local). */
-const CAMEL_TO_PASCAL: Record<string, string> = {
-  preToolUse: 'PreToolUse',
-  postToolUse: 'PostToolUse',
-  sessionStart: 'SessionStart',
-  sessionEnd: 'SessionEnd',
-  subagentStart: 'SubagentStart',
-  subagentStop: 'SubagentStop',
+const INVALID_HOOK_JSON: TransformResult = {
+  content: '',
+  confidence: 'unsupported',
+  warnings: ['Invalid hook JSON'],
+  skillPrompt: '/aitools-convert — fix malformed hook config',
 };
 
-const PASCAL_TO_CAMEL = Object.fromEntries(
-  Object.entries(CAMEL_TO_PASCAL).map(([k, v]) => [v, k]),
-);
-
-/** Map camelCase to snake_case for Windsurf. */
-const CAMEL_TO_SNAKE: Record<string, string> = {
-  preToolUse: 'pre_tool_use',
-  postToolUse: 'post_tool_use',
-  sessionStart: 'session_start',
-  sessionEnd: 'session_end',
-  subagentStart: 'subagent_start',
-  subagentStop: 'subagent_stop',
-};
-
-type HookHandler = Record<string, unknown>;
-type HookConfig = Record<string, HookHandler[]>;
-
-function isPlatformSpecificEvent(event: string, from: TargetPlatform): boolean {
-  if (CURSOR_SPECIFIC.has(event)) return from === 'cursor';
-  if (CLAUDE_SPECIFIC.has(event)) return from === 'claude';
-  if (COPILOT_SPECIFIC.has(event)) return from === 'vscode';
-  return false;
+function hookConfidence(warnings: string[]): TransformConfidence {
+  if (warnings.length > LOW_CONFIDENCE_WARNING_COUNT) return 'low';
+  return warnings.length > 0 ? 'medium' : 'high';
 }
 
-function mapEventName(event: string, to: TargetPlatform): string {
-  if (to === 'claude') {
-    return CAMEL_TO_PASCAL[event] ?? PASCAL_TO_CAMEL[event] ?? event;
-  }
-  if (to === 'vscode') {
-    // Copilot CLI format uses camelCase
-    return PASCAL_TO_CAMEL[event] ?? event;
-  }
-  if (to === 'windsurf') {
-    return CAMEL_TO_SNAKE[event] ?? CAMEL_TO_SNAKE[PASCAL_TO_CAMEL[event] ?? ''] ?? event;
-  }
-  return PASCAL_TO_CAMEL[event] ?? event;
-}
-
-function transformHandler(handler: HookHandler, from: TargetPlatform, to: TargetPlatform, warnings: string[]): HookHandler | null {
-  const type = handler['type'] as string | undefined;
-
-  if (type === 'prompt') {
-    warnings.push('Dropped prompt-type hook — semantics differ across platforms');
-    return null;
-  }
-  if (type === 'mcp_tool' || type === 'agent') {
-    warnings.push(`Dropped ${type}-type hook — not supported on ${to}`);
-    return null;
-  }
-  if (type === 'http' && (to === 'cursor' || to === 'windsurf')) {
-    warnings.push('Dropped http-type hook — not supported on target platform');
-    return null;
-  }
-
-  const result = { ...handler };
-
-  if (from === 'cursor' && to === 'claude') {
-    if (typeof result['command'] === 'string') {
-      result['command'] = result['command'];
-    }
-  }
-
-  return result;
-}
-
-function extractHooks(content: string, from: TargetPlatform): HookConfig {
-  const parsed = JSON.parse(content) as Record<string, unknown>;
-  if (from === 'claude') {
-    const hooks = parsed['hooks'];
-    if (hooks && typeof hooks === 'object') return hooks as HookConfig;
-    return {};
-  }
-  return parsed as HookConfig;
-}
-
-function wrapHooks(hooks: HookConfig, to: TargetPlatform): string {
-  if (to === 'claude') {
-    return JSON.stringify({ hooks }, null, 2) + '\n';
-  }
-  return JSON.stringify(hooks, null, 2) + '\n';
-}
-
-export function transformHook(
-  content: string,
-  from: TargetPlatform,
-  to: TargetPlatform,
-): TransformResult {
-  if (from === 'claude' && (to === 'cursor' || to === 'vscode')) {
-    return {
-      content,
-      confidence: 'native',
-      warnings: [],
-      recommendNativePath: '.claude/settings.json — Cursor and Copilot load Claude hooks natively',
-    };
-  }
-
+/** Convert a hooks file between vendor formats. JSON output is never annotated. */
+export function transformHook(content: string, from: TargetPlatform, to: TargetPlatform): TransformResult {
   if (from === to) return nativeResult(content);
+  if (!isContentVendor(from) || !isContentVendor(to)) return passthrough(content);
 
-  const warnings: string[] = [];
-  let confidence: TransformResult['confidence'] = 'medium';
-
-  let input: HookConfig;
+  let events: HookEvents;
   try {
-    input = extractHooks(content, from);
+    events = readHooksFile(content, from).events;
   } catch {
+    return INVALID_HOOK_JSON;
+  }
+
+  const conversion = convertHookEvents(events, from, to);
+  if (conversion.unsupported) {
     return {
       content: '',
       confidence: 'unsupported',
-      warnings: ['Invalid hook JSON'],
-      skillPrompt: '/aitools-convert — fix malformed hook config',
-    };
-  }
-
-  const output: HookConfig = {};
-
-  for (const [event, handlers] of Object.entries(input)) {
-    if (!Array.isArray(handlers)) continue;
-
-    if (isPlatformSpecificEvent(event, from) || (!PORTABLE_HOOK_EVENTS.has(event) && !PORTABLE_HOOK_EVENTS.has(PASCAL_TO_CAMEL[event] ?? ''))) {
-      warnings.push(`Dropped platform-specific event "${event}"`);
-      confidence = mergeConfidence(confidence, 'low');
-      continue;
-    }
-
-    const mappedEvent = mapEventName(event, to);
-    const transformedHandlers: HookHandler[] = [];
-
-    for (const handler of handlers) {
-      const mapped = transformHandler(handler, from, to, warnings);
-      if (mapped) transformedHandlers.push(mapped);
-    }
-
-    if (transformedHandlers.length > 0) {
-      output[mappedEvent] = transformedHandlers;
-    }
-  }
-
-  if (Object.keys(output).length === 0) {
-    warnings.push('No portable hook events survived transformation');
-    return {
-      content: '',
-      confidence: 'unsupported',
-      warnings,
+      warnings: conversion.warnings,
       skillPrompt: '/aitools-convert — no portable hooks remained after transformation',
     };
   }
-
-  if (warnings.length > 3) confidence = 'low';
-
-  const resultContent = wrapHooks(output, to);
-  return { content: resultContent, confidence, warnings };
+  return {
+    content: writeHooksFile(conversion.events, to),
+    confidence: hookConfidence(conversion.warnings),
+    warnings: conversion.warnings,
+  };
 }
 
-/** Merge hook configs for install. Claude uses settings.json wrapper. */
+function hooksVendor(platform: TargetPlatform): ContentVendor {
+  if (!isContentVendor(platform)) {
+    throw new Error('The universal platform has no hooks file');
+  }
+  return platform;
+}
+
+function ensureTrailingNewline(content: string): string {
+  return content.endsWith('\n') ? content : `${content}\n`;
+}
+
+function readExisting(existingContent: string | null, vendor: ContentVendor): { events: HookEvents; rest: Record<string, unknown> } {
+  if (!existingContent) return { events: {}, rest: {} };
+  try {
+    return readHooksFile(existingContent, vendor);
+  } catch {
+    return { events: {}, rest: {} };
+  }
+}
+
+/** Append incoming hook handlers to a platform hooks file, keeping its other keys. */
 export function mergeHookConfigs(
   existingContent: string | null,
   incomingContent: string,
   platform: TargetPlatform,
 ): string {
-  const parseExisting = (): HookConfig => {
-    if (!existingContent) return {};
-    try {
-      const parsed = JSON.parse(existingContent) as Record<string, unknown>;
-      if (platform === 'claude') {
-        return (parsed['hooks'] as HookConfig) ?? {};
-      }
-      return parsed as HookConfig;
-    } catch {
-      return {};
-    }
-  };
+  const vendor = hooksVendor(platform);
+  const existing = readExisting(existingContent, vendor);
 
-  const existing = parseExisting();
-  let incoming: HookConfig;
+  let incoming: HookEvents;
   try {
-    incoming = extractHooks(incomingContent, platform);
+    incoming = readHooksFile(incomingContent, vendor).events;
   } catch {
     process.stderr.write('[aitools] Skipping invalid hook JSON\n');
-    if (existingContent) return existingContent.endsWith('\n') ? existingContent : `${existingContent}\n`;
-    return platform === 'claude'
-      ? JSON.stringify({ hooks: {} }, null, 2) + '\n'
-      : JSON.stringify({}, null, 2) + '\n';
+    return existingContent ? ensureTrailingNewline(existingContent) : writeHooksFile({}, vendor);
   }
 
+  const merged: HookEvents = { ...existing.events };
   for (const [event, handlers] of Object.entries(incoming)) {
-    if (!Array.isArray(handlers)) continue;
-    const current = existing[event] ?? [];
-    existing[event] = [...current, ...handlers];
+    merged[event] = [...(merged[event] ?? []), ...handlers];
   }
-
-  if (platform === 'claude') {
-    let settings: Record<string, unknown> = {};
-    if (existingContent) {
-      try {
-        settings = JSON.parse(existingContent) as Record<string, unknown>;
-      } catch {
-        settings = {};
-      }
-    }
-    settings['hooks'] = existing;
-    return JSON.stringify(settings, null, 2) + '\n';
-  }
-
-  return JSON.stringify(existing, null, 2) + '\n';
+  return writeHooksFile(merged, vendor, existing.rest);
 }
 
 /**
@@ -270,35 +119,27 @@ export function unmergeHookConfigs(
   added: Record<string, unknown[]>,
   platform: TargetPlatform,
 ): string {
-  let root: Record<string, unknown>;
+  const vendor = hooksVendor(platform);
+  let existing: { events: HookEvents; rest: Record<string, unknown> };
   try {
-    root = JSON.parse(existingContent) as Record<string, unknown>;
+    existing = readHooksFile(existingContent, vendor);
   } catch {
     return existingContent;
   }
 
-  const hooks: HookConfig =
-    platform === 'claude'
-      ? ((root['hooks'] as HookConfig) ?? {})
-      : (root as HookConfig);
-
+  const remaining: HookEvents = { ...existing.events };
   for (const [event, handlers] of Object.entries(added)) {
-    const current = hooks[event];
-    if (!Array.isArray(current)) continue;
+    const current = remaining[event];
+    if (!current) continue;
     const toRemove = new Set(handlers.map((h) => JSON.stringify(h)));
-    const remaining = current.filter((h) => !toRemove.has(JSON.stringify(h)));
-    if (remaining.length === 0) {
-      delete hooks[event];
+    const kept = current.filter((h) => !toRemove.has(JSON.stringify(h)));
+    if (kept.length === 0) {
+      delete remaining[event];
     } else {
-      hooks[event] = remaining;
+      remaining[event] = kept;
     }
   }
-
-  if (platform === 'claude') {
-    root['hooks'] = hooks;
-    return JSON.stringify(root, null, 2) + '\n';
-  }
-  return JSON.stringify(hooks, null, 2) + '\n';
+  return writeHooksFile(remaining, vendor, existing.rest);
 }
 
 /** Extract hook event→handlers map from raw hook file content. */
@@ -306,55 +147,10 @@ export function extractHooksAdded(
   incomingContent: string,
   platform: TargetPlatform,
 ): Record<string, unknown[]> {
-  let incoming: HookConfig;
   try {
-    incoming = extractHooks(incomingContent, platform);
+    return nonEmptyHookEvents(incomingContent, hooksVendor(platform));
   } catch {
     process.stderr.write('[aitools] Skipping invalid hook JSON\n');
     return {};
-  }
-  const out: Record<string, unknown[]> = {};
-  for (const [event, handlers] of Object.entries(incoming)) {
-    if (Array.isArray(handlers) && handlers.length > 0) {
-      out[event] = handlers as unknown[];
-    }
-  }
-  return out;
-}
-
-/** Estimate transform confidence for compat matrix without file content. */
-export function estimateHookConfidence(from: TargetPlatform, to: TargetPlatform): TransformResult['confidence'] {
-  if (from === to) return 'native';
-  if (from === 'claude' && (to === 'cursor' || to === 'vscode')) return 'native';
-  if (to === 'windsurf') return 'low';
-  if (from === 'cursor' && to === 'claude') return 'low';
-  if (from === 'claude' && to === 'vscode') return 'medium';
-  return 'medium';
-}
-
-export function estimateCategoryConfidence(
-  category: string,
-  from: TargetPlatform,
-  to: TargetPlatform,
-): TransformResult['confidence'] {
-  if (from === to || from === 'universal') return 'native';
-  switch (category) {
-    case 'skill':
-    case 'mcp-tool':
-      return 'high';
-    case 'rule':
-      if ((from === 'cursor' && to === 'vscode') || (from === 'vscode' && to === 'cursor')) return 'high';
-      if (to === 'claude') return 'medium';
-      return 'medium';
-    case 'command':
-      if (from === 'cursor' && to === 'claude') return 'high';
-      return 'medium';
-    case 'agent':
-      if (to === 'windsurf') return 'unsupported';
-      return 'medium';
-    case 'hook':
-      return estimateHookConfidence(from, to);
-    default:
-      return 'medium';
   }
 }

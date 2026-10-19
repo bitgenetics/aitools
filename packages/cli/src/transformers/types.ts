@@ -12,7 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-import type { NormalizedCategory, TargetPlatform } from '@bitgenetics/aitools-core';
+import type { NormalizedCategory, TargetPlatform, VendorConversion } from '@bitgenetics/aitools-core';
 
 export type TransformConfidence = 'native' | 'high' | 'medium' | 'low' | 'unsupported';
 
@@ -21,9 +21,8 @@ export interface TransformResult {
   confidence: TransformConfidence;
   warnings: string[];
   skillPrompt?: string;
+  /** Extension the target platform expects; the installer always applies it to the dest filename. */
   destExtension?: string;
-  /** When true, installer should skip writing and recommend an alternate native path. */
-  recommendNativePath?: string;
 }
 
 export interface TransformContext {
@@ -98,4 +97,24 @@ export function unsupportedCategory(category: NormalizedCategory, to: TargetPlat
     warnings: [`No ${to} equivalent for category "${category}"`],
     skillPrompt: `/aitools-convert — suggest best approximation for ${category} on ${to}`,
   };
+}
+
+/**
+ * Map a core vendor conversion of a markdown file to a transform result.
+ * Every warning names lost information, so any warning means a lossy (medium) result.
+ */
+export function markdownResult(
+  conversion: VendorConversion,
+  category: NormalizedCategory,
+  to: TargetPlatform,
+): TransformResult {
+  if (conversion.unsupported) {
+    return unsupportedCategory(category, to);
+  }
+  return annotateMarkdownIfLossy({
+    content: conversion.content,
+    confidence: conversion.warnings.length > 0 ? 'medium' : 'high',
+    warnings: conversion.warnings,
+    destExtension: conversion.extension,
+  });
 }

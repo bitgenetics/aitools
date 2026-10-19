@@ -108,11 +108,11 @@ describe('WindsurfAdapter', () => {
   });
 
   it('returns user-scope hooks config', () => {
-    expect(adapter.resolveHooksConfig('user', CWD)).toBe(path.join(HOME, '.windsurf', 'hooks.json'));
+    expect(adapter.resolveHooksConfig('user', CWD)).toBe(path.join(HOME, '.codeium', 'windsurf', 'hooks.json'));
   });
 
   it('returns project-scope hooks config', () => {
-    expect(adapter.resolveHooksConfig('project', CWD)).toBe(path.join(CWD, '.windsurf', 'hooks.json'));
+    expect(adapter.resolveHooksConfig('project', CWD)).toBe(path.join(CWD, '.devin', 'hooks.json'));
   });
 
   it('returns user-scope command path', () => {
@@ -229,5 +229,24 @@ describe('resolveFileCategory', () => {
 
   it('throws for non file-based categories', () => {
     expect(() => resolveFileCategory('hook' as never)).toThrow('not file-based');
+  });
+});
+
+describe('instructions category', () => {
+  const adapters = [new ClaudeAdapter(), new CursorAdapter(), new VsCodeAdapter(), new WindsurfAdapter(), new UniversalAdapter()];
+
+  it('resolves project-scope instruction files to the project root on every platform', () => {
+    const dirs = adapters.map((a) => a.resolveDir('instructions', 'project', CWD));
+    expect(dirs).toEqual(adapters.map(() => CWD));
+  });
+
+  it('throws for user-scope instruction files', () => {
+    expect(() => new CursorAdapter().resolveDir('instructions', 'user', CWD)).toThrow('not supported on cursor (user scope)');
+  });
+});
+
+describe('WindsurfAdapter (agents)', () => {
+  it('throws because Windsurf has no agent files', () => {
+    expect(() => new WindsurfAdapter().resolveDir('agent', 'project', CWD)).toThrow('not supported on windsurf');
   });
 });

@@ -45,6 +45,7 @@ import {
   effectivePlacementMode,
   readManifest,
   writeManifest,
+  platformSupportsCategory,
 } from '@bitgenetics/aitools-core';
 import type { ConfigManager } from './config-manager.js';
 import type { RegistryClient } from './registry-client.js';
@@ -60,6 +61,7 @@ import {
   buildPluginPathMap,
 } from '../transformers/index.js';
 import type { TransformResult } from '../transformers/index.js';
+import { unsupportedCategory } from '../transformers/types.js';
 
 export interface InstallFileResult {
   dest: string;
@@ -230,11 +232,6 @@ export class Installer {
       if (sourcePlatform !== activePlatform && sourcePlatform !== 'universal') {
         result = transform(rawContent, 'hook', sourcePlatform, activePlatform, { destPath: relDest });
         emitTransformMessages(relDest, result);
-        if (result.recommendNativePath) {
-          process.stderr.write(`[aitools] Advisory: ${result.recommendNativePath}\n`);
-          fileResults.push({ dest: relDest, transform: result, skipped: true });
-          continue;
-        }
         if (result.confidence === 'unsupported' && !result.content.trim()) {
           fileResults.push({ dest: relDest, transform: result, skipped: true });
           continue;
@@ -293,6 +290,37 @@ export class Installer {
     return { ...this.toStoredInstalled(installedTool, scope), fileResults };
   }
 
+  /** Nothing to write when the active platform has no home for this category; nothing is tracked either. */
+  private skipUnsupportedCategory(
+    client: RegistryClient,
+    manifest: ToolManifest,
+    scope: InstallScope,
+  ): InstallResult | undefined {
+    const platform = this.configManager.getPlatform();
+    if (platformSupportsCategory(platform, manifest.category)) return undefined;
+    process.stderr.write(
+      `[aitools] Skipped ${manifest.name}: ${platform} has no ${manifest.category} files (Advisory: nothing was installed)
+`,
+    );
+    const fileResults: InstallFileResult[] = manifest.files.map((file) => ({
+      dest: file.dest,
+      transform: unsupportedCategory(normalizeCategory(manifest.category).category, platform),
+      skipped: true,
+    }));
+    return {
+      name: manifest.name,
+      version: manifest.version,
+      category: manifest.category,
+      scope,
+      platform,
+      installedAt: new Date().toISOString(),
+      files: [],
+      registry: client.config.url,
+      integrity: '',
+      fileResults,
+    };
+  }
+
   private async installFiles(
     client: RegistryClient,
     manifest: ToolManifest,
@@ -309,6 +337,9 @@ export class Installer {
         );
       }
     }
+
+    const unsupported = this.skipUnsupportedCategory(client, manifest, scope);
+    if (unsupported) return unsupported;
 
     let agentsDir: string;
     let integrity: string;
@@ -400,12 +431,6 @@ export class Installer {
         });
         emitTransformMessages(relDestPath, transformResult);
 
-        if (transformResult.recommendNativePath) {
-          process.stderr.write(`[aitools] Advisory: ${transformResult.recommendNativePath}\n`);
-          fileResults.push({ dest: relDestPath, transform: transformResult, skipped: true });
-          continue;
-        }
-
         if (transformResult.confidence === 'unsupported' && !transformResult.content.trim()) {
           process.stderr.write(
             `[aitools] Skipped ${relDestPath}: no ${activePlatform} equivalent for ${manifest.category}\n`,
@@ -418,8 +443,9 @@ export class Installer {
         }
 
         writeContent = transformResult.content;
-        if (effectivePlacementMode(file) === 'transform' && transformResult.destExtension) {
-          destPath = path.resolve(installBase, applyDestExtension(relDest, transformResult));
+        // The target platform only loads the file under its own extension, whatever the placement mode.
+        if (transformResult.destExtension) {
+          destPath = applyDestExtension(destPath, transformResult);
         }
       }
 
@@ -430,9 +456,10 @@ export class Installer {
     }
 
     // Do not drop a package descriptor into plugin author layout (would pollute publish set /
-    // risk overwriting host aitools.json when LCM is the project root).
-    if (!pluginBundle && writtenFiles.length > 0) {
-      const descriptorDir = lowestCommonInstallDirAbs(writtenFiles);
+    // risk overwriting host aitools.json when LCM is the project root), nor at the scope root
+    // (instruction files such as AGENTS.md install there, next to the host's own aitools.json).
+    const descriptorDir = writtenFiles.length > 0 ? lowestCommonInstallDirAbs(writtenFiles) : null;
+    if (!pluginBundle && descriptorDir && descriptorDir !== path.resolve(this.scopeRoot(scope))) {
       const descriptorPath = path.join(descriptorDir, MANIFEST_FILENAME);
       fs.mkdirSync(descriptorDir, { recursive: true });
       fs.writeFileSync(descriptorPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
@@ -663,22 +690,13 @@ export class Installer {
             });
             emitTransformMessages(relDest, transformResult);
 
-            if (transformResult.recommendNativePath) {
-              process.stderr.write(`[aitools] Advisory: ${transformResult.recommendNativePath}\n`);
-              fileResults.push({ dest: relDest, transform: transformResult, skipped: true });
-              continue;
-            }
             if (transformResult.confidence === 'unsupported' && !transformResult.content.trim()) {
               fileResults.push({ dest: relDest, transform: transformResult, skipped: true });
               continue;
             }
             writeContent = transformResult.content;
-            if (plan.placementMode === 'transform' && transformResult.destExtension) {
-              const baseRel = plan.member.destWithinCategory;
-              const installBase = pluginBundle
-                ? resolvePluginBundleInstallBase(plan.member.fileCategory!, this.cwd, hostPluginJson)
-                : this.configManager.resolveInstallPath(plan.member.fileCategory!, scope);
-              destPath = path.resolve(installBase, applyDestExtension(baseRel, transformResult));
+            if (transformResult.destExtension) {
+              destPath = applyDestExtension(destPath, transformResult);
               relDest = path.relative(this.cwd, destPath).replace(/\\/g, '/');
             }
           }
@@ -742,7 +760,6 @@ export class Installer {
             throw new Error(`Package "${manifest.name}@${manifest.version}" missing file: ${hookMember.src}`);
           }
           let hookContent = fs.readFileSync(hookSrc, 'utf8');
-          hookContent = normalizePluginHooksContent(hookContent);
 
           let transformResult: TransformResult | undefined;
           if (sourcePlatform !== activePlatform && sourcePlatform !== 'universal') {
@@ -753,9 +770,9 @@ export class Installer {
               path.relative(this.cwd, hooksConfigPath).replace(/\\/g, '/'),
               transformResult,
             );
-            if (!transformResult.recommendNativePath && transformResult.content.trim()) {
+            if (transformResult.content.trim()) {
               hookContent = transformResult.content;
-            } else if (transformResult.recommendNativePath || !transformResult.content.trim()) {
+            } else {
               fileResults.push({
                 dest: path.relative(this.cwd, hooksConfigPath).replace(/\\/g, '/'),
                 transform: transformResult,
@@ -1198,24 +1215,6 @@ function mergePluginMcpServers(configPath: string, pluginMcpContent: string): st
 
   fs.writeFileSync(configPath, JSON.stringify(existing, null, 2) + '\n', 'utf8');
   return keys;
-}
-
-/** Unwrap Cursor plugin `{ "hooks": { ... } }` to top-level events for mergeHookConfigs. */
-function normalizePluginHooksContent(content: string): string {
-  try {
-    const parsed = JSON.parse(content) as Record<string, unknown>;
-    if (parsed['hooks'] && typeof parsed['hooks'] === 'object' && !Array.isArray(parsed['hooks'])) {
-      const inner = parsed['hooks'] as Record<string, unknown>;
-      // If the only meaningful key is hooks, treat as nested Cursor marketplace format.
-      const topKeys = Object.keys(parsed).filter((k) => k !== 'version');
-      if (topKeys.length === 1 && topKeys[0] === 'hooks') {
-        return JSON.stringify(inner, null, 2) + '\n';
-      }
-    }
-  } catch {
-    // leave as-is
-  }
-  return content;
 }
 
 function lowestCommonInstallDir(cwd: string, writtenRelPaths: string[]): string {

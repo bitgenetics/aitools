@@ -76,7 +76,7 @@ describe('handleMcpToolCall', () => {
     );
 
     const data = parseToolResponse(response) as { content: string; confidence: string };
-    expect(data.content).toBe('Run lint on $ARGUMENTS');
+    expect(data.content).toBe('Run lint on $1');
     expect(data.confidence).toBe('high');
   });
 

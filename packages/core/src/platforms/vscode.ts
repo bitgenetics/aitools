@@ -18,8 +18,8 @@ export const vscodeSpec: PlatformSpec = {
   id: 'vscode',
   name: 'VS Code / GitHub Copilot',
   docsUrl: 'https://code.visualstudio.com/docs/copilot/customization/agent-skills',
-  lastVerified: '2026-06-01',
-  supportedCategories: ['skill', 'rule', 'command', 'agent', 'hook', 'mcp-tool', 'subagent', 'prompt'],
+  lastVerified: '2026-10-19',
+  supportedCategories: ['skill', 'rule', 'command', 'agent', 'hook', 'mcp-tool', 'instructions', 'subagent', 'prompt'],
   skillFrontmatter: {
     name:                       { required: true,  support: 'supported',   platformExtension: false },
     description:                { required: true,  support: 'supported',   platformExtension: false },
@@ -37,6 +37,7 @@ export const vscodeSpec: PlatformSpec = {
     command:    { project: '.github/prompts',      user: '~/.copilot/prompts' },
     agent:      { project: '.github/agents',       user: '~/.copilot/agents' },
     prompt:     { project: '.github/prompts',      user: '~/.copilot/prompts' },
+    instructions: { project: '.' },
     subagent:   { project: '.github/agents',       user: '~/.copilot/agents' },
     // User MCP is VS Code profile mcp.json (resolved at runtime by VsCodeAdapter).
     mcpConfig:  { project: '.vscode/mcp.json',     user: '~/.config/Code/User/mcp.json' },

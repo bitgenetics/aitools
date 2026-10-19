@@ -30,7 +30,7 @@ import { REGISTRY_URL, makeE2eProjectDir, rmTmpDir, run } from './test-env.js';
 async function publishTool(
   name: string,
   version: string,
-  category: 'skill' | 'subagent' | 'prompt',
+  category: 'skill' | 'subagent' | 'prompt' | 'instructions',
   files: { src: string; dest: string; platform?: string }[],
   fileContents: Record<string, string>,
 ): Promise<void> {
@@ -86,9 +86,9 @@ const EXPECTED_DIRS: Record<string, Record<string, string>> = {
     subagent: path.join('.cursor', 'agents'),
     prompt: path.join('.cursor', 'commands'),
   },
+  // Windsurf has no agent file format, so it has no subagent entry.
   windsurf: {
     skill: path.join('.windsurf', 'skills'),
-    subagent: path.join('.windsurf', 'agents'),
     prompt: path.join('.windsurf', 'workflows'),
   },
 };
@@ -173,11 +173,13 @@ describe('platform-aware install paths', () => {
       });
 
       for (const category of categories) {
-        it(`installs a ${category} to ${EXPECTED_DIRS[platform]![category]}`, () => {
+        const categoryDir = EXPECTED_DIRS[platform]![category];
+        if (!categoryDir) continue;
+        it(`installs a ${category} to ${categoryDir}`, () => {
           const fixture = FIXTURES[category];
           run(`install ${fixture.name} --scope project`, tmpDir);
 
-          const expectedDir = path.join(tmpDir, EXPECTED_DIRS[platform]![category]!);
+          const expectedDir = path.join(tmpDir, categoryDir);
           const expectedFile = path.join(expectedDir, fixture.files[0]!.dest);
           expect(fs.existsSync(expectedFile)).toBe(true);
 
@@ -187,6 +189,16 @@ describe('platform-aware install paths', () => {
       }
     });
   }
+
+  it('skips a subagent on windsurf without writing an agent file', () => {
+    const tmpDir = makeProjectDir('windsurf');
+    try {
+      run(`install ${FIXTURES.subagent.name} --scope project`, tmpDir);
+      expect(fs.existsSync(path.join(tmpDir, '.windsurf', 'agents'))).toBe(false);
+    } finally {
+      rmTmpDir(tmpDir);
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -259,6 +271,37 @@ describe('multi-platform file selection', () => {
       rmTmpDir(tmpDir);
     }
   });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('instructions category', () => {
+  const name = 'e2e-platform-instructions';
+
+  beforeAll(async () => {
+    await publishTool(
+      name,
+      '1.0.0',
+      'instructions',
+      [{ src: 'AGENTS.md', dest: 'AGENTS.md' }],
+      { 'AGENTS.md': '# Platform Instructions\nInstalled correctly.' },
+    );
+  });
+
+  for (const platform of ['vscode', 'claude', 'cursor', 'windsurf'] as const) {
+    it(`installs AGENTS.md at the project root on ${platform}`, () => {
+      const tmpDir = makeProjectDir(platform);
+      try {
+        run(`install ${name} --scope project`, tmpDir);
+
+        const installedFile = path.join(tmpDir, 'AGENTS.md');
+        expect(fs.existsSync(installedFile)).toBe(true);
+        expect(fs.readFileSync(installedFile, 'utf8')).toContain('Installed correctly.');
+      } finally {
+        rmTmpDir(tmpDir);
+      }
+    });
+  }
 });
 
 // ---------------------------------------------------------------------------

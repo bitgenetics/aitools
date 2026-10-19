@@ -18,8 +18,8 @@ export const claudeSpec: PlatformSpec = {
   id: 'claude',
   name: 'Claude Code',
   docsUrl: 'https://code.claude.com/docs/en/hooks',
-  lastVerified: '2026-06-01',
-  supportedCategories: ['skill', 'rule', 'command', 'agent', 'hook', 'mcp-tool', 'subagent', 'prompt'],
+  lastVerified: '2026-10-19',
+  supportedCategories: ['skill', 'rule', 'command', 'agent', 'hook', 'mcp-tool', 'instructions', 'subagent', 'prompt'],
   skillFrontmatter: {
     name:                       { required: true,  support: 'supported',   platformExtension: false },
     description:                { required: true,  support: 'supported',   platformExtension: false },
@@ -37,6 +37,7 @@ export const claudeSpec: PlatformSpec = {
     command:    { project: '.claude/commands', user: '~/.claude/commands' },
     agent:      { project: '.claude/agents',   user: '~/.claude/agents' },
     prompt:     { project: '.claude/commands', user: '~/.claude/commands' },
+    instructions: { project: '.' },
     subagent:   { project: '.claude/agents',   user: '~/.claude/agents' },
     mcpConfig:  { project: '.mcp.json',        user: '~/.claude.json' },
     hookConfig: { project: '.claude/settings.json', user: '~/.claude/settings.json' },

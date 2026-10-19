@@ -26,9 +26,9 @@
 ---
 
 ### `PlatformAdapter` (cli) ↔ `PlatformSpec` (core)
-**How they connect**: Each adapter in `packages/cli/src/adapters/` implements `PlatformAdapter` and handles runtime path resolution. Each platform also has a `PlatformSpec` in `packages/core/src/platforms/` that describes frontmatter field support and install paths declaratively (used by `compat` command). The two are parallel — the adapter is the runtime behaviour, the spec is the metadata.  
-**Key files**: `packages/cli/src/adapters/types.ts` (interface), `packages/core/src/platforms/types.ts` (spec type), `packages/core/src/platforms/index.ts` (`PLATFORM_SPECS` map)  
-**Gotchas**: Adding a new platform requires changes in both places — the adapter (runtime) and the spec (metadata). The `compat` command uses specs, not adapters.
+**How they connect**: Each `PlatformSpec` in `packages/core/src/platforms/` declares frontmatter field support, supported categories and `installPaths`. The CLI adapters are `SpecAdapter` subclasses that resolve every runtime path (category dirs, MCP config, hooks config) from that spec, expanding `~/` to the home directory. `compat` reads the same spec, so what it reports and what install does cannot diverge.  
+**Key files**: `packages/cli/src/adapters/spec-adapter.ts`, `packages/cli/src/adapters/types.ts` (interface), `packages/core/src/platforms/types.ts` (spec type), `packages/core/src/platforms/index.ts` (`PLATFORM_SPECS` map)  
+**Gotchas**: A category missing from a spec's `installPaths` (or a scope missing from an entry) makes the adapter throw, which the installer turns into a skip with an advisory. Only VS Code overrides a spec path (user MCP config is per operating system).
 
 ---
 
@@ -63,7 +63,7 @@
 ### `Installer` (cli) ↔ `transformers` — 2026-06-27 `6eba41d`
 **How they connect**: After reading cached file content, `installFiles` compares `manifest.nativeFor ?? 'universal'` to the active platform. Non-native installs call `transform()` per file category; hooks additionally `mergeHookConfigs` into the path from `adapter.resolveHooksConfig()`. Transform warnings go to stderr; skipped files still update lock only when written.  
 **Key files**: `packages/cli/src/utils/installer.ts`, `packages/cli/src/transformers/index.ts`, `packages/cli/src/adapters/types.ts`  
-**Gotchas**: Hook install is config-merge, not a standalone file copy. `recommendNativePath` advisory may skip the write even when partial content exists.
+**Gotchas**: Hook install is config-merge, not a standalone file copy. The hooks file shape is per vendor (`readHooksFile`/`writeHooksFile` in core formats); only an empty or invalid conversion skips the merge.
 
 ---
 

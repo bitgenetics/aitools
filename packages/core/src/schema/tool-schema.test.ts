@@ -294,3 +294,18 @@ describe('ToolManifestSchema', () => {
     expect(result.success).toBe(false);
   });
 });
+
+// -- Review: project instruction files as a category (red until fixed) -----
+
+describe('ToolManifestSchema (instructions category)', () => {
+  it('accepts an instructions category for AGENTS.md-style project instruction files', () => {
+    const result = ToolManifestSchema.safeParse({
+      name: 'team-instructions',
+      version: '1.0.0',
+      description: 'Shared AGENTS.md',
+      category: 'instructions',
+      files: [{ src: 'AGENTS.md', dest: 'AGENTS.md' }],
+    });
+    expect(result.success).toBe(true);
+  });
+});

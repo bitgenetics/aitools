@@ -24,7 +24,8 @@ export type NormalizedCategory =
   | 'mcp-tool'
   | 'plugin'
   | 'reference'
-  | 'context-profile';
+  | 'context-profile'
+  | 'instructions';
 
 export interface CategoryNormalization {
   category: NormalizedCategory;

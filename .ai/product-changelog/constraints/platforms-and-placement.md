@@ -26,8 +26,8 @@
 
 ---
 
-### Cross-platform transforms are mechanical, not semantic — 2026-06-27 `6eba41d` (updated hook/markdown annotate)
-**Constraint**: Install-time transforms produce best-effort skeletons. `low`/`unsupported` confidence may skip writes or emit advisories; full conversion requires the bundled `aitools-convert` skill or manual edit. HTTP/MCP hook types may be dropped when the target platform has no equivalent.  
+### Cross-platform transforms are mechanical, not semantic — 2026-06-27 `6eba41d` (formats moved to core 2026-10-19)
+**Constraint**: Install-time transforms map known frontmatter fields and hook events between vendor formats; they do not rewrite prose, tool names or argument placeholders. Fields the target vendor has no name for are dropped with a warning (`medium`); `low`/`unsupported` confidence may skip writes or emit advisories; full conversion requires the bundled `aitools-convert` skill or manual edit. HTTP/MCP hook types may be dropped when the target platform has no equivalent. The vendor field tables are the single authority for what converts; add a field there, never in a CLI regex.  
 **Markdown vs JSON**: `# aitools:` inline annotations are for **markdown** rule/command/agent skeletons only (lossy `medium`/`low`). Hook/MCP JSON is never annotated — empty portable or invalid hook content skips merge; invalid incoming soft-fails with stderr.  
 **Reason**: Reliable regex/JSON rewriting cannot capture all platform semantics; confidence scoring sets user expectations. Annotated JSON breaks `JSON.parse` during install.  
 **Do not change**: Skipping empty post-transform hook content; writing broken hooks/rules is worse than skipping with a clear message. Do not annotate JSON configs.  

@@ -12,69 +12,13 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-import { parseSkillFrontmatter, analyzeCompat, rewriteSkillFrontmatter } from './compat.js';
+import { analyzeCompat, rewriteSkillFrontmatter } from './compat.js';
 import { createCompatCommand } from './compat.js';
 import { PLATFORM_SPECS } from '@bitgenetics/aitools-core';
 import type { TargetPlatform } from '@bitgenetics/aitools-core';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-
-// -- parseSkillFrontmatter --------------------------------------------------
-
-describe('parseSkillFrontmatter', () => {
-  it('returns null when no YAML frontmatter block is present', () => {
-    expect(parseSkillFrontmatter('# Just a markdown file\n\nNo frontmatter.')).toBeNull();
-  });
-
-  it('parses a string value', () => {
-    const content = '---\nname: my-skill\n---\n# Body';
-    expect(parseSkillFrontmatter(content)?.['name']).toBe('my-skill');
-  });
-
-  it('parses a boolean true value', () => {
-    const content = '---\nuser-invocable: true\n---';
-    expect(parseSkillFrontmatter(content)?.['user-invocable']).toBe(true);
-  });
-
-  it('parses a boolean false value', () => {
-    const content = '---\ndisable-model-invocation: false\n---';
-    expect(parseSkillFrontmatter(content)?.['disable-model-invocation']).toBe(false);
-  });
-
-  it('parses multiple fields in one block', () => {
-    const content = '---\nname: my-skill\nuser-invocable: true\nargument-hint: Enter a topic\n---';
-    const result = parseSkillFrontmatter(content);
-    expect(result).toEqual({
-      name: 'my-skill',
-      'user-invocable': true,
-      'argument-hint': 'Enter a topic',
-    });
-  });
-
-  it('strips surrounding single quotes from string values', () => {
-    const content = "---\nname: 'quoted-name'\n---";
-    expect(parseSkillFrontmatter(content)?.['name']).toBe('quoted-name');
-  });
-
-  it('strips surrounding double quotes from string values', () => {
-    const content = '---\nname: "double-quoted"\n---';
-    expect(parseSkillFrontmatter(content)?.['name']).toBe('double-quoted');
-  });
-
-  it('skips multi-line continuation lines (leading whitespace)', () => {
-    const content = '---\ndescription: >-\n  line one\n  line two\nname: my-skill\n---';
-    const result = parseSkillFrontmatter(content);
-    expect(result?.['name']).toBe('my-skill');
-    expect(result?.['description']).toBeUndefined();
-  });
-
-  it('skips lines with a >- multi-line indicator as value', () => {
-    const content = '---\ndescription: >-\nname: my-skill\n---';
-    const result = parseSkillFrontmatter(content);
-    expect(result?.['description']).toBeUndefined();
-  });
-});
 
 // -- analyzeCompat ----------------------------------------------------------
 
@@ -423,5 +367,55 @@ describe('rewriteSkillFrontmatter', () => {
     const content = '---\nname: my-skill\nfoo: bar\n---\n# Body';
     const result = rewriteSkillFrontmatter(content, new Set(['foo']));
     expect(result.startsWith('---')).toBe(true);
+  });
+});
+
+// -- Review: category support vs transformer (red until fixed) -------------
+
+describe('analyzeCompat (category support agrees with transformer)', () => {
+  it('reports windsurf agent support consistently with the agent transformer', () => {
+    const [result] = analyzeCompat({}, 'subagent', ['windsurf'], 'cursor');
+    const transformerSaysSupported = result!.transformConfidence !== 'unsupported';
+    expect(result!.categorySupported).toBe(transformerSaysSupported);
+  });
+});
+
+describe('compat command action (SKILL.md frontmatter via the core parser)', () => {
+  let tmp: string;
+  const originalCwd = process.cwd();
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-compat-yaml-'));
+    process.chdir(tmp);
+  });
+
+  afterEach(() => {
+    process.chdir(originalCwd);
+    fs.rmSync(tmp, { recursive: true });
+    jest.restoreAllMocks();
+  });
+
+  it('reports a folded multi-line description as a frontmatter field', async () => {
+    fs.mkdirSync(path.join(tmp, 'skill'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.json'),
+      JSON.stringify({
+        name: 'my-skill',
+        version: '1.0.0',
+        description: 'Test',
+        category: 'skill',
+        files: [{ src: 'skill/SKILL.md', dest: 'skill/SKILL.md' }],
+      }),
+      'utf8',
+    );
+    fs.writeFileSync(
+      path.join(tmp, 'skill', 'SKILL.md'),
+      '---\nname: my-skill\ndescription: >-\n  line one\n  line two\n---\n# Body',
+      'utf8',
+    );
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await createCompatCommand().parseAsync([], { from: 'user' });
+    const output = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(output).toContain('frontmatter fields: name, description');
   });
 });

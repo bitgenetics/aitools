@@ -618,7 +618,9 @@ Legacy `aitools.manifest.json` is still read with a deprecation warning — run 
 |---|---|
 | `strict` (default) | Under the platform's directory for the file's category and scope, e.g. `.cursor/skills/<dest>`. Works for project and user installs and across platforms. |
 | `verbatim` | Exactly at `dest`, relative to the project root (or your home directory for user installs). Use for a custom path such as `.cursor/assets/x`. |
-| `transform` | Like `strict`, plus plugin `assets/` and `scripts/` move under a skill folder and content is converted for the target platform. |
+| `transform` | Like `strict`, plus plugin `assets/` and `scripts/` move under a skill folder. |
+
+Content conversion and the target platform's file extension (`.mdc`, `.instructions.md`, `.prompt.md`, `.agent.md`) apply to every install whose `nativeFor` differs from your platform, whatever the placement mode.
 
 Each entry may include an optional `platform` field (`vscode`, `claude`, `cursor`, `windsurf`, or `universal`) to restrict a file to a specific IDE. When multiple entries share the same `dest`, the platform-specific entry takes precedence over an unscoped entry for the active platform. Entries for other platforms are skipped.
 
@@ -637,7 +639,7 @@ Each entry may include an optional `platform` field (`vscode`, `claude`, `cursor
 | `name` | Yes | Scoped package name (`@scope/name` or `name`) — lowercase, hyphens |
 | `version` | Yes | Semver string |
 | `description` | Yes | Short description |
-| `category` | Yes | `skill`, `rule`, `command`, `agent`, `hook`, `mcp-tool`, `plugin`, or `context-profile`. `subagent` and `prompt` are still accepted as deprecated aliases for `agent` and `command`. |
+| `category` | Yes | `skill`, `rule`, `command`, `agent`, `instructions`, `hook`, `mcp-tool`, `plugin`, or `context-profile`. `subagent` and `prompt` are still accepted as deprecated aliases for `agent` and `command`. |
 | `files` | Yes | Array of `{ src, dest, platform?, placementMode? }` file entries |
 | `nativeFor` | | Platform the files were written for (`vscode`, `claude`, `cursor`, `windsurf`, `universal`). Installs on another platform convert rule, command, agent, and hook files. Required for plugins. |
 | `platforms` | | Platforms the tool supports. Omit to support all. |
@@ -750,23 +752,24 @@ Set `platform` in `aitools.config.json` to adapt installs to your IDE.
 
 > **Note:** When no `platform` is set, aitools uses a universal layout. Always set a `platform` value so installed files land where your IDE expects them.
 
-### Files: `skill`, `rule`, `command`, `agent`
+### Files: `skill`, `rule`, `command`, `agent`, `instructions`
 
-| Platform | `skill` | `rule` | `command` | `agent` |
-|---|---|---|---|---|
-| `vscode` | `.github/skills` | `.github/instructions` | `.github/prompts` | `.github/agents` |
-| `claude` | `.claude/skills` | `.claude/rules` | `.claude/commands` | `.claude/agents` |
-| `cursor` | `.cursor/skills` | `.cursor/rules` | `.cursor/commands` | `.cursor/agents` |
-| `windsurf` | `.windsurf/skills` | `.devin/rules` | `.windsurf/workflows` | `.windsurf/agents` ¹ |
-| universal (no platform set) | `.agents/skills` | `.agents/rules` | `.agents/commands` | `.agents/agents` |
+| Platform | `skill` | `rule` | `command` | `agent` | `instructions` |
+|---|---|---|---|---|---|
+| `vscode` | `.github/skills` | `.github/instructions` | `.github/prompts` | `.github/agents` | `.` |
+| `claude` | `.claude/skills` | `.claude/rules` | `.claude/commands` | `.claude/agents` | `.` |
+| `cursor` | `.cursor/skills` | `.cursor/rules` | `.cursor/commands` | `.cursor/agents` | `.` |
+| `windsurf` | `.windsurf/skills` | `.devin/rules` | `.windsurf/workflows` | — ¹ | `.` |
+| universal (no platform set) | `.agents/skills` | `.agents/rules` | `.agents/commands` | `.agents/agents` | `.` |
 
 These are project-scope paths. For user scope (`-g`):
 
 - `vscode` uses `~/.copilot/{skills,instructions,prompts,agents}`.
 - `claude`, `cursor`, and `windsurf` use the same folder names under your home directory (e.g. `~/.cursor/skills`, `~/.devin/rules`).
 - universal uses `~/.aitools/tools/{skills,rules,commands,agents}`.
+- `instructions` files (AGENTS.md-style project instructions) are project scope only; they land in the project root on every platform.
 
-¹ Windsurf has no native agent format, so agents fall back to `.windsurf/agents` with a warning.
+¹ Windsurf has no agent format; installing an `agent` package with `platform: windsurf` skips the files with an advisory.
 
 `subagent` and `prompt` are deprecated aliases that install as `agent` and `command`.
 
@@ -781,7 +784,7 @@ These categories don't add files. They merge entries into the platform's config 
 | `vscode` | `.vscode/mcp.json` / VS Code user-profile `mcp.json` | `.github/hooks/hooks.json` / `~/.copilot/hooks/hooks.json` |
 | `claude` | `.mcp.json` / `~/.claude.json` | `.claude/settings.json` / `~/.claude/settings.json` |
 | `cursor` | `.cursor/mcp.json` / `~/.cursor/mcp.json` | `.cursor/hooks.json` / `~/.cursor/hooks.json` |
-| `windsurf` | `.windsurf/mcp.json` / `~/.windsurf/mcp.json` | `.windsurf/hooks.json` / `~/.windsurf/hooks.json` |
+| `windsurf` | `.windsurf/mcp.json` / `~/.windsurf/mcp.json` | `.devin/hooks.json` / `~/.codeium/windsurf/hooks.json` |
 | universal | `.agents/mcp.json` / `~/.aitools/mcp.json` | not supported |
 
 ### `plugin`
