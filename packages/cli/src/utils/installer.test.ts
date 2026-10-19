@@ -1495,6 +1495,35 @@ describe('Installer.install (cross-platform transformation)', () => {
     expect(result.fileResults[0]?.transform?.confidence).toBe('high');
   });
 
+  it('keeps a verbatim dest when applying the target extension', async () => {
+    fs.writeFileSync(
+      path.join(tmp, 'aitools.config.json'),
+      JSON.stringify({ platform: 'vscode' }),
+      'utf8',
+    );
+    installer = new Installer(new ConfigManager(tmp), tmp, new CacheManager(cacheTmp));
+
+    const manifest: ToolManifest = {
+      name: 'verbatim-rule',
+      version: '1.0.0',
+      description: 'A cursor rule at an exact path',
+      category: 'rule',
+      nativeFor: 'cursor',
+      files: [{ src: 'rule.mdc', dest: '.github/custom/my-rule.mdc', placementMode: 'verbatim' }],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([{ path: 'rule.mdc', content: '---\nglobs: src/**\n---\n# Rule body' }]),
+      'utf8',
+    );
+
+    await installer.install(makeClient(tarball) as never, manifest, 'project');
+
+    expect(fs.existsSync(path.join(tmp, '.github', 'custom', 'my-rule.instructions.md'))).toBe(true);
+    expect(
+      fs.existsSync(path.join(tmp, '.github', 'instructions', '.github', 'custom', 'my-rule.instructions.md')),
+    ).toBe(false);
+  });
+
   it('skips cursor-only plugin hooks when installing to claude without throwing', async () => {
     const PLUGIN_MANIFEST: ToolManifest = {
       name: 'cursor-hooks-plugin',

@@ -13,6 +13,24 @@ before 3.4.0 are recorded only as git tags.
 
 ## [Unreleased]
 
+### Added
+- `instructions` category: AGENTS.md-style files install at the project root on every platform (project scope only).
+
+### Changed
+- Hook packages install on every hook-capable platform. A hook authored for one IDE is converted (event names, Claude matcher groups) and merged into the target's own hooks file instead of being skipped. Cursor hooks files are written as `{ "version": 1, "hooks": { ... } }`; flat legacy files are migrated on merge.
+- Windsurf hooks land in `.devin/hooks.json` (user scope `~/.codeium/windsurf/hooks.json`) with Windsurf's per-tool event names and `command` handlers. Cursor shell, MCP, file and prompt hook events convert to and from Windsurf.
+- The target IDE's file extension (`.mdc`, `.instructions.md`, `.prompt.md`, `.agent.md`) applies on every cross-platform install, whatever the file's `placementMode`.
+- `publish` warns, and `publish --strict` fails, when a package without `nativeFor` carries vendor-only frontmatter (`alwaysApply`, `applyTo`, `trigger`, `is_background`, ...).
+- Installing a category the active platform cannot load (for example agents on Windsurf) skips the files with an advisory instead of failing.
+- Cross-platform conversions report `high` confidence with no annotation when nothing is lost; dropped fields add an inline `# aitools:` note. Command conversion no longer rewrites `$1` to `$ARGUMENTS`.
+
+### Fixed
+- Cross-platform installs of `verbatim` files keep their `dest` path when the target extension is applied; they were moved under the category directory.
+- Universal platform user-scope paths are `~/.aitools/tools/*`, matching where installs already went.
+- `compat` and `publish` read SKILL.md frontmatter with a YAML parser, so a folded multi-line `description` counts as present.
+- `compat` hook confidence reflects how many of the source vendor's events the target keeps.
+
+
 ## [4.0.0] - 2026-10-18
 
 ### Added

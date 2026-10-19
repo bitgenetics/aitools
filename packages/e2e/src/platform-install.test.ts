@@ -30,7 +30,7 @@ import { REGISTRY_URL, makeE2eProjectDir, rmTmpDir, run } from './test-env.js';
 async function publishTool(
   name: string,
   version: string,
-  category: 'skill' | 'subagent' | 'prompt',
+  category: 'skill' | 'subagent' | 'prompt' | 'instructions',
   files: { src: string; dest: string; platform?: string }[],
   fileContents: Record<string, string>,
 ): Promise<void> {
@@ -271,6 +271,37 @@ describe('multi-platform file selection', () => {
       rmTmpDir(tmpDir);
     }
   });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('instructions category', () => {
+  const name = 'e2e-platform-instructions';
+
+  beforeAll(async () => {
+    await publishTool(
+      name,
+      '1.0.0',
+      'instructions',
+      [{ src: 'AGENTS.md', dest: 'AGENTS.md' }],
+      { 'AGENTS.md': '# Platform Instructions\nInstalled correctly.' },
+    );
+  });
+
+  for (const platform of ['vscode', 'claude', 'cursor', 'windsurf'] as const) {
+    it(`installs AGENTS.md at the project root on ${platform}`, () => {
+      const tmpDir = makeProjectDir(platform);
+      try {
+        run(`install ${name} --scope project`, tmpDir);
+
+        const installedFile = path.join(tmpDir, 'AGENTS.md');
+        expect(fs.existsSync(installedFile)).toBe(true);
+        expect(fs.readFileSync(installedFile, 'utf8')).toContain('Installed correctly.');
+      } finally {
+        rmTmpDir(tmpDir);
+      }
+    });
+  }
 });
 
 // ---------------------------------------------------------------------------

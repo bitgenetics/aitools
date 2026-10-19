@@ -445,7 +445,7 @@ export class Installer {
         writeContent = transformResult.content;
         // The target platform only loads the file under its own extension, whatever the placement mode.
         if (transformResult.destExtension) {
-          destPath = path.resolve(installBase, applyDestExtension(relDest, transformResult));
+          destPath = applyDestExtension(destPath, transformResult);
         }
       }
 
@@ -696,11 +696,7 @@ export class Installer {
             }
             writeContent = transformResult.content;
             if (transformResult.destExtension) {
-              const baseRel = plan.member.destWithinCategory;
-              const installBase = pluginBundle
-                ? resolvePluginBundleInstallBase(plan.member.fileCategory!, this.cwd, hostPluginJson)
-                : this.configManager.resolveInstallPath(plan.member.fileCategory!, scope);
-              destPath = path.resolve(installBase, applyDestExtension(baseRel, transformResult));
+              destPath = applyDestExtension(destPath, transformResult);
               relDest = path.relative(this.cwd, destPath).replace(/\\/g, '/');
             }
           }

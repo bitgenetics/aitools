@@ -46,7 +46,7 @@ export interface VendorField {
 export function pickKnownFields(
   fields: Record<string, unknown>,
   known: ReadonlySet<string>,
-  to: ContentVendor,
+  from: ContentVendor,
   warnings: string[],
 ): Record<string, unknown> {
   const kept: Record<string, unknown> = {};
@@ -54,7 +54,7 @@ export function pickKnownFields(
     if (known.has(key)) {
       kept[key] = value;
     } else {
-      warnings.push(`Dropped frontmatter field "${key}" (no ${to} equivalent)`);
+      warnings.push(`Dropped frontmatter field "${key}": not a ${from} field`);
     }
   }
   return kept;
