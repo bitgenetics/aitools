@@ -1,6 +1,6 @@
 {
   "name": "@bitgenetics/aitools-cursor",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Cursor Agent CLI helper — load multi-root .code-workspace folders into agent --add-dir roots",
   "bin": {
     "aitools-cursor": "./dist/cli.js"

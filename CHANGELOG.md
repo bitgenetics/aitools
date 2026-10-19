@@ -13,6 +13,8 @@ before 3.4.0 are recorded only as git tags.
 
 ## [Unreleased]
 
+## [4.0.1] - 2026-10-19
+
 ### Added
 - `instructions` category: AGENTS.md-style files install at the project root on every platform (project scope only).
 
@@ -29,7 +31,6 @@ before 3.4.0 are recorded only as git tags.
 - Universal platform user-scope paths are `~/.aitools/tools/*`, matching where installs already went.
 - `compat` and `publish` read SKILL.md frontmatter with a YAML parser, so a folded multi-line `description` counts as present.
 - `compat` hook confidence reflects how many of the source vendor's events the target keeps.
-
 
 ## [4.0.0] - 2026-10-18
 
@@ -97,7 +98,9 @@ before 3.4.0 are recorded only as git tags.
 - `aitools cursor worker` maps `.code-workspace` folders to `agent worker --worker-dir` for multi-root self-hosted workers.
 
 
-[Unreleased]: https://github.com/bitgenetics/aitools/compare/v4.0.0...HEAD
+
+[Unreleased]: https://github.com/bitgenetics/aitools/compare/v4.0.1...HEAD
+[4.0.1]: https://github.com/bitgenetics/aitools/compare/v4.0.0...v4.0.1
 [4.0.0]: https://github.com/bitgenetics/aitools/compare/v3.6.5...v4.0.0
 [3.6.5]: https://github.com/bitgenetics/aitools/compare/v3.6.4...v3.6.5
 [3.6.4]: https://github.com/bitgenetics/aitools/compare/v3.6.3...v3.6.4
