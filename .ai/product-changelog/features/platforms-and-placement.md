@@ -25,7 +25,7 @@
 6. **One confidence authority**: `estimateCategoryConfidence` runs the real transformer on per-vendor fixtures, so `compat`/MCP estimates cannot drift from install results.  
 **Why**: Review 2026-10-18 found hand-written regexes that misread YAML lists, dropped vendor extensions in `strict` mode, skipped hook writes without placing anything, and an estimate table that disagreed with the transformer.  
 **Impact**: Cursor hooks files written by aitools now use the versioned shape (flat legacy files are read and migrated on merge). Lossless conversions report `high` with no annotation; dropped fields report `medium` with an inline `# aitools:` note.  
-**Key files**: `packages/core/src/formats/`, `packages/core/src/platforms/`, `packages/cli/src/transformers/`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/commands/publish.ts`, `packages/e2e/src/plugin-install.test.ts` (*claude-native hooks on cursor*), `packages/e2e/src/cli.test.ts` (*publish --strict blocks vendor frontmatter without nativeFor*)
+**Key files**: `packages/core/src/formats/`, `packages/core/src/platforms/`, `packages/cli/src/transformers/`, `packages/cli/src/utils/installer.ts`, `packages/cli/src/commands/publish.ts`, `packages/e2e/src/platform-install.test.ts` (*skips a subagent on windsurf*), `packages/e2e/src/plugin-install.test.ts` (*claude-native hooks on cursor*), `packages/e2e/src/cli.test.ts` (*publish --strict blocks vendor frontmatter without nativeFor*)
 
 ---
 

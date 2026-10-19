@@ -86,9 +86,9 @@ const EXPECTED_DIRS: Record<string, Record<string, string>> = {
     subagent: path.join('.cursor', 'agents'),
     prompt: path.join('.cursor', 'commands'),
   },
+  // Windsurf has no agent file format, so it has no subagent entry.
   windsurf: {
     skill: path.join('.windsurf', 'skills'),
-    subagent: path.join('.windsurf', 'agents'),
     prompt: path.join('.windsurf', 'workflows'),
   },
 };
@@ -173,11 +173,13 @@ describe('platform-aware install paths', () => {
       });
 
       for (const category of categories) {
-        it(`installs a ${category} to ${EXPECTED_DIRS[platform]![category]}`, () => {
+        const categoryDir = EXPECTED_DIRS[platform]![category];
+        if (!categoryDir) continue;
+        it(`installs a ${category} to ${categoryDir}`, () => {
           const fixture = FIXTURES[category];
           run(`install ${fixture.name} --scope project`, tmpDir);
 
-          const expectedDir = path.join(tmpDir, EXPECTED_DIRS[platform]![category]!);
+          const expectedDir = path.join(tmpDir, categoryDir);
           const expectedFile = path.join(expectedDir, fixture.files[0]!.dest);
           expect(fs.existsSync(expectedFile)).toBe(true);
 
@@ -187,6 +189,16 @@ describe('platform-aware install paths', () => {
       }
     });
   }
+
+  it('skips a subagent on windsurf without writing an agent file', () => {
+    const tmpDir = makeProjectDir('windsurf');
+    try {
+      run(`install ${FIXTURES.subagent.name} --scope project`, tmpDir);
+      expect(fs.existsSync(path.join(tmpDir, '.windsurf', 'agents'))).toBe(false);
+    } finally {
+      rmTmpDir(tmpDir);
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
