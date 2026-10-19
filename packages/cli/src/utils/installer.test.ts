@@ -2288,3 +2288,54 @@ describe('Installer.install (--plugin-bundle)', () => {
     ).rejects.toThrow(/Cannot combine/);
   });
 });
+
+// -- Review: transform output extension on default placement (red until fixed)
+
+describe('Installer.install (cross-platform rule, default placement)', () => {
+  let tmp: string;
+  let cacheTmp: string;
+  let installer: Installer;
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-installer-'));
+    cacheTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aitools-cache-'));
+    installer = new Installer(
+      new ConfigManager(tmp, { platform: 'vscode' }),
+      tmp,
+      new CacheManager(cacheTmp),
+    );
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true });
+    fs.rmSync(cacheTmp, { recursive: true });
+  });
+
+  it('writes a cursor rule as .instructions.md when installing on vscode with default placement', async () => {
+    const RULE_MANIFEST: ToolManifest = {
+      name: 'tidy-rule',
+      version: '1.0.0',
+      description: 'Rule',
+      category: 'rule',
+      nativeFor: 'cursor',
+      files: [{ src: 'style.mdc', dest: 'style.mdc' }],
+    };
+    const tarball = Buffer.from(
+      JSON.stringify([
+        { path: 'style.mdc', content: '---\ndescription: Style\nglobs: "*.ts"\n---\nBe tidy.\n' },
+      ]),
+      'utf8',
+    );
+    const mockClient = {
+      config: { name: 'test-registry', url: 'https://test.example.com' },
+      getManifest: jest.fn(),
+      search: jest.fn(),
+      download: jest.fn().mockResolvedValue({ data: tarball }),
+    };
+
+    await installer.install(mockClient as never, RULE_MANIFEST, 'project');
+
+    const expected = path.join(tmp, '.github', 'instructions', 'style.instructions.md');
+    expect(fs.existsSync(expected)).toBe(true);
+  });
+});

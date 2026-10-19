@@ -859,6 +859,27 @@ describe('aitools publish', () => {
     expect(manifest.version).toBe('1.0.0');
   });
 
+  // Changelog contract (features → platforms-and-placement, 2026-10-18): a package without nativeFor
+  // must not carry vendor-specific frontmatter. Red until publish checks non-skill categories.
+  it('--strict blocks a rule with vendor frontmatter when nativeFor is omitted', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'aitools.json'),
+      JSON.stringify({
+        name: 'cli-e2e-universal-vendor-rule',
+        version: '1.0.0',
+        description: 'rule with cursor frontmatter but no nativeFor',
+        category: 'rule',
+        files: [{ src: 'style.mdc', dest: 'style.mdc' }],
+      }),
+    );
+    fs.writeFileSync(
+      path.join(tmpDir, 'style.mdc'),
+      '---\ndescription: style\nalwaysApply: true\n---\nBe tidy.\n',
+    );
+
+    expect(() => run(`publish --dry-run --strict --registry ${REGISTRY_URL}`, tmpDir)).toThrow();
+  });
+
   it('rejects legacy aitools.manifest.json as the publish source', () => {
     fs.writeFileSync(
       path.join(tmpDir, 'aitools.manifest.json'),

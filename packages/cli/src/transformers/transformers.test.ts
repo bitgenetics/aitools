@@ -504,3 +504,72 @@ describe('applyDestExtension', () => {
     expect(applyDestExtension('cmd.md', result)).toBe('cmd.md');
   });
 });
+
+// -- Review: vendor transform gaps (red until fixed) -------------------------
+
+describe('transformRule (vendor format fidelity)', () => {
+  it('keeps Cursor globs written as a YAML list when targeting vscode', () => {
+    const content = '---\ndescription: Style\nglobs:\n  - "*.ts"\n  - "*.tsx"\n---\nBe tidy.\n';
+    const result = transformRule(content, 'cursor', 'vscode');
+    expect(result.content).toContain('applyTo:');
+  });
+
+  it('keeps description when mapping a cursor rule to vscode', () => {
+    const content = '---\ndescription: Style guide\nglobs: "*.ts"\n---\nBe tidy.\n';
+    const result = transformRule(content, 'cursor', 'vscode');
+    expect(result.content).toContain('description: Style guide');
+  });
+
+  it('adds the .mdc extension when a Claude rule targets cursor', () => {
+    const result = transformRule('Be tidy.\n', 'claude', 'cursor');
+    expect(result.destExtension).toBe('.mdc');
+  });
+
+  it('does not claim high confidence for an unmapped platform pair', () => {
+    const content = '---\ntrigger: always_on\n---\nBe tidy.\n';
+    const result = transformRule(content, 'windsurf', 'cursor');
+    expect(result.confidence).not.toBe('high');
+  });
+});
+
+describe('transformAgent (vendor format fidelity)', () => {
+  it('keeps the tools field when a Claude agent targets vscode', () => {
+    const content = '---\nname: reviewer\ndescription: Reviews code\ntools: Read, Grep\n---\nReview.\n';
+    const result = transformAgent(content, 'claude', 'vscode');
+    expect(result.content).toMatch(/^tools:/m);
+  });
+});
+
+describe('transformCommand (vendor format fidelity)', () => {
+  it('adds the .prompt.md extension for a Claude command whose body names a .prompt.md file', () => {
+    const content = 'Run the checklist in review.prompt.md';
+    const result = transformCommand(content, 'claude', 'vscode');
+    expect(result.destExtension).toBe('.prompt.md');
+  });
+});
+
+describe('estimateCategoryConfidence (single authority)', () => {
+  const VENDORS = ['vscode', 'claude', 'cursor', 'windsurf'] as const;
+  const FIXTURES = {
+    rule: '---\ndescription: Style\nglobs: "*.ts"\nalwaysApply: false\n---\nBe tidy.\n',
+    command: '---\ndescription: Do it\n---\nRun $1 now.\n',
+    agent: '---\nname: reviewer\ndescription: Reviews\n---\nReview code.\n',
+  } as const;
+
+  it('agrees with the transformer for every vendor pair on a portable fixture', () => {
+    const mismatches: string[] = [];
+    for (const [category, fixture] of Object.entries(FIXTURES)) {
+      for (const from of VENDORS) {
+        for (const to of VENDORS) {
+          if (from === to) continue;
+          const estimate = estimateCategoryConfidence(category, from, to);
+          const actual = transform(fixture, category as 'rule' | 'command' | 'agent', from, to).confidence;
+          if (estimate !== actual) {
+            mismatches.push(`${category} ${from}->${to}: estimate=${estimate} actual=${actual}`);
+          }
+        }
+      }
+    }
+    expect(mismatches).toEqual([]);
+  });
+});

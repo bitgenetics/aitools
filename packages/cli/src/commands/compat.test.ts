@@ -425,3 +425,13 @@ describe('rewriteSkillFrontmatter', () => {
     expect(result.startsWith('---')).toBe(true);
   });
 });
+
+// -- Review: category support vs transformer (red until fixed) -------------
+
+describe('analyzeCompat (category support agrees with transformer)', () => {
+  it('reports windsurf agent support consistently with the agent transformer', () => {
+    const [result] = analyzeCompat({}, 'subagent', ['windsurf'], 'cursor');
+    const transformerSaysSupported = result!.transformConfidence !== 'unsupported';
+    expect(result!.categorySupported).toBe(transformerSaysSupported);
+  });
+});

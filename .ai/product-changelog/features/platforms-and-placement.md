@@ -2,6 +2,16 @@
 
 > Platform adapters, transforms, placementMode, install paths, user-scope roots. Part of [features/](./README.md).
 
+### Cross-platform transform contracts: hooks install everywhere, `universal` content is vendor-neutral — 2026-10-18 (red e2e; implementation pending)
+**What**: Two product expectations recorded ahead of the fix, with red e2e tests pinning them.
+1. **A hook package installs a hook on every platform that supports hooks.** Installing a `nativeFor: claude` package with hooks on `cursor` or `vscode` must leave a hooks file the platform reads (`.cursor/hooks.json` / `.github/hooks/hooks.json`, or `.claude/settings.json` if the platform is verified to load Claude hooks natively). Today the transformer returns `recommendNativePath` and the installer writes nothing.
+2. **A package without `nativeFor` must not carry vendor-specific frontmatter.** `universal` is a placement convention; the only universal content spec is agentskills.io `SKILL.md`. A rule/command/agent with no `nativeFor` whose frontmatter uses vendor keys (`globs`, `alwaysApply`, `applyTo`, `excludeAgent`, `trigger`, `readonly`, `is_background`) is mislabeled: `publish --strict` must block it (and plain `publish` warn), because install copies it byte-for-byte to every platform at `native` confidence.  
+**Why**: Review 2026-10-18 found the "Cursor and Copilot load Claude hooks natively" shortcut skips the write without placing the file at the recommended path either, so the user gets no hook at all; and that `universal` source means "verbatim copy" for categories that have no universal format. Neither is provable from unit tests alone; the e2e suites assert the on-disk and exit-code outcomes.  
+**Impact**: Until implemented, `packages/e2e/src/plugin-install.test.ts` (*claude-native hooks on cursor*) and `packages/e2e/src/cli.test.ts` (*publish --strict blocks vendor frontmatter without nativeFor*) are red. Whether Cursor/Copilot actually read `.claude/settings.json` hooks is a vendor fact for the `lastVerified` spec routine, not for e2e.  
+**Key files**: `packages/e2e/src/plugin-install.test.ts`, `packages/e2e/src/cli.test.ts`, `packages/cli/src/transformers/hook.ts`, `packages/cli/src/commands/publish.ts`, `packages/cli/src/utils/installer.ts`
+
+---
+
 ### File placementMode (strict / verbatim / transform) — 2026-07-17 `31b7508` (redefined `2026-07-21`)
 **What**: Each `files[]` entry may set `placementMode`: `strict` (default when omitted), `verbatim`, or `transform`.
 - **strict** (default): place relative to the platform's install **area** for the file's category + scope — `resolveInstallPath(category, scope)` + path-within-category. Portable across project/user **and** across platforms (routes per category via the adapter, so it works even where category dirs diverge, e.g. VS Code `.github/agents` vs `~/.copilot/prompts`). No content/extension rewriting.

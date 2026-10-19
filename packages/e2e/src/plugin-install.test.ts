@@ -387,3 +387,55 @@ describe('plugin explode install', () => {
     ).toThrow();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Changelog contract (features → platforms-and-placement, 2026-10-18): a hook package installs a
+// hook on every platform that supports hooks. Red until the claude→cursor/vscode hook path writes.
+
+const CLAUDE_HOOK_PLUGIN = 'e2e-claude-hook-plugin';
+const CLAUDE_HOOK_VERSION = '1.0.0';
+
+describe('claude-native hooks on cursor', () => {
+  let tmpDir: string;
+
+  beforeAll(async () => {
+    await publishPlugin(
+      {
+        name: CLAUDE_HOOK_PLUGIN,
+        version: CLAUDE_HOOK_VERSION,
+        description: 'E2E claude-native hook fixture',
+        category: 'plugin',
+        nativeFor: 'claude',
+        author: 'e2e',
+        files: [
+          { src: '.cursor-plugin/plugin.json', dest: '.cursor-plugin/plugin.json' },
+          { src: 'hooks/hooks.json', dest: 'hooks/hooks.json' },
+        ],
+      },
+      {
+        '.cursor-plugin/plugin.json': JSON.stringify({ name: CLAUDE_HOOK_PLUGIN }),
+        'hooks/hooks.json': JSON.stringify({
+          hooks: { PreToolUse: [{ type: 'command', command: 'echo pre' }] },
+        }),
+      },
+    );
+  });
+
+  beforeEach(() => {
+    tmpDir = makeE2eProjectDir('aitools-plugin-e2e-');
+    writeProjectConfig(tmpDir, 'cursor');
+  });
+
+  afterEach(() => {
+    rmTmpDir(tmpDir);
+  });
+
+  it('leaves a hooks file the platform reads after installing a claude-native plugin', () => {
+    run(`install ${CLAUDE_HOOK_PLUGIN}@${CLAUDE_HOOK_VERSION} --scope project`, tmpDir);
+
+    const cursorHooks = path.join(tmpDir, '.cursor', 'hooks.json');
+    const claudeSettings = path.join(tmpDir, '.claude', 'settings.json');
+    const hookInstalled = fs.existsSync(cursorHooks) || fs.existsSync(claudeSettings);
+    expect(hookInstalled).toBe(true);
+  });
+});
